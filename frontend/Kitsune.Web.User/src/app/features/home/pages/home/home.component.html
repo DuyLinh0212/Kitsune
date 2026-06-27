@@ -1,0 +1,378 @@
+<!-- DASHBOARD CONTENT -->
+<div class="content-area">
+  <div class="dashboard-grid">
+
+    <!-- ROW 1 -->
+    <!-- WELCOME BANNER -->
+    <div class="card welcome-banner">
+      <div class="welcome-text">
+        <p>Welcome back,</p>
+        <h2>{{ displayName }}! 👋</h2>
+        <p class="subtitle">Let's continue your<br>Japanese learning journey.</p>
+      </div>
+      <div class="welcome-stats">
+        <div class="welcome-stat">
+          <span class="welcome-stat-icon">🔥</span>
+          <div class="stat-info">
+            <span class="welcome-stat-value">{{ streak() }}</span>
+            <span class="welcome-stat-label">Day streak</span>
+          </div>
+        </div>
+        <div class="welcome-stat">
+          <span class="welcome-stat-icon">⭐</span>
+          <div class="stat-info">
+            <span class="welcome-stat-value">{{ totalXP() }}</span>
+            <span class="welcome-stat-label">Total XP</span>
+          </div>
+        </div>
+      </div>
+      <div class="welcome-graphic"></div>
+    </div>
+
+    <!-- VOCABULARY SEARCH CARD -->
+    <div class="card vocab-card">
+      <div class="card-header">
+        <div class="card-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
+          <h3>Vocabulary Search</h3>
+        </div>
+      </div>
+      <div class="vocab-search-box">
+        <input type="text" placeholder="Search vocabulary..." [(ngModel)]="searchQuery" (keyup.enter)="onSearch()" />
+        <button class="search-btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      </div>
+      @if (searchResults().length > 0) {
+        <div class="vocab-results">
+          @for (item of searchResults(); track trackById(0, item)) {
+            <div class="vocab-result-item" (click)="goToVocab(item)">
+              <span class="result-word">{{ searchTitle(item) }}</span>
+              <span class="result-meaning">{{ searchSubtitle(item) }}</span>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="vocab-display">
+          <div class="vocab-top-row">
+            <div class="vocab-kanji">学生</div>
+            <div class="vocab-top-actions">
+              <button class="action-btn">☆</button>
+              <button class="action-btn">🔊</button>
+            </div>
+          </div>
+          <div class="vocab-reading">がくせい (gakusei)</div>
+          <div class="vocab-badge">Noun</div>
+          <div class="vocab-section-label">Meaning</div>
+          <div class="vocab-meaning">student</div>
+          <div class="vocab-section-label">Example</div>
+          <div class="vocab-example">私は大学の学生です。<br>I am a university student.</div>
+        </div>
+      }
+      <div class="card-footer-center">
+        <button class="card-link" (click)="router.navigate(['/vocabulary'])">View Details →</button>
+      </div>
+    </div>
+
+    <!-- KANJI SEARCH CARD -->
+    <div class="card kanji-card">
+      <div class="card-header">
+        <div class="card-title">
+          <span class="kanji-header-icon">学</span>
+          <h3>Kanji Search</h3>
+        </div>
+      </div>
+      <div class="kanji-search-box">
+        <input type="text" placeholder="Search kanji..." />
+        <button class="search-btn-sm"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></button>
+      </div>
+      <div class="kanji-display-grid">
+        <div class="kanji-big">学</div>
+        <div class="kanji-meta">
+          <span class="kanji-badge-jlpt">JLPT N5</span>
+          <span>Onyomi: ガク</span>
+          <span>Kunyomi: まな.ぶ</span>
+          <span>Meaning: learn, study</span>
+        </div>
+      </div>
+      <div class="kanji-strokes">
+        <span>Strokes: 8</span>
+        <div class="stroke-img-placeholder">
+          <span class="s-red">1 ─</span>
+          <span class="s-blue">2 │</span>
+          <span class="s-red">3 ヽ</span>
+          <span class="s-blue">4 ─</span>
+          <span class="s-red">5 ┐</span>
+          <span class="s-blue">6 ─</span>
+          <span class="s-red">7 亅</span>
+          <span class="s-blue">8 ─</span>
+        </div>
+      </div>
+      <div class="card-footer-center">
+        <button class="card-link" (click)="router.navigate(['/kanji'])">View Details →</button>
+      </div>
+    </div>
+
+    <!-- MY FOLDERS CARD -->
+    <div class="card folders-card">
+      <div class="card-header">
+        <h3>My Folders</h3>
+        <a class="card-header-link" (click)="router.navigate(['/folders'])">View all</a>
+      </div>
+      <div class="folders-grid-2x2">
+        <div class="folder-box folder-blue" (click)="router.navigate(['/folders'])">
+          <span class="folder-icon">📁</span>
+          <span class="folder-name">N5 Vocabulary</span>
+          <span class="folder-count">120 items</span>
+        </div>
+        <div class="folder-box folder-green" (click)="router.navigate(['/folders'])">
+          <span class="folder-icon">📁</span>
+          <span class="folder-name">Kanji to Learn</span>
+          <span class="folder-count">86 items</span>
+        </div>
+        <div class="folder-box folder-yellow" (click)="router.navigate(['/folders'])">
+          <span class="folder-icon">📁</span>
+          <span class="folder-name">Important Words</span>
+          <span class="folder-count">42 items</span>
+        </div>
+        <div class="folder-box folder-purple" (click)="router.navigate(['/folders'])">
+          <span class="folder-icon">📁</span>
+          <span class="folder-name">Study List</span>
+          <span class="folder-count">67 items</span>
+        </div>
+      </div>
+      <div class="folder-actions">
+        <div class="f-action" (click)="router.navigate(['/quizzes/create'])"><div class="f-action-icon">⊕</div><span>Quiz Create</span></div>
+        <div class="f-action" (click)="router.navigate(['/srs'])"><div class="f-action-icon">📅</div><span>SRS Review</span></div>
+        <div class="f-action" (click)="router.navigate(['/posts'])"><div class="f-action-icon">✏️</div><span>Create Post</span></div>
+      </div>
+    </div>
+
+    <!-- ROW 2 -->
+    <!-- CONTINUE LEARNING CARD -->
+    <div class="card continue-learning-card">
+      <h3 class="card-title">Continue Learning</h3>
+      <div class="learning-list">
+        @for (item of continueLearning(); track item.name) {
+          <div class="learning-item">
+            <div class="learning-icon" [class.bg-blue]="item.type === 'vocabulary'" [class.bg-green]="item.type === 'kanji'">{{ item.type === 'vocabulary' ? '📘' : '📗' }}</div>
+            <div class="learning-info">
+              <span class="learning-name">{{ item.name }}</span>
+              <div class="progress-bar-wrapper">
+                <div class="progress-bar"><div class="progress-fill" [style.width.%]="item.progress"></div></div>
+                <span class="progress-text">{{ item.progress }}%</span>
+              </div>
+            </div>
+            <button class="review-btn">Review</button>
+          </div>
+        }
+      </div>
+      <hr class="divider">
+      <div class="daily-quiz-row">
+        <div class="learning-icon">🔥</div>
+        <div class="learning-info">
+          <span class="learning-name">Daily Quiz</span>
+          <span class="streak-small">7 day streak</span>
+        </div>
+        <button class="review-btn btn-outline">Start</button>
+      </div>
+    </div>
+
+    <!-- QUIZ PRACTICE CARD -->
+    <div class="card quiz-practice-card">
+      <h3 class="card-title">Quiz Practice</h3>
+      <div class="quiz-featured">
+        <div class="quiz-featured-icon">📝</div>
+        <div class="quiz-featured-info">
+          <h4>JLPT N5 Vocabulary Quiz</h4>
+          <div class="progress-text-row">
+            <span>Progress</span>
+            <span class="percent">60%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width: 60%;"></div>
+          </div>
+          <div class="quiz-meta">10 questions • 5 min</div>
+        </div>
+      </div>
+      <button class="start-quiz-btn-lg">Start Quiz</button>
+    </div>
+
+    <!-- SRS REVIEW CARD -->
+    <div class="card srs-card">
+      <h3 class="card-title">SRS Review</h3>
+      <div class="srs-tabs">
+        <button class="srs-tab srs-tab--active">Vocabulary (24)</button>
+        <button class="srs-tab">Kanji (18)</button>
+      </div>
+      <div class="srs-flashcard">
+        <div class="flashcard-content">
+          <div class="flashcard-word">明日</div>
+          <div class="flashcard-reading">あした<br><span>tomorrow</span></div>
+        </div>
+        <button class="action-btn top-right">🔊</button>
+      </div>
+      <div class="rating-buttons">
+        <button class="rate-btn rate-btn--again">1<br><small>Again</small></button>
+        <button class="rate-btn rate-btn--hard">2<br><small>Hard</small></button>
+        <button class="rate-btn rate-btn--good">3<br><small>Good</small></button>
+        <button class="rate-btn rate-btn--easy">4<br><small>Easy</small></button>
+      </div>
+    </div>
+
+    <!-- MY QUIZZES CARD -->
+    <div class="card my-quizzes-card">
+      <div class="card-header">
+        <h3>My Quizzes</h3>
+        <a class="card-header-link" (click)="router.navigate(['/quizzes'])">View all</a>
+      </div>
+      <div class="my-quiz-list">
+        @for (item of quizPractice(); track item.name) {
+          <div class="my-quiz-item">
+            <div class="my-quiz-info">
+              <span class="my-quiz-name">{{ item.name }}</span>
+              <span class="my-quiz-meta">{{ item.totalQuestions }} questions • {{ item.timeLeft }}</span>
+            </div>
+            <div class="my-quiz-progress">
+              <span class="mini-progress-text">{{ item.progress }}%</span>
+              <span class="chart-icon">📊</span>
+            </div>
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- ROW 3 -->
+    <!-- POSTS FEED CARD -->
+    <div class="card posts-card">
+      <div class="card-header">
+        <h3>Posts Feed</h3>
+        <a class="card-header-link" (click)="router.navigate(['/posts'])">Create Post</a>
+      </div>
+      <div class="posts-list">
+        @for (post of recentPosts(); track trackById(0, post)) {
+          <div class="post-item">
+            <div class="post-header-row">
+              <div class="post-user">
+                <div class="post-avatar">{{ post.userName.charAt(0) }}</div>
+                <div class="post-user-info">
+                  <span class="post-user-name">{{ post.userName }}</span>
+                  <span class="post-time">2 hours ago</span>
+                </div>
+              </div>
+              <button class="more-options">•••</button>
+            </div>
+            <p class="post-content-text">{{ post.content || 'Just learned 20 new kanji today! 💪 Consistency is the key!' }}</p>
+            <div class="post-actions">
+              <button class="post-action">❤️ 24</button>
+              <button class="post-action">💬 5</button>
+            </div>
+          </div>
+        }
+      </div>
+      <div class="card-footer-center">
+        <button class="card-link" (click)="router.navigate(['/posts'])">View more posts →</button>
+      </div>
+    </div>
+
+    <!-- LEADERBOARD CARD -->
+    <div class="card leaderboard-card">
+      <div class="card-header">
+        <h3>Leaderboard</h3>
+      </div>
+      <div class="leaderboard-tabs">
+        <button class="lb-tab lb-tab--active">This Week</button>
+        <button class="lb-tab">This Month</button>
+        <button class="lb-tab">All Time</button>
+      </div>
+      <div class="leaderboard-list">
+        @for (entry of leaderboard(); track trackById(0, entry); let i = $index) {
+          <div class="lb-row">
+            <span class="lb-rank" [class.lb-rank--top]="i < 3">{{ i + 1 }}</span>
+            <div class="lb-avatar">{{ entry.userName.charAt(0) }}</div>
+            <div class="lb-info">
+              <span class="lb-name">{{ entry.userName }}</span>
+              <span class="lb-sub">Lv. {{ (entry.totalScore / 100 | number:'1.0-0') || 26 }}</span>
+            </div>
+            <span class="lb-score">{{ entry.totalScore.toLocaleString() || '12,450' }} XP</span>
+          </div>
+        }
+      </div>
+      <div class="card-footer-center">
+        <button class="card-link" (click)="router.navigate(['/leaderboard'])">View full leaderboard →</button>
+      </div>
+    </div>
+
+    <!-- MESSAGES CARD -->
+    <div class="card messages-card">
+      <div class="card-header">
+        <h3>Messages</h3>
+        <a class="card-header-link" (click)="router.navigate(['/messages'])">View all</a>
+      </div>
+      <div class="messages-list">
+        @for (conv of conversations(); track trackById(0, conv)) {
+          <div class="msg-item">
+            <div class="msg-avatar">{{ conv.userName.charAt(0) }}</div>
+            <div class="msg-info">
+              <div class="msg-title-row">
+                <span class="msg-name">{{ conv.userName }}</span>
+                <span class="msg-time">2m</span>
+              </div>
+              @if (conv.unreadCount > 0) {
+                <span class="msg-status">Online</span>
+              }
+              <span class="msg-preview">{{ conv.lastMessage || "How's your study going?" }}</span>
+            </div>
+          </div>
+        }
+      </div>
+      <div class="card-footer-center mt-auto">
+        <button class="card-link" (click)="router.navigate(['/messages'])">Go to Messages →</button>
+      </div>
+    </div>
+
+    <!-- PROFILE CARD -->
+    <div class="card profile-card">
+      <div class="card-header">
+        <h3>Profile</h3>
+      </div>
+      <div class="profile-header">
+        <div class="profile-avatar-lg">{{ initials }}</div>
+        <div class="profile-meta">
+          <h3>{{ displayName }}</h3>
+          <span class="profile-level">Lv. {{ level() }}</span>
+          <div class="xp-bar">
+            <div class="xp-bar-fill" [style.width.%]="76"></div>
+          </div>
+          <span class="xp-text">7,650 / 10,000 XP</span>
+        </div>
+      </div>
+      <div class="profile-stats">
+        <div class="profile-stat">
+          <span class="profile-stat-label">Quizzes Taken</span>
+          <span class="profile-stat-value">128</span>
+        </div>
+        <div class="profile-stat">
+          <span class="profile-stat-label">Average Score</span>
+          <span class="profile-stat-value">82%</span>
+        </div>
+        <div class="profile-stat">
+          <span class="profile-stat-label">Study Streak</span>
+          <span class="profile-stat-value">12 days</span>
+        </div>
+      </div>
+      <div class="achievements-section">
+        <h4 class="section-subtitle">Recent Achievements</h4>
+        <div class="achievements">
+          <div class="achievement-circle badge-fire">🔥</div>
+          <div class="achievement-circle badge-purple">⭐</div>
+          <div class="achievement-circle badge-yellow">🏆</div>
+          <div class="achievement-circle badge-blue">🌟</div>
+          <div class="achievement-circle badge-gray">🎯</div>
+        </div>
+      </div>
+      <div class="card-footer-center mt-auto">
+        <button class="card-link" (click)="router.navigate(['/profile'])">View Profile →</button>
+      </div>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,353 @@
+:host {
+  display: block;
+}
+
+/* ===== DETAIL PAGE ===== */
+.vocab-detail-page {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ===== BREADCRUMB ===== */
+.vocab-breadcrumb {
+  font-size: 13px;
+  color: #6b7280;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vocab-breadcrumb a {
+  color: #6366f1;
+  cursor: pointer;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.vocab-breadcrumb a:hover {
+  text-decoration: underline;
+}
+
+.breadcrumb-sep {
+  color: #9ca3af;
+}
+
+/* ===== DETAIL CARD ===== */
+.vocab-detail-card {
+  background: #fff;
+  border: 1px solid #f3f4f6;
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+}
+
+/* ===== WORD HEADER ===== */
+.vocab-word-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 28px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.vocab-word-main {
+  display: flex;
+  flex-direction: column;
+}
+
+.vocab-word {
+  font-size: 42px;
+  font-weight: 800;
+  color: #1f2937;
+  margin-bottom: 6px;
+  line-height: 1.2;
+}
+
+.vocab-reading {
+  font-size: 18px;
+  color: #6366f1;
+  font-weight: 500;
+}
+
+.vocab-folder-badge {
+  display: inline-block;
+  background: #f5f3ff;
+  color: #6366f1;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 20px;
+  flex-shrink: 0;
+}
+
+/* ===== SECTIONS ===== */
+.vocab-section {
+  margin-bottom: 28px;
+}
+
+.vocab-section h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.vocab-meaning-text {
+  font-size: 18px;
+  color: #1f2937;
+  line-height: 1.6;
+}
+
+/* ===== KANJI BREAKDOWN ===== */
+.kanji-breakdown {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.kanji-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: #f5f3ff;
+  border-radius: 12px;
+  padding: 10px 14px;
+  min-width: 70px;
+}
+
+.kanji-char {
+  font-size: 26px;
+  font-weight: 800;
+  color: #7c3aed;
+  line-height: 1;
+}
+
+.kanji-hv {
+  font-size: 12px;
+  color: #6366f1;
+  font-weight: 500;
+  margin-top: 4px;
+}
+
+.kanji-formula {
+  font-size: 14px;
+  color: #6b7280;
+  font-style: italic;
+}
+
+/* ===== ACTION BUTTONS ===== */
+.vocab-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 28px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.btn-action {
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  border: none;
+}
+
+.btn-srs {
+  background: #6366f1;
+  color: #fff;
+}
+
+.btn-srs:hover {
+  background: #4f46e5;
+}
+
+.btn-fav {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  color: #4b5563;
+}
+
+.btn-fav:hover {
+  background: #fef9c3;
+  border-color: #facc15;
+  color: #ca8a04;
+}
+
+.btn-folder {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  color: #4b5563;
+}
+
+.btn-folder:hover {
+  background: #f5f3ff;
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+/* ===== FOLDER CHIPS ===== */
+.folder-chips {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.folder-chip {
+  padding: 8px 16px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.folder-chip:hover {
+  background: #f5f3ff;
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+.folder-chip--new {
+  border-style: dashed;
+  color: #6366f1;
+  background: #fafaff;
+}
+
+/* ===== LOADING ===== */
+.vocab-loading {
+  text-align: center;
+  padding: 80px 20px;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #6366f1;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* ===== MODAL ===== */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+.modal-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 28px;
+  width: 360px;
+  max-width: 90vw;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+}
+
+.modal-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 16px;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #1f2937;
+  outline: none;
+  margin-bottom: 16px;
+  box-sizing: border-box;
+}
+
+.modal-input:focus {
+  border-color: #6366f1;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btn-cancel {
+  padding: 8px 16px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.btn-confirm {
+  padding: 8px 16px;
+  background: #6366f1;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+}
+
+.btn-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+  .vocab-detail-card {
+    padding: 20px;
+  }
+
+  .vocab-word {
+    font-size: 32px;
+  }
+
+  .vocab-word-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .vocab-actions {
+    flex-direction: column;
+  }
+
+  .btn-action {
+    width: 100%;
+    text-align: center;
+  }
+}

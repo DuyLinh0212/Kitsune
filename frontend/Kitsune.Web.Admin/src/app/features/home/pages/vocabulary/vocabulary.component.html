@@ -1,0 +1,611 @@
+<div class="vocab-shell">
+
+  <!-- ══ TOPBAR ══════════════════════════════════════════════════════════ -->
+  <header class="topbar">
+    <div class="topbar__heading">
+      <a routerLink="/home" class="back-link">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+      <div>
+        <h1>Quản lý Từ vựng</h1>
+        <p>Import, duyệt và quản lý kho từ vựng</p>
+      </div>
+    </div>
+    <div class="topbar__actions">
+      <button class="profile-chip">
+        <img [src]="'/favicon.ico'" alt="avatar" />
+        <span class="profile-chip__info">
+          <strong>{{ displayName() }}</strong>
+          <span>{{ roleLabel() }}</span>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ══ TABS ════════════════════════════════════════════════════════════ -->
+  <div class="tab-bar">
+    <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'import'" (click)="switchTab('import')">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Import
+    </button>
+    <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'folders'" (click)="switchTab('folders')">
+      <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      Thư mục
+    </button>
+    <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'vocabulary'" (click)="switchTab('vocabulary')">
+      <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+      Từ vựng
+    </button>
+  </div>
+
+  <!-- ══ PANEL AREA ══════════════════════════════════════════════════════ -->
+  <div class="panel-area">
+
+    <!-- ── TAB: IMPORT ─────────────────────────────────────────────── -->
+    @if (activeTab() === 'import') {
+      <div class="import-layout">
+
+        <!-- Config panel -->
+        <section class="panel">
+          <div class="panel__header">
+            <h2>Cấu hình import</h2>
+          </div>
+
+          <form [formGroup]="importForm" (ngSubmit)="startImport()" class="import-form">
+            <label class="field">
+              <span class="field__label">Thư mục nguồn</span>
+              <textarea
+                formControlName="sourceDir"
+                rows="3"
+                placeholder="Ví dụ: C:\crawl-output\vocabularies"
+                class="field__input field__textarea"
+              ></textarea>
+            </label>
+
+            <label class="field">
+              <span class="field__label">Tên thư mục đích</span>
+              <input
+                formControlName="folderName"
+                type="text"
+                placeholder="Ví dụ: JP Vocabulary 2025"
+                class="field__input"
+              />
+            </label>
+
+            <div class="import-form__actions">
+              @if (!importing()) {
+                <button type="submit" class="btn btn--primary" [disabled]="importForm.invalid">
+                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Bắt đầu Import
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger" (click)="cancelImport()">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                  Dừng lại
+                </button>
+              }
+            </div>
+          </form>
+        </section>
+
+        <!-- Progress panel -->
+        <section class="panel">
+          <div class="panel__header">
+            <h2>Tiến trình</h2>
+            @if (importing()) {
+              <span class="status-pill status-pill--running">Đang chạy...</span>
+            }
+          </div>
+
+          @if (importProgress(); as p) {
+            <div class="progress-stats">
+              <div class="progress-stat">
+                <span class="progress-stat__label">File</span>
+                <span class="progress-stat__value">{{ p.currentFileIndex }} / {{ p.totalFiles }}</span>
+              </div>
+              <div class="progress-stat">
+                <span class="progress-stat__label">Từ vựng</span>
+                <span class="progress-stat__value">{{ p.processedRecords }} / {{ p.totalRecords }}</span>
+              </div>
+              <div class="progress-stat">
+                <span class="progress-stat__label">Mới</span>
+                <span class="progress-stat__value stat--green">{{ p.createdCount }}</span>
+              </div>
+              <div class="progress-stat">
+                <span class="progress-stat__label">Cập nhật</span>
+                <span class="progress-stat__value stat--blue">{{ p.updatedCount }}</span>
+              </div>
+              <div class="progress-stat">
+                <span class="progress-stat__label">Bỏ qua</span>
+                <span class="progress-stat__value stat--muted">{{ p.skippedCount }}</span>
+              </div>
+              <div class="progress-stat">
+                <span class="progress-stat__label">Kanji links</span>
+                <span class="progress-stat__value stat--violet">{{ p.kanjiComponentCount }}</span>
+              </div>
+            </div>
+
+            <div class="progress-bar-group">
+              <div class="progress-bar-label">
+                <span>Tiến độ từ vựng</span>
+                <span>{{ importProgressPercent }}%</span>
+              </div>
+              <div class="progress-bar">
+                <div class="progress-bar__fill" [style.width.%]="importProgressPercent"></div>
+              </div>
+            </div>
+
+            <div class="progress-bar-group">
+              <div class="progress-bar-label">
+                <span>File {{ p.currentFileName || '—' }}</span>
+                <span>{{ importFilePercent }}%</span>
+              </div>
+              <div class="progress-bar progress-bar--slim">
+                <div class="progress-bar__fill progress-bar__fill--green" [style.width.%]="importFilePercent"></div>
+              </div>
+            </div>
+          } @else if (!importing()) {
+            <div class="empty-hint">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Điền cấu hình và nhấn "Bắt đầu Import"
+            </div>
+          }
+
+          @if (importError()) {
+            <div class="alert alert--error">{{ importError() }}</div>
+          }
+        </section>
+
+        <!-- Summary panel -->
+        @if (importSummary(); as s) {
+          <section class="panel summary-panel">
+            <div class="panel__header">
+              <h2>Kết quả</h2>
+              <span class="status-pill status-pill--success">Hoàn tất</span>
+            </div>
+            <div class="summary-grid">
+              <div class="summary-stat">
+                <strong>{{ s.vocabularyCount }}</strong>
+                <span>Từ vựng</span>
+              </div>
+              <div class="summary-stat">
+                <strong>{{ s.createdCount }}</strong>
+                <span>Tạo mới</span>
+              </div>
+              <div class="summary-stat">
+                <strong>{{ s.updatedCount }}</strong>
+                <span>Cập nhật</span>
+              </div>
+              <div class="summary-stat">
+                <strong>{{ s.skippedCount }}</strong>
+                <span>Bỏ qua</span>
+              </div>
+              <div class="summary-stat">
+                <strong>{{ s.kanjiComponentCount }}</strong>
+                <span>Kanji links</span>
+              </div>
+            </div>
+            <div class="summary-meta">
+              <span><strong>Thư mục:</strong> {{ s.folderName }} (ID: {{ s.folderId }})</span>
+              <span><strong>Nguồn:</strong> {{ s.sourceDirectory }}</span>
+            </div>
+          </section>
+        }
+
+        <!-- Log panel -->
+        @if (importLogs().length > 0) {
+          <section class="panel log-panel">
+            <div class="panel__header">
+              <h2>Nhật ký</h2>
+              <span class="log-count">{{ importLogs().length }} dòng</span>
+            </div>
+            <div class="log-list">
+              @for (entry of importLogs(); track entry.id) {
+                <div class="log-entry log-entry--{{ entry.tone }}">
+                  <span class="log-entry__time">{{ entry.timestamp }}</span>
+                  <span class="log-entry__stage">{{ entry.stage }}</span>
+                  <span class="log-entry__msg">{{ entry.message }}</span>
+                  @if (entry.currentWord) {
+                    <span class="log-entry__word">「{{ entry.currentWord }}」</span>
+                  }
+                </div>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    }
+
+    <!-- ── TAB: FOLDERS ────────────────────────────────────────────── -->
+    @if (activeTab() === 'folders') {
+      <div class="folders-layout">
+
+        <div class="folders-header">
+          <h2>Thư mục từ vựng <span class="badge">{{ folders().length }}</span></h2>
+          <button class="btn btn--primary" (click)="toggleCreateFolderForm()">
+            @if (!showCreateFolderForm()) {
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Tạo thư mục
+            } @else {
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Hủy
+            }
+          </button>
+        </div>
+
+        @if (showCreateFolderForm()) {
+          <div class="panel create-folder-panel">
+            <form [formGroup]="folderForm" (ngSubmit)="submitCreateFolder()" class="create-folder-form">
+              <label class="field">
+                <span class="field__label">Tên thư mục <span class="required">*</span></span>
+                <input formControlName="folderName" type="text" placeholder="Ví dụ: JP N3 Vocabulary" class="field__input" />
+              </label>
+              <label class="field">
+                <span class="field__label">Mô tả</span>
+                <input formControlName="description" type="text" placeholder="Mô tả ngắn (không bắt buộc)" class="field__input" />
+              </label>
+              <label class="field field--inline">
+                <input formControlName="isPublic" type="checkbox" class="field__checkbox" />
+                <span>Công khai (người dùng có thể thấy)</span>
+              </label>
+              <div class="create-folder-form__actions">
+                <button type="submit" class="btn btn--primary btn--sm" [disabled]="folderForm.invalid || folderSaving()">
+                  {{ folderSaving() ? 'Đang tạo...' : 'Tạo thư mục' }}
+                </button>
+              </div>
+            </form>
+          </div>
+        }
+
+        @if (foldersError()) {
+          <div class="alert alert--error">{{ foldersError() }}</div>
+        }
+
+        @if (foldersLoading()) {
+          <div class="loading-hint">Đang tải...</div>
+        } @else {
+          <div class="folder-grid">
+            @for (folder of folders(); track folder.id) {
+              <div class="folder-card">
+                <div class="folder-card__icon">
+                  <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div class="folder-card__body">
+                  <strong class="folder-card__name">{{ folder.folderName }}</strong>
+                  @if (folder.description) {
+                    <p class="folder-card__desc">{{ folder.description }}</p>
+                  }
+                  <div class="folder-card__meta">
+                    <span class="folder-card__count">{{ folder.vocabularyCount | number }} từ</span>
+                    <span class="folder-card__dot">·</span>
+                    <span [class]="folder.isPublic ? 'folder-badge folder-badge--public' : 'folder-badge folder-badge--private'">
+                      {{ folder.isPublic ? 'Công khai' : 'Riêng tư' }}
+                    </span>
+                  </div>
+                  <div class="folder-card__date">{{ folder.createdAt | date:'dd/MM/yyyy' }}</div>
+                </div>
+                <button class="folder-card__delete icon-btn icon-btn--danger" title="Xóa thư mục" (click)="deleteFolder(folder.id)">
+                  <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                </button>
+              </div>
+            } @empty {
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                <p>Chưa có thư mục nào. Hãy tạo thư mục đầu tiên!</p>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ── TAB: VOCABULARY ─────────────────────────────────────────── -->
+    @if (activeTab() === 'vocabulary') {
+      <div class="vocab-list-layout">
+
+        <!-- Toolbar -->
+        <div class="vocab-toolbar">
+          <div class="vocab-toolbar__search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              type="text"
+              placeholder="Tìm từ vựng, nghĩa..."
+              class="vocab-search-input"
+              [value]="vocabSearch()"
+              (input)="onSearchChange($any($event.target).value)"
+            />
+          </div>
+
+          <select class="filter-select" (change)="onFolderFilterChange($any($event.target).value)">
+            <option value="">Tất cả thư mục</option>
+            @for (folder of folders(); track folder.id) {
+              <option [value]="folder.id">{{ folder.folderName }}</option>
+            }
+          </select>
+
+          <select class="filter-select" (change)="onLangFilterChange($any($event.target).value)">
+            <option value="">Tất cả ngôn ngữ</option>
+            @for (lang of languages(); track lang.id) {
+              <option [value]="lang.id">{{ lang.languageName }}</option>
+            }
+          </select>
+
+          <button class="btn btn--primary btn--sm" (click)="openCreateModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm từ
+          </button>
+        </div>
+
+        @if (vocabError()) {
+          <div class="alert alert--error">{{ vocabError() }}</div>
+        }
+
+        <!-- Table -->
+        <div class="vocab-table-wrap">
+          <table class="vocab-table">
+            <thead>
+              <tr>
+                <th>Từ</th>
+                <th>Phát âm</th>
+                <th>Nghĩa</th>
+                <th>Thư mục</th>
+                <th>Ngôn ngữ</th>
+                <th>Kanji</th>
+                <th>Ngày tạo</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (vocabLoading()) {
+                @for (i of [1,2,3,4,5]; track i) {
+                  <tr class="skeleton-row">
+                    <td colspan="8"><div class="skeleton"></div></td>
+                  </tr>
+                }
+              } @else {
+                @for (vocab of vocabResult()?.items ?? []; track vocab.id) {
+                  <tr class="vocab-row" (click)="openDetail(vocab)">
+                    <td><strong class="vocab-word">{{ vocab.word }}</strong></td>
+                    <td><span class="vocab-pronunciation">{{ vocab.pronunciation || '—' }}</span></td>
+                    <td><span class="vocab-meaning">{{ vocab.meaning }}</span></td>
+                    <td><span class="folder-chip">{{ vocab.folderName }}</span></td>
+                    <td><span class="lang-chip lang-chip--{{ vocab.languageCode | lowercase }}">{{ vocab.languageCode }}</span></td>
+                    <td>
+                      @if (vocab.kanjiComponents.length > 0) {
+                        <div class="kanji-chips">
+                          @for (kc of vocab.kanjiComponents; track kc.kanjiId) {
+                            <span class="kanji-chip" [title]="kc.amHanViet">{{ kc.character }}</span>
+                          }
+                        </div>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td class="muted">{{ vocab.createdAt | date:'dd/MM/yy' }}</td>
+                    <td>
+                      <div class="row-actions" (click)="$event.stopPropagation()">
+                        <button class="icon-btn" title="Xem chi tiết" (click)="openDetail(vocab)">
+                          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                        <button class="icon-btn" title="Sửa" (click)="openEditModal(vocab)">
+                          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        @if (deleteConfirmId() === vocab.id) {
+                          <button class="icon-btn icon-btn--danger" title="Xác nhận xóa" (click)="executeDelete(vocab.id)">
+                            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                          </button>
+                          <button class="icon-btn" title="Hủy" (click)="cancelDelete()">
+                            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        } @else {
+                          <button class="icon-btn icon-btn--danger" title="Xóa" (click)="confirmDelete(vocab.id)">
+                            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="8">
+                      <div class="empty-state">
+                        <svg viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                        <p>Không tìm thấy từ vựng nào.</p>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <button class="page-btn" [disabled]="vocabPage() === 1" (click)="goToPage(vocabPage() - 1)">
+              <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            @for (page of pageNumbers; track page) {
+              <button class="page-btn" [class.page-btn--active]="page === vocabPage()" (click)="goToPage(page)">
+                {{ page }}
+              </button>
+            }
+            <button class="page-btn" [disabled]="vocabPage() === totalPages()" (click)="goToPage(vocabPage() + 1)">
+              <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <span class="pagination__info">
+              Trang {{ vocabPage() }} / {{ totalPages() }} · {{ vocabResult()?.totalCount | number }} từ
+            </span>
+          </div>
+        }
+      </div>
+    }
+
+  </div>
+</div>
+
+<!-- ══ VOCABULARY MODAL ═════════════════════════════════════════════════ -->
+@if (modalVisible()) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <h3>{{ modalMode() === 'create' ? 'Thêm từ vựng mới' : 'Sửa từ vựng' }}</h3>
+        <button class="modal__close" (click)="closeModal()">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form [formGroup]="vocabForm" (ngSubmit)="submitVocabForm()" class="modal__body">
+        @if (modalMode() === 'create') {
+          <label class="field">
+            <span class="field__label">Thư mục <span class="required">*</span></span>
+            <select formControlName="folderId" class="field__input">
+              <option [ngValue]="null" disabled>-- Chọn thư mục --</option>
+              @for (folder of folders(); track folder.id) {
+                <option [ngValue]="folder.id">{{ folder.folderName }}</option>
+              }
+            </select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Ngôn ngữ <span class="required">*</span></span>
+            <select formControlName="languageId" class="field__input">
+              <option [ngValue]="null" disabled>-- Chọn ngôn ngữ --</option>
+              @for (lang of languages(); track lang.id) {
+                <option [ngValue]="lang.id">{{ lang.languageName }} ({{ lang.languageCode }})</option>
+              }
+            </select>
+          </label>
+        }
+
+        <label class="field">
+          <span class="field__label">Từ vựng <span class="required">*</span></span>
+          <input formControlName="word" type="text" placeholder="Ví dụ: 食べる" class="field__input" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Phát âm</span>
+          <input formControlName="pronunciation" type="text" placeholder="Ví dụ: たべる" class="field__input" />
+        </label>
+
+        <label class="field">
+          <span class="field__label">Nghĩa <span class="required">*</span></span>
+          <input formControlName="meaning" type="text" placeholder="Ví dụ: ăn" class="field__input" />
+        </label>
+
+        @if (modalError()) {
+          <div class="alert alert--error">{{ modalError() }}</div>
+        }
+
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" (click)="closeModal()">Hủy</button>
+          <button type="submit" class="btn btn--primary" [disabled]="vocabForm.invalid || modalSaving()">
+            {{ modalSaving() ? 'Đang lưu...' : (modalMode() === 'create' ? 'Thêm từ vựng' : 'Lưu thay đổi') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ══ DETAIL DRAWER ════════════════════════════════════════════════════ -->
+@if (detailVisible()) {
+  <div class="drawer-overlay" (click)="closeDetail()">
+    <aside class="drawer" (click)="$event.stopPropagation()">
+      @if (detailVocab(); as v) {
+
+        <!-- Close -->
+        <button class="drawer__close" title="Đóng" (click)="closeDetail()">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+
+        <!-- ── Hero: the word as a dictionary entry ──────────────────── -->
+        <div class="vd-hero">
+          <div class="vd-hero__chips">
+            <span class="lang-chip lang-chip--{{ v.languageCode | lowercase }}">{{ v.languageCode }}</span>
+            <span class="folder-chip">{{ v.folderName }}</span>
+          </div>
+          @if (v.pronunciation) {
+            <p class="vd-reading">{{ v.pronunciation }}</p>
+          }
+          <h2 class="vd-word">{{ v.word }}</h2>
+          <p class="vd-meaning">{{ v.meaning }}</p>
+        </div>
+
+        <!-- ── Kanji breakdown (signature element) ───────────────────── -->
+        @if (v.kanjiComponents.length > 0) {
+          <section class="vd-section">
+            <h3 class="vd-section__title">
+              <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/></svg>
+              Phân rã Kanji
+              <span class="vd-section__count">{{ v.kanjiComponents.length }}</span>
+            </h3>
+            <div class="kanji-breakdown">
+              @for (kc of v.kanjiComponents; track kc.kanjiId) {
+                <div class="kanji-card">
+                  <span class="kanji-card__order">{{ kc.order }}</span>
+                  <span class="kanji-card__char">{{ kc.character }}</span>
+                  <span class="kanji-card__reading">{{ kc.amHanViet }}</span>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        <!-- ── Example sentence ──────────────────────────────────────── -->
+        @if (detailHasExample()) {
+          <section class="vd-section">
+            <h3 class="vd-section__title">
+              <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              Câu ví dụ
+            </h3>
+            <blockquote class="vd-example">
+              @if (detailSpecific()?.exampleSentence) {
+                <p class="vd-example__jp">{{ detailSpecific()?.exampleSentence }}</p>
+              }
+              @if (detailSpecific()?.exampleMeaning) {
+                <p class="vd-example__vi">{{ detailSpecific()?.exampleMeaning }}</p>
+              }
+            </blockquote>
+          </section>
+        }
+
+        <!-- ── Metadata ──────────────────────────────────────────────── -->
+        <section class="vd-section">
+          <h3 class="vd-section__title">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Thông tin
+          </h3>
+          <dl class="vd-meta">
+            <div class="vd-meta__row">
+              <dt>Thư mục</dt>
+              <dd>{{ v.folderName }}</dd>
+            </div>
+            <div class="vd-meta__row">
+              <dt>Ngôn ngữ</dt>
+              <dd>{{ v.languageCode }}</dd>
+            </div>
+            <div class="vd-meta__row">
+              <dt>Ngày tạo</dt>
+              <dd>{{ v.createdAt | date:'dd/MM/yyyy · HH:mm' }}</dd>
+            </div>
+            <div class="vd-meta__row">
+              <dt>Mã từ</dt>
+              <dd>#{{ v.id }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <!-- ── Actions ───────────────────────────────────────────────── -->
+        <div class="drawer__actions">
+          <button class="btn btn--ghost" (click)="closeDetail()">Đóng</button>
+          <button class="btn btn--primary" (click)="editFromDetail()">
+            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Chỉnh sửa
+          </button>
+        </div>
+      }
+    </aside>
+  </div>
+}

@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap');
+
+html,
+body {
+  min-height: 100%;
+  margin: 0;
+  background: #f5f8fd;
+}
+
+body {
+  color: #1d2a57;
+  font-family: 'Be Vietnam Pro', 'Segoe UI', sans-serif;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}

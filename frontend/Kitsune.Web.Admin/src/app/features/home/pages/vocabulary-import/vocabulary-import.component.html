@@ -1,0 +1,184 @@
+<div class="admin-shell">
+  <header class="admin-topbar">
+    <div>
+      <p class="eyebrow">Admin control</p>
+      <h1>Vocabulary Import Console</h1>
+    </div>
+    <div class="admin-meta">
+      <a class="ghost-link" routerLink="/home">Ve trang dieu huong</a>
+      <span>{{ user()?.fullName || user()?.username || 'Admin' }}</span>
+      <span class="pill">ADMIN</span>
+    </div>
+  </header>
+
+  <section class="admin-hero">
+    <div class="hero-copy">
+      <p class="eyebrow">VNJPDict pipeline</p>
+      <h2>Import `vnjpdict_vocabulary_db_batch_*.json` vao `Vocabularies` va tu dong tao `KanjiComponent` tu `Word`.</h2>
+      <p>
+        He thong doc cac file JSON map-ready tu `vnjpdict-vocabulary-crawler/output/vocabularies`, giu nguyen
+        `SpecificData` da duoc crawl, sau do tach tung chu Han trong `Word`, doi chieu voi CSDL `Kanji`
+        de tao lien ket `KanjiComponent`.
+      </p>
+    </div>
+
+    <form class="import-console" [formGroup]="importForm" (ngSubmit)="importVocabulary()">
+      <label for="sourceDir">Nguon vocabulary</label>
+      <textarea
+        id="sourceDir"
+        formControlName="sourceDir"
+        rows="3"
+        placeholder="F:\NgDuyLinh\Personal_Project\Kitsune_Total\vnjpdict-vocabulary-crawler\output\vocabularies"
+      ></textarea>
+
+      <label for="folderName">Folder dich</label>
+      <input
+        id="folderName"
+        formControlName="folderName"
+        type="text"
+        placeholder="Nhap folder cua nguoi dung"
+      />
+
+      <div class="hero-actions">
+        <button type="submit" [disabled]="importing()">
+          {{ importing() ? 'Dang import...' : 'Bat dau import vocabulary' }}
+        </button>
+      </div>
+    </form>
+  </section>
+
+  @if (message()) {
+    <p class="message">{{ message() }}</p>
+  }
+
+  @if (warning()) {
+    <p class="warning">{{ warning() }}</p>
+  }
+
+  <section class="admin-grid">
+    <div class="panel progress-panel">
+      <div class="progress-head">
+        <div>
+          <h3>Progress snapshot</h3>
+          <p>{{ importProgress()?.message || 'Chua co tien trinh import nao.' }}</p>
+        </div>
+        @if (importProgress(); as progress) {
+          <div
+            class="progress-state"
+            [class.progress-state--error]="progress.isError"
+            [class.progress-state--warning]="progress.isWarning"
+            [class.progress-state--done]="progress.isCompleted"
+          >
+            {{ progress.stage }}
+          </div>
+        }
+      </div>
+
+      @if (importProgress(); as progress) {
+        <div class="progress-metrics">
+          <article>
+            <span>File</span>
+            <strong>{{ progress.currentFileIndex }}/{{ progress.totalFiles }}</strong>
+          </article>
+          <article>
+            <span>Vocabulary</span>
+            <strong>{{ progress.processedRecords }}/{{ progress.totalRecords }}</strong>
+          </article>
+          <article>
+            <span>Tao moi</span>
+            <strong>{{ progress.createdCount }}</strong>
+          </article>
+          <article>
+            <span>Cap nhat</span>
+            <strong>{{ progress.updatedCount }}</strong>
+          </article>
+        </div>
+
+        <div class="progress-bar">
+          <div
+            class="progress-bar__fill"
+            [style.width.%]="progress.totalRecords ? (progress.processedRecords / progress.totalRecords) * 100 : 0"
+          ></div>
+        </div>
+
+        <div class="progress-inline">
+          <span>File hien tai: {{ progress.currentFileName || 'dang doi...' }}</span>
+          <span>Tu hien tai: {{ progress.currentWord || 'dang quet du lieu...' }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="panel">
+      <div class="panel-heading">
+        <h3>Ket qua gan nhat</h3>
+        <span>{{ latestSummary() ? 'folder #' + latestSummary()!.folderId : '' }}</span>
+      </div>
+
+      @if (latestSummary(); as summary) {
+        <div class="summary-grid">
+          <article>
+            <span>Folder</span>
+            <strong>{{ summary.folderName }}</strong>
+          </article>
+          <article>
+            <span>Language</span>
+            <strong>{{ summary.languageId }}</strong>
+          </article>
+          <article>
+            <span>Vocabulary</span>
+            <strong>{{ summary.vocabularyCount }}</strong>
+          </article>
+          <article>
+            <span>Kanji link</span>
+            <strong>{{ summary.kanjiComponentCount }}</strong>
+          </article>
+          <article>
+            <span>Tao moi</span>
+            <strong>{{ summary.createdCount }}</strong>
+          </article>
+          <article>
+            <span>Bo qua</span>
+            <strong>{{ summary.skippedCount }}</strong>
+          </article>
+        </div>
+        <p class="summary-note">Nguon: {{ summary.sourceDirectory }}</p>
+      } @else {
+        <div class="log-empty">Lan import gan nhat se hien thi o day de ban doi chieu nhanh folder, so ban ghi va so lien ket kanji da tao.</div>
+      }
+    </div>
+  </section>
+
+  <section class="panel log-panel panel--full">
+    <div class="panel-heading">
+      <h3>Realtime log</h3>
+      <span>{{ importLogs().length }} dong</span>
+    </div>
+
+    <div class="log-list">
+      @for (log of importLogs(); track log.id) {
+        <article
+          class="log-entry"
+          [class.log-entry--warning]="log.tone === 'warning'"
+          [class.log-entry--error]="log.tone === 'error'"
+          [class.log-entry--success]="log.tone === 'success'"
+        >
+          <div class="log-meta">
+            <span>{{ log.timestamp }}</span>
+            <span>{{ log.stage }}</span>
+          </div>
+          <strong>{{ log.message }}</strong>
+          @if (log.currentFileName || log.currentWord) {
+            <p>
+              {{ log.currentFileName || 'file ?' }}
+              @if (log.currentWord) {
+                <span> - {{ log.currentWord }}</span>
+              }
+            </p>
+          }
+        </article>
+      } @empty {
+        <div class="log-empty">Chua co log. Bam import de theo doi tien trinh doc file JSON, tao vocabulary va lien ket kanji.</div>
+      }
+    </div>
+  </section>
+</div>

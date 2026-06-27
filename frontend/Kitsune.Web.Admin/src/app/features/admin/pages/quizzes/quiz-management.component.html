@@ -1,0 +1,60 @@
+<div class="page">
+  <h2>Quản lý Quiz</h2>
+  @if (isLoading()) { <p>Đang tải...</p> }
+  @else if (errorMessage()) { <p class="error">{{ errorMessage() }}</p> }
+  @else {
+    <table class="table">
+      <thead>
+        <tr>
+          <th>ID</th><th>Tiêu đề</th><th>Người tạo</th><th>Mode</th><th>Công khai</th><th>Câu hỏi</th><th>Lượt làm</th><th>Ngày tạo</th><th>Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (q of quizzes(); track q.id) {
+          <tr>
+            <td>{{ q.id }}</td>
+            <td>{{ q.title }}</td>
+            <td>{{ q.creatorName }}</td>
+            <td>{{ q.modeName }}</td>
+            <td>{{ q.isPublic ? 'Có' : 'Không' }}</td>
+            <td>{{ q.questionCount }}</td>
+            <td>{{ q.attemptCount }}</td>
+            <td>{{ q.createdAt | date:'dd/MM/yyyy' }}</td>
+            <td class="actions">
+              <button (click)="viewQuestions(q.id)">Xem câu hỏi</button>
+              <button class="secondary" (click)="togglePublic(q)">{{ q.isPublic ? 'Ẩn' : 'Công khai' }}</button>
+              <button class="danger" (click)="deleteQuiz(q.id)">Xóa</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  @if (selectedQuizId()) {
+    <div class="modal" (click)="closeQuestions()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h3>Chi tiết Quiz #{{ selectedQuizId() }}</h3>
+        @if (questionsLoading()) { <p>Đang tải...</p> }
+        @else {
+          <table class="table">
+            <thead>
+              <tr><th>#</th><th>Câu hỏi</th><th>Đáp án đúng</th><th>Thứ tự</th></tr>
+            </thead>
+            <tbody>
+              @for (q of questions(); track q.id) {
+                <tr>
+                  <td>{{ q.id }}</td>
+                  <td>{{ q.questionText }}</td>
+                  <td>{{ q.correctAnswer }}</td>
+                  <td>{{ q.orderIndex }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+        <button class="close" (click)="closeQuestions()">Đóng</button>
+      </div>
+    </div>
+  }
+</div>
