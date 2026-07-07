@@ -1,0 +1,110 @@
+<!-- frontend/Kitsune.Web.User/src/app/features/quizzes/pages/quiz-list/quiz-list.component.html -->
+<!-- Toast notification -->
+@if (toast()) {
+  <div class="toast" [class.toast-success]="toast()!.type === 'success'" [class.toast-error]="toast()!.type === 'error'">
+    <span class="toast-icon">{{ toast()!.type === 'success' ? '✓' : '✕' }}</span>
+    {{ toast()!.text }}
+  </div>
+}
+
+<div class="page-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Khám Phá Quiz</h1>
+      <p class="page-subtitle">Luyện tập tiếng Nhật với các bài kiểm tra công khai</p>
+    </div>
+  </div>
+
+  <!-- Search bar -->
+  <div class="search-bar-wrapper">
+    <span class="search-icon">🔍</span>
+    <input
+      class="search-input"
+      type="text"
+      placeholder="Tìm kiếm quiz theo tên, mô tả, người tạo..."
+      [ngModel]="searchQuery()"
+      (ngModelChange)="searchQuery.set($event)"
+    />
+    @if (searchQuery()) {
+      <button class="search-clear" (click)="searchQuery.set('')">✕</button>
+    }
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p class="loading-text">Đang tải quiz...</p>
+    </div>
+  }
+
+  <!-- Results count -->
+  @if (!isLoading() && quizzes().length > 0) {
+    <p class="results-count">
+      Hiển thị <strong>{{ filteredQuizzes().length }}</strong> / {{ quizzes().length }} quiz
+    </p>
+  }
+
+  <!-- Empty: no data at all -->
+  @if (!isLoading() && quizzes().length === 0) {
+    <div class="empty-state">
+      <div class="empty-illustration">📋</div>
+      <h2 class="empty-title">Chưa có quiz nào</h2>
+      <p class="empty-desc">Hiện tại chưa có quiz công khai nào. Hãy quay lại sau nhé!</p>
+    </div>
+  }
+
+  <!-- Empty: search no results -->
+  @if (!isLoading() && quizzes().length > 0 && filteredQuizzes().length === 0) {
+    <div class="empty-state">
+      <div class="empty-illustration">🔎</div>
+      <h2 class="empty-title">Không tìm thấy quiz</h2>
+      <p class="empty-desc">Không có quiz nào khớp với "<strong>{{ searchQuery() }}</strong>".</p>
+      <button class="btn-outline" (click)="searchQuery.set('')">Xóa tìm kiếm</button>
+    </div>
+  }
+
+  <!-- Quiz grid -->
+  @if (!isLoading() && filteredQuizzes().length > 0) {
+    <div class="quiz-grid">
+      @for (quiz of filteredQuizzes(); track quiz.id) {
+        <div class="quiz-card">
+          <div class="card-header">
+            <span class="mode-badge" [class]="getModeClass(quiz.modeName)">
+              {{ quiz.modeName }}
+            </span>
+            <span class="time-badge">
+              <span class="time-icon">⏱</span>
+              {{ formatTimeLimit(quiz.timeLimitInSeconds) }}
+            </span>
+          </div>
+
+          <div class="card-body">
+            <h3 class="quiz-title">{{ quiz.title }}</h3>
+            @if (quiz.description) {
+              <p class="quiz-desc">{{ quiz.description }}</p>
+            } @else {
+              <p class="quiz-desc quiz-desc-empty">Không có mô tả</p>
+            }
+          </div>
+
+          <div class="card-footer">
+            <div class="footer-meta">
+              @if (quiz.creatorName) {
+                <span class="quiz-creator">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  {{ quiz.creatorName }}
+                </span>
+              }
+              <span class="quiz-date">{{ quiz.createdAt | date: 'dd/MM/yyyy' }}</span>
+            </div>
+            <a [routerLink]="['/quizzes', quiz.id]" class="btn-start">
+              Làm bài →
+            </a>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>

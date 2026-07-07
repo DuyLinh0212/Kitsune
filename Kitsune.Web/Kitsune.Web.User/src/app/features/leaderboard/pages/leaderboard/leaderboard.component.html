@@ -1,0 +1,129 @@
+<!-- frontend/Kitsune.Web.User/src/app/features/leaderboard/pages/leaderboard/leaderboard.component.html -->
+<div class="leaderboard-page">
+
+  <!-- TOAST -->
+  @if (toast()) {
+    <div class="toast" [class.toast-success]="toast()!.type === 'success'" [class.toast-error]="toast()!.type === 'error'">
+      {{ toast()!.message }}
+    </div>
+  }
+
+  <!-- HEADER -->
+  <div class="page-header">
+    <div>
+      <h1>Bảng Xếp Hạng</h1>
+      <p class="subtitle">Top người học xuất sắc nhất trên KitsunePlatform</p>
+    </div>
+  </div>
+
+  <!-- LOADING -->
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p>Đang tải bảng xếp hạng...</p>
+    </div>
+  }
+
+  @if (!isLoading()) {
+    @if (entries().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">🏆</div>
+        <h3>Chưa có dữ liệu</h3>
+        <p>Hãy hoàn thành quiz đầu tiên để lên bảng xếp hạng!</p>
+      </div>
+    }
+
+    @if (entries().length > 0) {
+      <!-- PODIUM TOP 3 -->
+      <div class="podium-section">
+        <div class="podium-wrapper">
+          @if (topThree().length >= 2) {
+            <!-- 2nd place (left) -->
+            <div class="podium-card silver">
+              <div class="podium-rank-badge">{{ getMedalEmoji(2) }}</div>
+              <div class="podium-avatar silver-av">{{ getInitials(topThree()[1].fullName) }}</div>
+              <div class="podium-name">{{ topThree()[1].fullName }}</div>
+              <div class="podium-score">{{ topThree()[1].avgAccuracy }}%</div>
+              <div class="podium-quiz">{{ topThree()[1].quizCount }} lần làm</div>
+              <div class="podium-bar silver-bar">2nd</div>
+            </div>
+          }
+
+          @if (topThree().length >= 1) {
+            <!-- 1st place (center) -->
+            <div class="podium-card gold first-place">
+              <div class="podium-crown">👑</div>
+              <div class="podium-rank-badge">{{ getMedalEmoji(1) }}</div>
+              <div class="podium-avatar gold-av">{{ getInitials(topThree()[0].fullName) }}</div>
+              <div class="podium-name">{{ topThree()[0].fullName }}</div>
+              <div class="podium-score">{{ topThree()[0].avgAccuracy }}%</div>
+              <div class="podium-quiz">{{ topThree()[0].quizCount }} lần làm</div>
+              <div class="podium-bar gold-bar">1st</div>
+            </div>
+          }
+
+          @if (topThree().length >= 3) {
+            <!-- 3rd place (right) -->
+            <div class="podium-card bronze">
+              <div class="podium-rank-badge">{{ getMedalEmoji(3) }}</div>
+              <div class="podium-avatar bronze-av">{{ getInitials(topThree()[2].fullName) }}</div>
+              <div class="podium-name">{{ topThree()[2].fullName }}</div>
+              <div class="podium-score">{{ topThree()[2].avgAccuracy }}%</div>
+              <div class="podium-quiz">{{ topThree()[2].quizCount }} lần làm</div>
+              <div class="podium-bar bronze-bar">3rd</div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- TABLE: RANK 4+ -->
+      @if (restEntries().length > 0) {
+        <div class="table-card">
+          <div class="table-header-row">
+            <h3>Bảng xếp hạng đầy đủ</h3>
+          </div>
+          <div class="table-wrapper">
+            <table class="leaderboard-table">
+              <thead>
+                <tr>
+                  <th>Hạng</th>
+                  <th>Người dùng</th>
+                  <th>Số quiz</th>
+                  <th>Độ chính xác TB</th>
+                  <th>Lần cuối</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (entry of restEntries(); track entry.userId) {
+                  <tr class="table-row">
+                    <td class="rank-cell">
+                      <span class="rank-number">#{{ entry.rank }}</span>
+                    </td>
+                    <td class="user-cell">
+                      <div class="user-cell-inner">
+                        <div class="table-avatar">{{ getInitials(entry.fullName) }}</div>
+                        <div class="user-info">
+                          <span class="user-full-name">{{ entry.fullName }}</span>
+                          <span class="user-handle">@{{ entry.username }}</span>
+                        </div>
+                      </div>
+                    </td>
+                    <td class="quiz-cell">{{ entry.quizCount }} quiz</td>
+                    <td class="accuracy-cell">
+                      <div class="accuracy-bar-container">
+                        <div class="accuracy-bar" [style.width.%]="entry.avgAccuracy"></div>
+                      </div>
+                      <span class="accuracy-text">{{ entry.avgAccuracy }}%</span>
+                    </td>
+                    <td class="date-cell">{{ formatDate(entry.lastAttemptDate) }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      }
+    }
+  }
+
+</div>

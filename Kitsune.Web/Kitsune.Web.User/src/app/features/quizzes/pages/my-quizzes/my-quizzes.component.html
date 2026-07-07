@@ -1,0 +1,188 @@
+<!-- Toast notification -->
+@if (toast()) {
+<div class="toast"
+  [class.toast-success]="toast()!.type === 'success'"
+  [class.toast-error]="toast()!.type === 'error'"
+  [class.toast-info]="toast()!.type === 'info'"
+>
+  <span class="toast-icon">
+    @if (toast()!.type === 'success') { ✓ }
+    @else if (toast()!.type === 'error') { ✕ }
+    @else { ℹ }
+  </span>
+  {{ toast()!.text }}
+</div>
+}
+
+<div class="page-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Quiz Của Tôi</h1>
+      <p class="page-subtitle">Quản lý tất cả các bài kiểm tra bạn đã tạo</p>
+    </div>
+    <button class="btn-primary" (click)="onCreateQuiz()">
+      <span class="btn-icon">＋</span>
+      Tạo quiz
+    </button>
+  </div>
+
+  <!-- Search bar -->
+  <div class="search-bar-wrapper">
+    <span class="search-icon">🔍</span>
+    <input
+      class="search-input"
+      type="text"
+      placeholder="Tìm kiếm trong quiz của bạn..."
+      [ngModel]="searchQuery()"
+      (ngModelChange)="searchQuery.set($event)"
+    />
+    @if (searchQuery()) {
+      <button class="search-clear" (click)="searchQuery.set('')">✕</button>
+    }
+  </div>
+
+  <!-- Loading -->
+  @if (isLoading()) {
+  <div class="loading-container">
+    <div class="spinner"></div>
+    <p class="loading-text">Đang tải quiz của bạn...</p>
+  </div>
+  }
+
+  <!-- Results count -->
+  @if (!isLoading() && quizzes().length > 0) {
+  <p class="results-count">
+    Hiển thị <strong>{{ filteredQuizzes().length }}</strong> / {{ quizzes().length }} quiz
+  </p>
+  }
+
+  <!-- Empty: no quizzes created -->
+  @if (!isLoading() && quizzes().length === 0) {
+  <div class="empty-state">
+    <div class="empty-illustration">📝</div>
+    <h2 class="empty-title">Bạn chưa tạo quiz nào</h2>
+    <p class="empty-desc">Hãy tạo bài kiểm tra đầu tiên để chia sẻ với cộng đồng học tiếng Nhật!</p>
+    <button class="btn-primary" (click)="onCreateQuiz()">
+      <span class="btn-icon">＋</span>
+      Tạo quiz ngay
+    </button>
+  </div>
+  }
+
+  <!-- Empty: search no results -->
+  @if (!isLoading() && quizzes().length > 0 && filteredQuizzes().length === 0) {
+  <div class="empty-state">
+    <div class="empty-illustration">🔎</div>
+    <h2 class="empty-title">Không tìm thấy kết quả</h2>
+    <p class="empty-desc">Không có quiz nào khớp với "<strong>{{ searchQuery() }}</strong>".</p>
+    <button class="btn-outline" (click)="searchQuery.set('')">Xóa tìm kiếm</button>
+  </div>
+  }
+
+  <!-- Quiz grid -->
+  @if (!isLoading() && filteredQuizzes().length > 0) {
+  <div class="quiz-grid">
+    @for (quiz of filteredQuizzes(); track quiz.id) {
+    <div class="quiz-card">
+      <!-- Card top row: mode badge + time -->
+      <div class="card-header">
+        <span class="mode-badge" [class]="getModeClass(quiz.modeName)">
+          {{ quiz.modeName }}
+        </span>
+        <div class="header-right">
+          <span class="time-badge">
+            <span class="time-icon">⏱</span>
+            {{ formatTimeLimit(quiz.timeLimitInSeconds) }}
+          </span>
+        </div>
+      </div>
+
+      <!-- Title & description -->
+      <div class="card-body">
+        <h3 class="quiz-title">{{ quiz.title }}</h3>
+        @if (quiz.parsedModes.length > 0) {
+        <div class="quiz-modes-row">
+          @for (mode of quiz.parsedModes; track mode) {
+          <span class="mode-chip">{{ mode }}</span>
+          }
+        </div>
+        }
+        @if (quiz.userDescription) {
+        <p class="quiz-desc">{{ quiz.userDescription }}</p>
+        } @else {
+        <p class="quiz-desc quiz-desc-empty">Không có mô tả</p>
+        }
+      </div>
+
+      <!-- Stats row -->
+      <div class="stats-row">
+        <div class="stat-item">
+          <span class="stat-icon">👥</span>
+          <span class="stat-value">{{ quiz.attemptCount }}</span>
+          <span class="stat-label">lượt làm</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-icon">📅</span>
+          <span class="stat-value">{{ quiz.createdAt | date: 'dd/MM/yyyy' }}</span>
+        </div>
+      </div>
+
+      <!-- Footer: visibility toggle + actions -->
+      <div class="card-footer">
+        <button
+          class="visibility-btn"
+          [class.visibility-public]="quiz.isPublic"
+          [class.visibility-private]="!quiz.isPublic"
+          (click)="togglePublic(quiz)"
+          [disabled]="isTogglingId() === quiz.id"
+          [title]="quiz.isPublic ? 'Nhấn để đặt riêng tư' : 'Nhấn để công khai'"
+        >
+          @if (isTogglingId() === quiz.id) {
+          <span class="small-spinner"></span>
+          } @else {
+          {{ quiz.isPublic ? '🌐 Công khai' : '🔒 Riêng tư' }}
+          }
+        </button>
+        <div class="footer-actions">
+          <button
+            class="btn-delete"
+            (click)="requestDelete(quiz)"
+            title="Xóa quiz"
+          >
+            🗑
+          </button>
+          <a [routerLink]="['/quizzes', quiz.id]" class="btn-start">
+            Làm bài →
+          </a>
+        </div>
+      </div>
+    </div>
+    }
+  </div>
+  }
+</div>
+
+<!-- Delete confirmation dialog -->
+@if (deleteTarget()) {
+<div class="dialog-overlay" (click)="cancelDelete()">
+  <div class="dialog-box" (click)="$event.stopPropagation()">
+    <h3 class="dialog-title">Xóa quiz?</h3>
+    <p class="dialog-text">
+      Bạn sắp xóa <strong>"{{ deleteTarget()!.title }}"</strong>.
+      Hành động này không thể hoàn tác.
+    </p>
+    <div class="dialog-actions">
+      <button class="btn-dialog-cancel" (click)="cancelDelete()">Hủy</button>
+      <button
+        class="btn-dialog-danger"
+        (click)="confirmDelete()"
+        [disabled]="isDeleting()"
+      >
+        @if (isDeleting()) { <span class="small-spinner"></span> Đang xóa... }
+        @else { Xóa vĩnh viễn }
+      </button>
+    </div>
+  </div>
+</div>
+}

@@ -1,0 +1,201 @@
+<!-- frontend/Kitsune.Web.User/src/app/features/home/pages/home/home.component.html -->
+<div class="dashboard-root">
+  <div class="dashboard-grid">
+
+    <!-- WELCOME BANNER (Glassmorphism & Floating Kana) -->
+    <div class="bento-card welcome-banner">
+      <!-- Background floating elements -->
+      <div class="welcome-deco" aria-hidden="true">
+        <span class="deco-kana deco-1">あ</span>
+        <span class="deco-kana deco-2">学</span>
+        <span class="deco-kana deco-3">語</span>
+      </div>
+
+      <!-- Main Content -->
+      <div class="welcome-body">
+        <div class="welcome-text">
+          <p class="welcome-greeting">Konnichiwa,</p>
+          <h2 class="welcome-name">{{ currentUser()?.fullName || currentUser()?.username || 'Bạn' }}</h2>
+          <p class="welcome-sub">Tiếp tục hành trình chinh phục tiếng Nhật của bạn nhé!</p>
+        </div>
+
+        <div class="welcome-stats">
+          <div class="stat-pill">
+            <span class="stat-emoji">🔥</span>
+            <div>
+              <span class="stat-val">{{ streak() }}</span>
+              <span class="stat-lbl">Chuỗi ngày</span>
+            </div>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-emoji">⭐</span>
+            <div>
+              <span class="stat-val">{{ totalXP() | number }}</span>
+              <span class="stat-lbl">Tổng XP</span>
+            </div>
+          </div>
+          <div class="stat-pill clickable" (click)="router.navigate(['/srs'])">
+            <span class="stat-emoji">📚</span>
+            <div>
+              <span class="stat-val">{{ srsCardsDue() }}</span>
+              <span class="stat-lbl">Thẻ cần ôn</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. SRS CARD (Core Action) -->
+    <div class="bento-card srs-card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Hôm nay
+        </h3>
+        <button class="header-link" (click)="router.navigate(['/srs'])">Đi tới Ôn tập →</button>
+      </div>
+
+      @if (isLoading()) {
+        <div class="srs-due-block">
+          <div class="sk-box sk-circle"></div>
+          <div class="sk-box sk-srs-text"></div>
+        </div>
+      } @else if (srsCardsDue() > 0) {
+        <div class="srs-due-block">
+          <div class="srs-due-badge">{{ srsCardsDue() }}</div>
+          <p class="srs-due-text">thẻ từ vựng đang chờ bạn ôn tập</p>
+          <button class="btn-primary srs-start-btn" (click)="router.navigate(['/srs'])">
+            Bắt đầu ôn tập
+          </button>
+        </div>
+      } @else {
+        <div class="srs-due-block srs-done">
+          <span class="srs-done-icon">🎉</span>
+          <p class="srs-due-text">Bạn đã hoàn thành mục tiêu hôm nay!</p>
+        </div>
+      }
+    </div>
+
+    <!-- 3. MY FOLDERS (Bento sub-grid) -->
+    <div class="bento-card folders-card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+          Thư mục của tôi
+        </h3>
+        <button class="header-link" (click)="router.navigate(['/folders'])">Xem tất cả</button>
+      </div>
+
+      @if (isLoading()) {
+        <div class="folders-grid">
+          @for (_ of [1,2,3,4]; track $index) {
+            <div class="sk-box sk-folder"></div>
+          }
+        </div>
+      } @else if (folders().length === 0) {
+        <div class="empty-state">
+          <span>📂</span>
+          <p>Bạn chưa tạo thư mục nào</p>
+          <button class="header-link" (click)="router.navigate(['/folders'])">+ Tạo ngay</button>
+        </div>
+      } @else {
+        <div class="folders-grid">
+          @for (folder of folders(); track folder.id; let i = $index) {
+            <div class="folder-tile" (click)="router.navigate(['/folders', folder.id])">
+              <span class="folder-icon-big">📁</span>
+              <span class="folder-tile-name">{{ folder.name }}</span>
+              <span class="folder-tile-count">{{ folder.vocabCount }} từ vựng</span>
+            </div>
+          }
+          @for (_ of [].constructor(Math.max(0, 4 - folders().length)); track $index) {
+            <div class="folder-tile folder-empty" (click)="router.navigate(['/folders'])">
+              <span class="folder-icon-big">＋</span>
+              <span class="folder-tile-name">Thêm mới</span>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+    <!-- 4. RECENT QUIZZES -->
+    <div class="bento-card quizzes-card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          Quiz gần đây
+        </h3>
+        <button class="header-link" (click)="router.navigate(['/my-quizzes'])">Xem tất cả</button>
+      </div>
+
+      @if (isLoading()) {
+        <div class="quiz-list">
+          @for (_ of [1,2,3]; track $index) {
+            <div class="sk-box sk-list-item"></div>
+          }
+        </div>
+      } @else if (myQuizzes().length === 0) {
+        <div class="empty-state">
+          <span>📝</span>
+          <p>Chưa có bài quiz nào</p>
+          <button class="create-quiz-btn" (click)="router.navigate(['/quizzes/create'])">Tạo quiz mới</button>
+        </div>
+      } @else {
+        <div class="quiz-list">
+          @for (quiz of myQuizzes().slice(0, 4); track quiz.id) {
+            <div class="quiz-row" (click)="router.navigate(['/my-quizzes', quiz.id])">
+              <div class="quiz-row-info">
+                <span class="quiz-row-title">{{ quiz.title }}</span>
+                <span class="quiz-row-date">{{ formatAttemptDate(quiz.lastAttemptDate) }}</span>
+              </div>
+              <div class="quiz-row-acc"
+                [class.acc-good]="quiz.lastAccuracy !== null && quiz.lastAccuracy >= 70"
+                [class.acc-bad]="quiz.lastAccuracy !== null && quiz.lastAccuracy < 70"
+                [class.acc-none]="quiz.lastAccuracy === null">
+                {{ quiz.lastAccuracy !== null ? (quiz.lastAccuracy | number:'1.0-0') + '%' : '—' }}
+              </div>
+            </div>
+          }
+        </div>
+        <button class="create-quiz-btn" (click)="router.navigate(['/quizzes/create'])">+ Luyện tập thêm</button>
+      }
+    </div>
+
+    <!-- 5. LEADERBOARD -->
+    <div class="bento-card leaderboard-card">
+      <div class="card-header">
+        <h3 class="card-title">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          Bảng vinh danh
+        </h3>
+        <button class="header-link" (click)="router.navigate(['/leaderboard'])">Bảng xếp hạng</button>
+      </div>
+
+      @if (isLoading()) {
+        <div class="lb-list">
+          @for (_ of [1,2,3,4,5]; track $index) {
+            <div class="sk-box sk-list-item"></div>
+          }
+        </div>
+      } @else if (leaderboard().length === 0) {
+        <div class="empty-state small">
+          <p>Đang cập nhật...</p>
+        </div>
+      } @else {
+        <div class="lb-list">
+          @for (entry of leaderboard().slice(0, 5); track entry.rank) {
+            <div class="lb-row" [class.lb-top]="entry.rank <= 3">
+              <span class="lb-medal">{{ getRankMedal(entry.rank) }}</span>
+              <div class="lb-avatar">{{ entry.name.charAt(0).toUpperCase() }}</div>
+              <span class="lb-name">{{ entry.name }}</span>
+              <div class="lb-stats">
+                <span class="lb-acc">{{ entry.accuracy | number:'1.0-0' }}%</span>
+                <span class="lb-quizcount">{{ entry.quizCount }} bài</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </div>
+
+  </div>
+</div>

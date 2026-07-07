@@ -1,0 +1,443 @@
+<!-- Toast -->
+@if (toast()) {
+  <div class="toast"
+    [class.toast-success]="toast()!.type === 'success'"
+    [class.toast-error]="toast()!.type === 'error'"
+    [class.toast-info]="toast()!.type === 'info'"
+  >
+    <span class="toast-icon">
+      @if (toast()!.type === 'success') { ✓ }
+      @else if (toast()!.type === 'error') { ✕ }
+      @else { ℹ }
+    </span>
+    {{ toast()!.message }}
+  </div>
+}
+
+<div class="page-container">
+
+  <!-- Page Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Tạo Quiz Mới</h1>
+      <p class="page-subtitle">Tạo bài kiểm tra từ vựng tiếng Nhật theo cách của bạn</p>
+    </div>
+  </div>
+
+  <!-- Step Indicator -->
+  <div class="step-indicator">
+    <div class="step-track">
+      <div class="step-item" [class]="getStepClass(1)">
+        <div class="step-circle">
+          @if (step() > 1) { <span class="step-check">✓</span> }
+          @else { <span>1</span> }
+        </div>
+        <span class="step-label">Thông tin cơ bản</span>
+      </div>
+
+      <div class="step-connector" [class.connector-done]="step() > 1"></div>
+
+      <div class="step-item" [class]="getStepClass(2)">
+        <div class="step-circle">
+          @if (step() > 2) { <span class="step-check">✓</span> }
+          @else { <span>2</span> }
+        </div>
+        <span class="step-label">Nguồn nội dung</span>
+      </div>
+
+      <div class="step-connector" [class.connector-done]="step() > 2"></div>
+
+      <div class="step-item" [class]="getStepClass(3)">
+        <div class="step-circle"><span>3</span></div>
+        <span class="step-label">Chế độ Quiz</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── STEP 1: Basic Info ─────────────────────────────────────────────── -->
+  @if (step() === 1) {
+    <div class="wizard-card step-enter">
+      <div class="wizard-card-header">
+        <span class="wizard-card-icon">📋</span>
+        <div>
+          <h2 class="wizard-card-title">Thông tin cơ bản</h2>
+          <p class="wizard-card-subtitle">Đặt tên và cấu hình chung cho quiz của bạn</p>
+        </div>
+      </div>
+
+      <div class="form-body">
+        <div class="form-group">
+          <label class="form-label" for="quiz-title">Tiêu đề quiz <span class="required">*</span></label>
+          <input id="quiz-title" class="form-input" type="text" placeholder="Nhập tiêu đề quiz..."
+            [ngModel]="title()" (ngModelChange)="title.set($event)" maxlength="120" />
+          <span class="char-count">{{ title().length }}/120</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="quiz-desc">Mô tả <span class="optional">(tuỳ chọn)</span></label>
+          <textarea id="quiz-desc" class="form-textarea" placeholder="Mô tả nội dung, mục tiêu của quiz..."
+            [ngModel]="description()" (ngModelChange)="description.set($event)" rows="3" maxlength="500"></textarea>
+          <span class="char-count">{{ description().length }}/500</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="time-limit">⏱ Giới hạn thời gian</label>
+          <select id="time-limit" class="form-select"
+            [ngModel]="timeLimitSeconds()" (ngModelChange)="timeLimitSeconds.set(+$event)">
+            @for (opt of timeLimitOptions; track opt.value) {
+              <option [value]="opt.value">{{ opt.label }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="toggles-row">
+          <div class="toggle-card">
+            <div class="toggle-info">
+              <span class="toggle-icon">{{ isPublic() ? '🌐' : '🔒' }}</span>
+              <div>
+                <p class="toggle-name">Hiển thị</p>
+                <p class="toggle-desc">{{ isPublic() ? 'Công khai — mọi người có thể tìm thấy' : 'Riêng tư — chỉ mình bạn' }}</p>
+              </div>
+            </div>
+            <button class="toggle-switch" [class.toggle-on]="isPublic()" (click)="isPublic.set(!isPublic())" type="button">
+              <span class="toggle-thumb"></span>
+            </button>
+          </div>
+
+          <div class="toggle-card">
+            <div class="toggle-info">
+              <span class="toggle-icon">🛡️</span>
+              <div>
+                <p class="toggle-name">Bảo vệ nội dung</p>
+                <p class="toggle-desc">{{ isProtected() ? 'Đã bật — vô hiệu hoá sao chép' : 'Tắt — cho phép sao chép' }}</p>
+              </div>
+            </div>
+            <button class="toggle-switch" [class.toggle-on]="isProtected()" (click)="isProtected.set(!isProtected())" type="button">
+              <span class="toggle-thumb"></span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ─── STEP 2: Content Source ─────────────────────────────────────────── -->
+  @if (step() === 2) {
+    <div class="wizard-card step-enter">
+      <div class="wizard-card-header">
+        <span class="wizard-card-icon">📚</span>
+        <div>
+          <h2 class="wizard-card-title">Chọn nguồn nội dung</h2>
+          <p class="wizard-card-subtitle">Chọn từ vựng từ thư mục, tìm kiếm riêng lẻ, hoặc thêm Kanji</p>
+        </div>
+        <div class="vocab-counter-badge">
+          <span class="counter-num">{{ totalItemCount() }}</span>
+          <span class="counter-label">mục</span>
+        </div>
+      </div>
+
+      <!-- Tabs -->
+      <div class="source-tabs">
+        <button class="tab-btn" [class.tab-active]="sourceTab() === 'folder'"
+          (click)="setTab('folder')" type="button">📁 Từ thư mục</button>
+        <button class="tab-btn" [class.tab-active]="sourceTab() === 'search'"
+          (click)="setTab('search')" type="button">🔍 Tìm từ vựng</button>
+        <button class="tab-btn" [class.tab-active]="sourceTab() === 'kanji-search'"
+          (click)="setTab('kanji-search')" type="button">🈳 Tìm Kanji</button>
+      </div>
+
+      <!-- Tab: Folders -->
+      @if (sourceTab() === 'folder') {
+        <div class="tab-content">
+          @if (isFoldersLoading()) {
+            <div class="loading-inline"><div class="spinner-sm"></div><span>Đang tải thư mục...</span></div>
+          }
+          @if (!isFoldersLoading() && userFolders().length === 0) {
+            <div class="empty-state-sm">
+              <span class="empty-icon-sm">📂</span>
+              <p>Bạn chưa có thư mục từ vựng nào.</p>
+            </div>
+          }
+          @if (!isFoldersLoading() && userFolders().length > 0) {
+            <div class="folder-grid">
+              @for (folder of userFolders(); track folder.id) {
+                <div class="folder-card" [class.folder-selected]="isFolderSelected(folder.id)" (click)="toggleFolder(folder.id)">
+                  <div class="folder-icon-wrap">
+                    <span class="folder-emoji">{{ isFolderSelected(folder.id) ? '📂' : '📁' }}</span>
+                  </div>
+                  <span class="folder-name">{{ folder.name }}</span>
+                  <div class="folder-check">
+                    @if (isFolderSelected(folder.id)) { <span class="check-mark">✓</span> }
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Tab: Vocab Search -->
+      @if (sourceTab() === 'search') {
+        <div class="tab-content">
+          <div class="search-bar-wrapper">
+            <span class="search-icon-prefix">🔍</span>
+            <input class="search-input" type="text"
+              placeholder="Tìm từ theo chữ Nhật hoặc nghĩa tiếng Việt..."
+              [ngModel]="searchQuery()" (ngModelChange)="onSearchInput($event)" />
+            @if (searchQuery()) {
+              <button class="search-clear" type="button" (click)="onSearchInput('')">✕</button>
+            }
+          </div>
+          @if (isSearching()) {
+            <div class="loading-inline"><div class="spinner-sm"></div><span>Đang tìm...</span></div>
+          }
+          @if (!isSearching() && searchQuery() && searchResults().length === 0) {
+            <div class="empty-state-sm">
+              <span class="empty-icon-sm">🔎</span>
+              <p>Không tìm thấy từ vựng khớp với "<strong>{{ searchQuery() }}</strong>"</p>
+            </div>
+          }
+          @if (!isSearching() && searchResults().length > 0) {
+            <div class="search-results-list">
+              @for (vocab of searchResults(); track vocab.id) {
+                <div class="search-result-item" [class.result-selected]="isVocabSelected(vocab.id)" (click)="toggleVocab(vocab)">
+                  <div class="result-check">
+                    <div class="check-box" [class.checked]="isVocabSelected(vocab.id)">
+                      @if (isVocabSelected(vocab.id)) { ✓ }
+                    </div>
+                  </div>
+                  <div class="result-info">
+                    <span class="result-word">{{ vocab.word }}</span>
+                    @if (vocab.pronunciation) { <span class="result-pron">{{ vocab.pronunciation }}</span> }
+                    <span class="result-meaning">{{ vocab.meaning }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Tab: Kanji Search -->
+      @if (sourceTab() === 'kanji-search') {
+        <div class="tab-content">
+          <div class="search-bar-wrapper">
+            <span class="search-icon-prefix">🈳</span>
+            <input class="search-input" type="text"
+              placeholder="Tìm Kanji theo chữ, âm Hán Việt hoặc nghĩa..."
+              [ngModel]="kanjiSearchQuery()" (ngModelChange)="onKanjiSearchInput($event)" />
+            @if (kanjiSearchQuery()) {
+              <button class="search-clear" type="button" (click)="onKanjiSearchInput('')">✕</button>
+            }
+          </div>
+          @if (isKanjiSearching()) {
+            <div class="loading-inline"><div class="spinner-sm"></div><span>Đang tìm Kanji...</span></div>
+          }
+          @if (!isKanjiSearching() && kanjiSearchQuery() && kanjiSearchResults().length === 0) {
+            <div class="empty-state-sm">
+              <span class="empty-icon-sm">🔎</span>
+              <p>Không tìm thấy Kanji khớp với "<strong>{{ kanjiSearchQuery() }}</strong>"</p>
+            </div>
+          }
+          @if (!isKanjiSearching() && !kanjiSearchQuery()) {
+            <div class="empty-state-sm">
+              <span class="empty-icon-sm">🈳</span>
+              <p>Nhập chữ Kanji, âm Hán Việt hoặc nghĩa tiếng Việt để tìm kiếm.</p>
+            </div>
+          }
+          @if (!isKanjiSearching() && kanjiSearchResults().length > 0) {
+            <div class="search-results-list">
+              @for (kanji of kanjiSearchResults(); track kanji.id) {
+                <div class="search-result-item" [class.result-selected]="isKanjiSelected(kanji.id)" (click)="toggleKanji(kanji)">
+                  <div class="result-check">
+                    <div class="check-box" [class.checked]="isKanjiSelected(kanji.id)">
+                      @if (isKanjiSelected(kanji.id)) { ✓ }
+                    </div>
+                  </div>
+                  <div class="result-info">
+                    <span class="result-word" style="font-size:1.25rem">{{ kanji.character }}</span>
+                    <span class="result-pron">{{ kanji.amHanViet }}</span>
+                    <span class="result-meaning">{{ kanji.meaning }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      <!-- Selected Summary -->
+      @if (totalItemCount() > 0) {
+        <div class="selected-summary">
+          <div class="summary-header">
+            <span class="summary-title">✅ Đã chọn ({{ totalItemCount() }} mục)</span>
+          </div>
+
+          @if (allSelectedVocabs().length > 0) {
+            <p class="summary-section-label">📚 Từ vựng ({{ allSelectedVocabs().length }})</p>
+            <div class="selected-chips">
+              @for (vocab of allSelectedVocabs().slice(0, 15); track vocab.id) {
+                <div class="vocab-chip">
+                  <span>{{ vocab.word }}</span>
+                  <button class="chip-remove" type="button" (click)="toggleVocab(vocab)">✕</button>
+                </div>
+              }
+              @if (allSelectedVocabs().length > 15) {
+                <div class="vocab-chip chip-more">+{{ allSelectedVocabs().length - 15 }} từ nữa</div>
+              }
+            </div>
+          }
+
+          @if (allSelectedKanjis().length > 0) {
+            <p class="summary-section-label" style="margin-top:10px">🈳 Kanji ({{ allSelectedKanjis().length }})</p>
+            <div class="selected-chips">
+              @for (kanji of allSelectedKanjis().slice(0, 15); track kanji.id) {
+                <div class="vocab-chip">
+                  <span>{{ kanji.character }} <small style="font-size:0.75em;opacity:0.7">{{ kanji.amHanViet }}</small></span>
+                  <button class="chip-remove" type="button" (click)="toggleKanji(kanji)">✕</button>
+                </div>
+              }
+              @if (allSelectedKanjis().length > 15) {
+                <div class="vocab-chip chip-more">+{{ allSelectedKanjis().length - 15 }} kanji nữa</div>
+              }
+            </div>
+          }
+        </div>
+      }
+
+    </div>
+  }
+
+  <!-- ─── STEP 3: Quiz Modes ─────────────────────────────────────────────── -->
+  @if (step() === 3) {
+    <div class="wizard-card step-enter">
+      <div class="wizard-card-header">
+        <span class="wizard-card-icon">🎮</span>
+        <div>
+          <h2 class="wizard-card-title">Chọn chế độ Quiz</h2>
+          <p class="wizard-card-subtitle">Mỗi từ/Kanji sẽ được random 1 chế độ từ các chế độ bạn chọn</p>
+        </div>
+      </div>
+
+      <!-- Mode type legend -->
+      <div class="mode-legend">
+        <span class="mode-legend-item mode-legend--vocab">📚 3 chế độ đầu dành cho Từ vựng</span>
+        <span class="mode-legend-item mode-legend--kanji">🈳 3 chế độ cuối dành cho Kanji</span>
+      </div>
+
+      <!-- Mode Grid -->
+      <div class="mode-grid">
+        @for (mode of quizModes; track mode.code) {
+          <div class="mode-card" [class.mode-selected]="isModeSelected(mode.code)"
+            [class.mode-card--vocab]="mode.type === 'vocab'"
+            [class.mode-card--kanji]="mode.type === 'kanji'"
+            (click)="toggleMode(mode.code)">
+            <div class="mode-card-top">
+              <span class="mode-icon">{{ mode.icon }}</span>
+              <div class="mode-check-wrap">
+                <div class="mode-check-box" [class.mode-checked]="isModeSelected(mode.code)">
+                  @if (isModeSelected(mode.code)) { ✓ }
+                </div>
+              </div>
+            </div>
+            <h3 class="mode-name">{{ mode.name }}</h3>
+            <p class="mode-desc">{{ mode.description }}</p>
+          </div>
+        }
+      </div>
+
+      <!-- Warning if mode/item type mismatch -->
+      @if (modeWarning()) {
+        <div class="mode-warning">⚠️ {{ modeWarning() }}</div>
+      }
+
+      <!-- Quiz info -->
+      <div class="form-group max-questions-group">
+        <div class="quiz-info-box">
+          <div class="quiz-info-row">
+            <span class="quiz-info-icon">🎲</span>
+            <div>
+              <p class="quiz-info-title">Câu hỏi ngẫu nhiên mỗi lần chơi</p>
+              <p class="quiz-info-desc">
+                Mỗi mục được gán <strong>1 chế độ ngẫu nhiên</strong> từ {{ selectedModes().size }} chế độ đã chọn.
+                Đáp án sai và thứ tự câu hỏi thay đổi mỗi lần chơi.
+              </p>
+            </div>
+          </div>
+          <div class="quiz-info-total">
+            <span class="quiz-info-total-num">{{ totalItemCount() }}</span>
+            <span class="quiz-info-total-label">câu hỏi</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary card -->
+      <div class="summary-box">
+        <h4 class="summary-box-title">Tóm tắt quiz</h4>
+        <div class="summary-rows">
+          <div class="summary-row">
+            <span class="sr-label">Tiêu đề</span>
+            <span class="sr-value">{{ title() }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="sr-label">Từ vựng</span>
+            <span class="sr-value">{{ allSelectedVocabs().length }} từ</span>
+          </div>
+          <div class="summary-row">
+            <span class="sr-label">Kanji</span>
+            <span class="sr-value">{{ allSelectedKanjis().length }} chữ</span>
+          </div>
+          <div class="summary-row">
+            <span class="sr-label">Tổng câu hỏi</span>
+            <span class="sr-value" style="font-weight:700;color:#8b5cf6">{{ totalItemCount() }} câu</span>
+          </div>
+          <div class="summary-row">
+            <span class="sr-label">Thời gian</span>
+            <span class="sr-value">{{ timeLimitSeconds() ? (timeLimitSeconds() / 60) + ' phút' : 'Không giới hạn' }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="sr-label">Hiển thị</span>
+            <span class="sr-value">{{ isPublic() ? '🌐 Công khai' : '🔒 Riêng tư' }}</span>
+          </div>
+          <div class="summary-row">
+            <span class="sr-label">Chế độ ({{ selectedModes().size }})</span>
+            <div class="sr-mode-list">
+              @for (mode of quizModes; track mode.code) {
+                @if (isModeSelected(mode.code)) {
+                  <span class="sr-mode-badge">{{ mode.icon }} {{ mode.name }}</span>
+                }
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  }
+
+  <!-- ─── Bottom Navigation ──────────────────────────────────────────────── -->
+  <div class="wizard-footer">
+    @if (step() > 1) {
+      <button class="btn-back" type="button" (click)="prevStep()" [disabled]="isSaving()">← Quay lại</button>
+    } @else {
+      <div></div>
+    }
+
+    @if (step() < 3) {
+      <button class="btn-next" type="button" (click)="nextStep()">Tiếp theo →</button>
+    }
+
+    @if (step() === 3) {
+      <button class="btn-create" type="button" (click)="generateAndSaveQuiz()"
+        [disabled]="isSaving() || selectedModes().size === 0">
+        @if (isSaving()) {
+          <span class="btn-spinner"></span>
+          Đang tạo...
+        } @else {
+          🎉 Tạo Quiz
+        }
+      </button>
+    }
+  </div>
+
+</div>

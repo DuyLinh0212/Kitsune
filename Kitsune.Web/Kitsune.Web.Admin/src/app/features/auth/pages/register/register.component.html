@@ -1,0 +1,163 @@
+<div class="register-shell">
+  <div class="register-layout">
+    <section class="hero-panel">
+      <div class="hero-backdrop"></div>
+
+      <div class="brand-row">
+        <img src="/Logo.png" alt="Kitsune Admin logo" class="brand-logo" />
+        <div>
+          <div class="brand-name">Kitsune Admin</div>
+          <div class="brand-tagline">Kanji & Radical Control Room</div>
+        </div>
+      </div>
+
+      <div class="hero-copy">
+        <h1>Tạo tài khoản<br /><span>Admin</span> mới</h1>
+        <p>Chỉ dành cho người quản trị hệ thống. Tài khoản sẽ được cấp quyền ADMIN ngay sau khi tạo thành công.</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-icon purple">⚙️</div>
+          <div>
+            <h3>Quyền Admin</h3>
+            <p>Toàn quyền quản lý hệ thống Kitsune</p>
+          </div>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon blue">🔐</div>
+          <div>
+            <h3>Bảo mật cao</h3>
+            <p>Tài khoản admin được bảo vệ nghiêm ngặt</p>
+          </div>
+        </article>
+      </div>
+
+      <blockquote>
+        <span class="quote-mark">"</span>継続は力なり。"
+        <span class="quote-translation">Kiên trì là sức mạnh.</span>
+      </blockquote>
+    </section>
+
+    <section class="auth-panel">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div>
+            <h2>Tạo Admin mới</h2>
+            <p>Chỉ dành cho quản trị viên hệ thống.</p>
+          </div>
+          <div class="admin-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Admin
+          </div>
+        </div>
+
+        <form class="register-form" [formGroup]="registerForm" (ngSubmit)="submit()">
+          <div class="form-field">
+            <label for="fullName">Họ và tên</label>
+            <div class="input-wrapper">
+              <span class="input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              </span>
+              <input id="fullName" type="text" formControlName="fullName" placeholder="Nhập họ và tên" />
+            </div>
+            @if (hasError('fullName')) {
+              <small class="form-error">Vui lòng nhập họ và tên.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="email">Email</label>
+            <div class="input-wrapper">
+              <span class="input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </span>
+              <input id="email" type="email" formControlName="email" placeholder="Nhập địa chỉ email" />
+            </div>
+            @if (hasError('email')) {
+              <small class="form-error">Vui lòng nhập email hợp lệ.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="username">Tên đăng nhập</label>
+            <div class="input-wrapper">
+              <span class="input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></svg>
+              </span>
+              <input id="username" type="text" formControlName="username" placeholder="Chọn tên đăng nhập" />
+            </div>
+            @if (hasError('username')) {
+              <small class="form-error">Tên đăng nhập phải có ít nhất 3 ký tự.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="password">Mật khẩu</label>
+            <div class="input-wrapper">
+              <span class="input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input id="password" [type]="showPassword() ? 'text' : 'password'" formControlName="password" placeholder="Tạo mật khẩu (ít nhất 8 ký tự)" />
+              <button type="button" class="toggle-password" (click)="togglePassword()" aria-label="Ẩn hiện mật khẩu">
+                @if (!showPassword()) {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
+            @if (hasError('password')) {
+              <small class="form-error">Mật khẩu phải có ít nhất 8 ký tự.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="confirmPassword">Xác nhận mật khẩu</label>
+            <div class="input-wrapper">
+              <span class="input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input id="confirmPassword" [type]="showConfirmPassword() ? 'text' : 'password'" formControlName="confirmPassword" placeholder="Nhập lại mật khẩu" />
+              <button type="button" class="toggle-password" (click)="toggleConfirmPassword()" aria-label="Ẩn hiện mật khẩu">
+                @if (!showConfirmPassword()) {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
+            @if (hasPasswordMismatch()) {
+              <small class="form-error">Mật khẩu xác nhận không khớp.</small>
+            }
+          </div>
+
+          @if (errorMessage()) {
+            <p class="form-message error">{{ errorMessage() }}</p>
+          }
+          @if (successMessage()) {
+            <p class="form-message success">{{ successMessage() }}</p>
+          }
+
+          <button class="submit-btn" type="submit" [disabled]="isSubmitting()">
+            {{ isSubmitting() ? 'Đang tạo tài khoản...' : 'Tạo tài khoản Admin →' }}
+          </button>
+        </form>
+
+        <div class="separator"><span>Hoặc</span></div>
+
+        <div class="alt-links">
+          <a class="alt-link" routerLink="/login">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Quay lại đăng nhập Admin
+          </a>
+        </div>
+
+        <div class="security-note">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Tài khoản Admin được bảo mật và giám sát tuyệt đối
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

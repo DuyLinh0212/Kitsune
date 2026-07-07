@@ -1,0 +1,20 @@
+<div class="main-layout" (click)="onDocClick()">
+  <!-- SIDEBAR OVERLAY (mobile) -->
+  <app-sidebar
+    [collapsed]="sidebarCollapsed()"
+    (navClick)="onNavClick()"
+  />
+
+  <!-- MAIN CONTENT AREA -->
+  <div class="main-content" [class.sidebar-open]="!sidebarCollapsed()">
+    <app-header
+      [sidebarCollapsed]="sidebarCollapsed()"
+      (toggleSidebar)="toggleSidebar()"
+    />
+
+    <!-- PAGE CONTENT -->
+    <main class="page-content">
+      <router-outlet />
+    </main>
+  </div>
+</div>

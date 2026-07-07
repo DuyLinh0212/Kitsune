@@ -1,0 +1,283 @@
+<!-- frontend/Kitsune.Web.Admin/src/app/features/admin/pages/users/user-management.component.html -->
+<div class="admin-page">
+  <!-- Page header -->
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Quản lý người dùng</h1>
+      <p class="page-subtitle">Tạo, chỉnh sửa và quản lý tài khoản người dùng</p>
+    </div>
+    <button class="btn-create" (click)="openCreateModal()">
+      <span class="btn-icon">＋</span> Tạo người dùng
+    </button>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <div class="toolbar-left">
+      <div class="search-box">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+        <input
+          type="text"
+          placeholder="Tìm kiếm tên, email..."
+          [value]="searchQuery()"
+          (input)="onSearchChange($any($event.target).value)"
+        />
+      </div>
+      <select class="role-select" [value]="roleFilter()" (change)="onRoleFilterChange($any($event.target).value)">
+        <option value="ALL">Tất cả vai trò</option>
+        <option value="ADMIN">Admin</option>
+        <option value="USER">User</option>
+        <option value="MODERATOR">Moderator</option>
+      </select>
+    </div>
+    <span class="result-count">{{ filteredUsers.length }} người dùng</span>
+  </div>
+
+  <!-- Error -->
+  @if (errorMessage()) {
+  <div class="error-banner">{{ errorMessage() }}</div>
+  }
+
+  <!-- Loading -->
+  @if (isLoading()) {
+  <div class="loading-state">
+    <div class="spinner"></div>
+    <p>Đang tải danh sách người dùng...</p>
+  </div>
+  }
+
+  <!-- Table -->
+  @if (!isLoading()) {
+  <div class="table-wrapper">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Người dùng</th>
+          <th>Email</th>
+          <th>Vai trò</th>
+          <th>Xác minh</th>
+          <th>Hoạt động</th>
+          <th>Tham gia</th>
+          <th class="col-actions">Thao tác</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (u of filteredUsers; track u.id) {
+        <tr>
+          <td>
+            <div class="user-cell">
+              <div class="user-avatar-sm">{{ (u.fullName || u.username).charAt(0).toUpperCase() }}</div>
+              <div class="user-cell-info">
+                <span class="user-cell-name">{{ u.fullName || u.username }}</span>
+                <span class="user-cell-username">@{{ u.username }}</span>
+              </div>
+            </div>
+          </td>
+          <td class="cell-email">{{ u.email }}</td>
+          <td>
+            <div class="role-chips">
+              @for (r of u.roles; track r) {
+              <span class="role-badge" [class]="roleBadgeClass(r)">{{ r }}</span>
+              }
+            </div>
+          </td>
+          <td>
+            <span class="status-badge" [class.verified]="u.isVerified">
+              {{ u.isVerified ? '✅ Xác minh' : '⏳ Chưa xác minh' }}
+            </span>
+          </td>
+          <td>
+            <span class="status-badge" [class.blocked]="!u.isActive">
+              {{ u.isActive ? '🟢 Hoạt động' : '🔴 Vô hiệu' }}
+            </span>
+          </td>
+          <td class="cell-muted">{{ formatDate(u.createdAt) }}</td>
+          <td class="col-actions">
+            <div class="action-btns">
+              <button class="btn-icon-action" (click)="openDetail(u)" title="Xem chi tiết">👁</button>
+              <button class="btn-icon-action" (click)="openEditModal(u)" title="Chỉnh sửa">✏️</button>
+              <button class="btn-icon-action" (click)="toggleVerified(u)" title="{{ u.isVerified ? 'Bỏ xác minh' : 'Xác minh' }}">
+                {{ u.isVerified ? '🔒' : '🔓' }}
+              </button>
+              <button class="btn-icon-action btn-danger" (click)="confirmDelete(u)" title="Xóa">🗑</button>
+            </div>
+          </td>
+        </tr>
+        }
+        @if (filteredUsers.length === 0) {
+        <tr class="empty-row">
+          <td colspan="8">
+            <div class="empty-state-sm">
+              <span>👤</span>
+              <p>Không tìm thấy người dùng</p>
+            </div>
+          </td>
+        </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  }
+
+  <!-- Create/Edit Modal -->
+  @if (modalVisible()) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal-box" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2>{{ modalMode() === 'create' ? 'Tạo người dùng mới' : 'Chỉnh sửa người dùng' }}</h2>
+        <button class="modal-close" (click)="closeModal()">✕</button>
+      </div>
+
+      @if (modalError()) {
+      <div class="modal-error">{{ modalError() }}</div>
+      }
+
+      <form [formGroup]="userForm" (ngSubmit)="submitForm()">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Tên đăng nhập *</label>
+            <input class="form-input" formControlName="username" placeholder="username" />
+            @if (userForm.get('username')?.invalid && userForm.get('username')?.touched) {
+            <span class="form-error">Tối thiểu 3 ký tự</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Email *</label>
+            <input class="form-input" type="email" formControlName="email" placeholder="email@example.com" />
+            @if (userForm.get('email')?.invalid && userForm.get('email')?.touched) {
+            <span class="form-error">Email không hợp lệ</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Họ và tên</label>
+            <input class="form-input" formControlName="fullName" placeholder="Nguyễn Văn A" />
+          </div>
+
+          @if (modalMode() === 'create') {
+          <div class="form-group">
+            <label class="form-label">Mật khẩu *</label>
+            <input class="form-input" type="password" formControlName="password" placeholder="Tối thiểu 6 ký tự" />
+            @if (userForm.get('password')?.invalid && userForm.get('password')?.touched) {
+            <span class="form-error">Tối thiểu 6 ký tự</span>
+            }
+          </div>
+          }
+
+          <div class="form-group">
+            <label class="form-label">Vai trò</label>
+            <div class="role-checkboxes">
+              @for (role of ROLE_OPTIONS; track role) {
+              <label class="checkbox-label">
+                <input type="checkbox" [checked]="userForm.value.roles?.includes(role)"
+                  (change)="onRoleCheckboxChange(role)" />
+                <span>{{ role }}</span>
+              </label>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancel" (click)="closeModal()">Hủy</button>
+          <button type="submit" class="btn-submit" [disabled]="modalSaving() || userForm.invalid">
+            @if (modalSaving()) { Đang lưu... } @else { {{ modalMode() === 'create' ? 'Tạo người dùng' : 'Lưu thay đổi' }} }
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  }
+
+  <!-- Delete Confirm Dialog -->
+  @if (deleteConfirmId() !== null) {
+  <div class="modal-overlay" (click)="cancelDelete()">
+    <div class="dialog-sm" (click)="$event.stopPropagation()">
+      <h3>Xóa người dùng?</h3>
+      <p>Hành động này không thể hoàn tác. Tất cả dữ liệu của người dùng sẽ bị xóa vĩnh viễn.</p>
+      <div class="dialog-actions">
+        <button class="btn-cancel" (click)="cancelDelete()">Hủy</button>
+        <button class="btn-danger" (click)="executeDelete()">Xóa vĩnh viễn</button>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- Detail Drawer -->
+  @if (detailVisible()) {
+  <div class="drawer-overlay" (click)="closeDetail()"></div>
+  <div class="drawer">
+    <div class="drawer-header">
+      <div class="drawer-user-info">
+        <div class="drawer-avatar">{{ initials }}</div>
+        <div>
+          <h3>{{ detailUser()?.fullName || detailUser()?.username }}</h3>
+          <p class="drawer-email">{{ detailUser()?.email }}</p>
+        </div>
+      </div>
+      <button class="modal-close" (click)="closeDetail()">✕</button>
+    </div>
+
+    <div class="drawer-body">
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">Tên đăng nhập</span>
+          <span class="info-value">{{ detailUser()?.username }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Xác minh</span>
+          <span class="status-badge" [class.verified]="detailUser()?.isVerified">
+            {{ detailUser()?.isVerified ? '✅ Đã xác minh' : '⏳ Chưa xác minh' }}
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Hoạt động</span>
+          <span class="status-badge" [class.blocked]="!detailUser()?.isActive">
+            {{ detailUser()?.isActive ? '🟢 Đang hoạt động' : '🔴 Vô hiệu hóa' }}
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Tham gia</span>
+          <span class="info-value">{{ detailUser()?.createdAt | date:'dd/MM/yyyy' }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Vai trò</span>
+          <div class="role-chips">
+            @for (r of detailUser()?.roles ?? []; track r) {
+            <span class="role-badge" [class]="roleBadgeClass(r)">{{ r }}</span>
+            }
+          </div>
+        </div>
+      </div>
+
+      <h4 class="section-title">Nhật ký hoạt động</h4>
+      @if (detailLoading()) {
+      <div class="mini-loading">Đang tải...</div>
+      } @else if (detailLogs().length === 0) {
+      <p class="empty-logs">Chưa có hoạt động nào</p>
+      } @else {
+      <div class="logs-list">
+        @for (log of detailLogs(); track $index) {
+        <div class="log-item">
+          <span class="log-action">{{ log.action }}</span>
+          <span class="log-desc">{{ log.description || '—' }}</span>
+          <span class="log-time">{{ log.timestamp | date:'dd/MM HH:mm' }}</span>
+        </div>
+        }
+      </div>
+      }
+    </div>
+
+    <div class="drawer-footer">
+      <button class="btn-ghost" (click)="openEditModal(detailUser()!); closeDetail();">Chỉnh sửa</button>
+      <button class="btn-ghost" [class.btn-danger-ghost]="detailUser()?.isVerified"
+        (click)="toggleVerified(detailUser()!); closeDetail();">
+        {{ detailUser()?.isVerified ? 'Bỏ xác minh' : 'Xác minh' }}
+      </button>
+    </div>
+  </div>
+  }
+</div>

@@ -1,0 +1,579 @@
+<div class="kanji-shell">
+
+  <!-- ══ TOPBAR ══════════════════════════════════════════════════════════ -->
+  <header class="topbar">
+    <div class="topbar__heading">
+      <a routerLink="/home" class="back-link">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+      </a>
+      <div>
+        <h1>Quản lý Kanji</h1>
+        <p>Quản lý kho Kanji, bộ thủ và import dữ liệu</p>
+      </div>
+    </div>
+    <div class="topbar__actions">
+      <button class="profile-chip">
+        <img [src]="'/favicon.ico'" alt="avatar" />
+        <span class="profile-chip__info">
+          <strong>{{ displayName() }}</strong>
+          <span>{{ roleLabel() }}</span>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ══ TABS ════════════════════════════════════════════════════════════ -->
+  <div class="tab-bar">
+    <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'kanji'" (click)="switchTab('kanji')">
+      <svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M10 7v10"/><path d="M14 7v10"/></svg>
+      Kanji
+    </button>
+    <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'radicals'" (click)="switchTab('radicals')">
+      <svg viewBox="0 0 24 24"><path d="M6 7h12"/><path d="M12 7v10"/><path d="m8 12 4 5 4-5"/></svg>
+      Bộ thủ
+    </button>
+    <button class="tab-btn" [class.tab-btn--active]="activeTab() === 'import'" (click)="switchTab('import')">
+      <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Import
+    </button>
+  </div>
+
+  <!-- ══ PANEL AREA ══════════════════════════════════════════════════════ -->
+  <div class="panel-area">
+
+    <!-- ── TAB: KANJI ──────────────────────────────────────────────── -->
+    @if (activeTab() === 'kanji') {
+      <div class="kanji-list-layout">
+
+        <!-- Toolbar -->
+        <div class="vocab-toolbar">
+          <div class="vocab-toolbar__search">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <input
+              type="text"
+              placeholder="Tìm ký tự, âm Hán Việt, nghĩa..."
+              class="vocab-search-input"
+              [value]="kanjiSearch()"
+              (input)="onSearchChange($any($event.target).value)"
+            />
+          </div>
+
+          <select class="filter-select" (change)="onRadicalFilterChange($any($event.target).value)">
+            <option value="">Tất cả bộ thủ</option>
+            @for (r of radicals(); track r.id) {
+              <option [value]="r.id">{{ r.radicalCharacter }} · {{ r.radicalName }}</option>
+            }
+          </select>
+
+          <select class="filter-select" (change)="onJlptFilterChange($any($event.target).value)">
+            <option value="">Tất cả JLPT</option>
+            @for (lvl of jlptLevels; track lvl) {
+              <option [value]="lvl">N{{ lvl }}</option>
+            }
+          </select>
+
+          <button class="btn btn--primary btn--sm" (click)="openCreateModal()">
+            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Thêm Kanji
+          </button>
+        </div>
+
+        @if (kanjiError()) {
+          <div class="alert alert--error">{{ kanjiError() }}</div>
+        }
+
+        <!-- Table -->
+        <div class="vocab-table-wrap">
+          <table class="vocab-table">
+            <thead>
+              <tr>
+                <th>Ký tự</th>
+                <th>Âm Hán Việt</th>
+                <th>On / Kun</th>
+                <th>Nghĩa</th>
+                <th>Bộ thủ</th>
+                <th>Số nét</th>
+                <th>JLPT</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              @if (kanjiLoading()) {
+                @for (i of [1,2,3,4,5]; track i) {
+                  <tr class="skeleton-row"><td colspan="8"><div class="skeleton"></div></td></tr>
+                }
+              } @else {
+                @for (k of kanjiResult()?.items ?? []; track k.id) {
+                  <tr class="vocab-row" (click)="openDetail(k)">
+                    <td><span class="kanji-glyph">{{ k.character }}</span></td>
+                    <td><strong class="amhanviet">{{ k.amHanViet }}</strong></td>
+                    <td>
+                      <div class="reading-cell">
+                        @if (k.onyomi) { <span class="reading reading--on" title="Onyomi">{{ k.onyomi }}</span> }
+                        @if (k.kunyomi) { <span class="reading reading--kun" title="Kunyomi">{{ k.kunyomi }}</span> }
+                        @if (!k.onyomi && !k.kunyomi) { <span class="muted">—</span> }
+                      </div>
+                    </td>
+                    <td><span class="vocab-meaning">{{ k.meaning }}</span></td>
+                    <td>
+                      @if (k.radical) {
+                        <span class="folder-chip">{{ k.radical.radicalCharacter }} · {{ k.radical.radicalName }}</span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td><span class="stroke-badge">{{ k.strokeCount }}</span></td>
+                    <td>
+                      @if (k.jlptLevel != null) {
+                        <span class="jlpt-chip jlpt-chip--n{{ k.jlptLevel }}">N{{ k.jlptLevel }}</span>
+                      } @else {
+                        <span class="muted">—</span>
+                      }
+                    </td>
+                    <td>
+                      <div class="row-actions" (click)="$event.stopPropagation()">
+                        <button class="icon-btn" title="Xem chi tiết" (click)="openDetail(k)">
+                          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        </button>
+                        <button class="icon-btn" title="Sửa" (click)="openEditModal(k)">
+                          <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                        </button>
+                        @if (deleteConfirmId() === k.id) {
+                          <button class="icon-btn icon-btn--danger" title="Xác nhận xóa" (click)="executeDelete(k.id)">
+                            <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                          </button>
+                          <button class="icon-btn" title="Hủy" (click)="cancelDelete()">
+                            <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                          </button>
+                        } @else {
+                          <button class="icon-btn icon-btn--danger" title="Xóa" (click)="confirmDelete(k.id)">
+                            <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                          </button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="8">
+                      <div class="empty-state">
+                        <svg viewBox="0 0 24 24"><rect x="4.5" y="4.5" width="15" height="15" rx="3"/><path d="M8 8h8"/><path d="M8 12h8"/><path d="M10 7v10"/><path d="M14 7v10"/></svg>
+                        <p>Không tìm thấy kanji nào.</p>
+                      </div>
+                    </td>
+                  </tr>
+                }
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <button class="page-btn" [disabled]="kanjiPage() === 1" (click)="goToPage(kanjiPage() - 1)">
+              <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            @for (page of pageNumbers; track page) {
+              <button class="page-btn" [class.page-btn--active]="page === kanjiPage()" (click)="goToPage(page)">{{ page }}</button>
+            }
+            <button class="page-btn" [disabled]="kanjiPage() === totalPages()" (click)="goToPage(kanjiPage() + 1)">
+              <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <span class="pagination__info">
+              Trang {{ kanjiPage() }} / {{ totalPages() }} · {{ kanjiResult()?.totalCount | number }} kanji
+            </span>
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ── TAB: RADICALS ───────────────────────────────────────────── -->
+    @if (activeTab() === 'radicals') {
+      <div class="folders-layout">
+
+        <div class="folders-header">
+          <h2>Bộ thủ <span class="badge">{{ radicals().length }}</span></h2>
+          <button class="btn btn--primary" (click)="toggleRadicalForm()">
+            @if (!showRadicalForm()) {
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Tạo bộ thủ
+            } @else {
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              Hủy
+            }
+          </button>
+        </div>
+
+        @if (showRadicalForm()) {
+          <div class="panel create-folder-panel">
+            <form [formGroup]="radicalForm" (ngSubmit)="submitRadicalForm()" class="create-folder-form">
+              <div class="form-row">
+                <label class="field">
+                  <span class="field__label">Ký tự <span class="required">*</span></span>
+                  <input formControlName="radicalCharacter" type="text" placeholder="Vd: 水" class="field__input" />
+                </label>
+                <label class="field">
+                  <span class="field__label">Tên bộ thủ <span class="required">*</span></span>
+                  <input formControlName="radicalName" type="text" placeholder="Vd: Thủy" class="field__input" />
+                </label>
+              </div>
+              <label class="field">
+                <span class="field__label">Tên tiếng Anh</span>
+                <input formControlName="englishName" type="text" placeholder="Vd: water" class="field__input" />
+              </label>
+              <label class="field">
+                <span class="field__label">Mô tả</span>
+                <input formControlName="description" type="text" placeholder="Mô tả ngắn (không bắt buộc)" class="field__input" />
+              </label>
+              <div class="create-folder-form__actions">
+                <button type="submit" class="btn btn--primary btn--sm" [disabled]="radicalForm.invalid || radicalSaving()">
+                  {{ radicalSaving() ? 'Đang lưu...' : (radicalMode() === 'create' ? 'Tạo bộ thủ' : 'Lưu thay đổi') }}
+                </button>
+              </div>
+            </form>
+          </div>
+        }
+
+        @if (radicalsError()) {
+          <div class="alert alert--error">{{ radicalsError() }}</div>
+        }
+
+        @if (radicalsLoading()) {
+          <div class="loading-hint">Đang tải...</div>
+        } @else {
+          <div class="radical-grid">
+            @for (r of radicals(); track r.id) {
+              <div class="radical-card">
+                <span class="radical-card__glyph">{{ r.radicalCharacter }}</span>
+                <div class="radical-card__body">
+                  <strong class="radical-card__name">{{ r.radicalName }}</strong>
+                  @if (r.englishName) { <span class="radical-card__en">{{ r.englishName }}</span> }
+                  @if (r.description) { <p class="radical-card__desc">{{ r.description }}</p> }
+                </div>
+                <div class="radical-card__actions">
+                  <button class="icon-btn" title="Sửa" (click)="openEditRadical(r)">
+                    <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                  </button>
+                  @if (radicalDeleteConfirmId() === r.id) {
+                    <button class="icon-btn icon-btn--danger" title="Xác nhận xóa" (click)="executeDeleteRadical(r.id)">
+                      <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+                    </button>
+                    <button class="icon-btn" title="Hủy" (click)="cancelDeleteRadical()">
+                      <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  } @else {
+                    <button class="icon-btn icon-btn--danger" title="Xóa" (click)="confirmDeleteRadical(r.id)">
+                      <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                    </button>
+                  }
+                </div>
+              </div>
+            } @empty {
+              <div class="empty-state">
+                <svg viewBox="0 0 24 24"><path d="M6 7h12"/><path d="M12 7v10"/><path d="m8 12 4 5 4-5"/></svg>
+                <p>Chưa có bộ thủ nào. Hãy import hoặc tạo mới!</p>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    }
+
+    <!-- ── TAB: IMPORT ─────────────────────────────────────────────── -->
+    @if (activeTab() === 'import') {
+      <div class="import-layout">
+
+        <section class="panel">
+          <div class="panel__header"><h2>Cấu hình import</h2></div>
+          <form [formGroup]="importForm" (ngSubmit)="startImport()" class="import-form">
+            <label class="field">
+              <span class="field__label">Thư mục nguồn</span>
+              <textarea
+                formControlName="sourceDir"
+                rows="3"
+                placeholder="Để trống dùng thư mục mặc định, hoặc nhập đường dẫn..."
+                class="field__input field__textarea"
+              ></textarea>
+            </label>
+            <div class="import-form__actions">
+              @if (!importing()) {
+                <button type="submit" class="btn btn--primary">
+                  <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                  Bắt đầu Import
+                </button>
+              } @else {
+                <button type="button" class="btn btn--danger" (click)="cancelImport()">
+                  <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                  Dừng lại
+                </button>
+              }
+            </div>
+          </form>
+        </section>
+
+        <section class="panel">
+          <div class="panel__header">
+            <h2>Tiến trình</h2>
+            @if (importing()) { <span class="status-pill status-pill--running">Đang chạy...</span> }
+          </div>
+
+          @if (importProgress(); as p) {
+            <div class="progress-stats">
+              <div class="progress-stat">
+                <span class="progress-stat__label">File</span>
+                <span class="progress-stat__value">{{ p.currentFileIndex }} / {{ p.totalFiles }}</span>
+              </div>
+              <div class="progress-stat">
+                <span class="progress-stat__label">Bản ghi</span>
+                <span class="progress-stat__value">{{ p.processedRecords }} / {{ p.totalRecords }}</span>
+              </div>
+              <div class="progress-stat">
+                <span class="progress-stat__label">Kanji</span>
+                <span class="progress-stat__value stat--violet">{{ p.kanjiCount }}</span>
+              </div>
+              <div class="progress-stat">
+                <span class="progress-stat__label">Bộ thủ</span>
+                <span class="progress-stat__value stat--green">{{ p.radicalCount }}</span>
+              </div>
+            </div>
+
+            <div class="progress-bar-group">
+              <div class="progress-bar-label"><span>Tiến độ bản ghi</span><span>{{ importRecordPercent }}%</span></div>
+              <div class="progress-bar"><div class="progress-bar__fill" [style.width.%]="importRecordPercent"></div></div>
+            </div>
+            <div class="progress-bar-group">
+              <div class="progress-bar-label"><span>File {{ p.currentFileName || '—' }}</span><span>{{ importFilePercent }}%</span></div>
+              <div class="progress-bar progress-bar--slim"><div class="progress-bar__fill progress-bar__fill--green" [style.width.%]="importFilePercent"></div></div>
+            </div>
+          } @else if (!importing()) {
+            <div class="empty-hint">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              Điền cấu hình và nhấn "Bắt đầu Import"
+            </div>
+          }
+
+          @if (importError()) { <div class="alert alert--error">{{ importError() }}</div> }
+        </section>
+
+        @if (importSummary(); as s) {
+          <section class="panel summary-panel">
+            <div class="panel__header">
+              <h2>Kết quả</h2>
+              <span class="status-pill status-pill--success">Hoàn tất</span>
+            </div>
+            <div class="summary-grid">
+              <div class="summary-stat"><strong>{{ s.kanjiCount }}</strong><span>Kanji</span></div>
+              <div class="summary-stat"><strong>{{ s.radicalCount }}</strong><span>Bộ thủ</span></div>
+            </div>
+            <div class="summary-meta">
+              <span><strong>Nguồn:</strong> {{ s.sourceDirectory }}</span>
+            </div>
+          </section>
+        }
+
+        @if (importLogs().length > 0) {
+          <section class="panel log-panel">
+            <div class="panel__header">
+              <h2>Nhật ký</h2>
+              <span class="log-count">{{ importLogs().length }} dòng</span>
+            </div>
+            <div class="log-list">
+              @for (entry of importLogs(); track entry.id) {
+                <div class="log-entry log-entry--{{ entry.tone }}">
+                  <span class="log-entry__time">{{ entry.timestamp }}</span>
+                  <span class="log-entry__stage">{{ entry.stage }}</span>
+                  <span class="log-entry__msg">{{ entry.message }}</span>
+                  @if (entry.currentCharacter) { <span class="log-entry__word">「{{ entry.currentCharacter }}」</span> }
+                </div>
+              }
+            </div>
+          </section>
+        }
+      </div>
+    }
+
+  </div>
+</div>
+
+<!-- ══ KANJI MODAL ══════════════════════════════════════════════════════ -->
+@if (modalVisible()) {
+  <div class="modal-overlay" (click)="closeModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal__header">
+        <h3>{{ modalMode() === 'create' ? 'Thêm Kanji mới' : 'Sửa Kanji' }}</h3>
+        <button class="modal__close" (click)="closeModal()">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+
+      <form [formGroup]="kanjiForm" (ngSubmit)="submitKanjiForm()" class="modal__body">
+        <div class="form-row">
+          <label class="field">
+            <span class="field__label">Ký tự <span class="required">*</span></span>
+            <input formControlName="character" type="text" placeholder="Vd: 水" class="field__input" />
+            @if (modalMode() === 'edit') { <span class="field__hint">Không thể đổi ký tự sau khi tạo.</span> }
+          </label>
+          <label class="field">
+            <span class="field__label">Âm Hán Việt <span class="required">*</span></span>
+            <input formControlName="amHanViet" type="text" placeholder="Vd: Thủy" class="field__input" />
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Nghĩa <span class="required">*</span></span>
+          <input formControlName="meaning" type="text" placeholder="Vd: nước" class="field__input" />
+        </label>
+
+        <div class="form-row">
+          <label class="field">
+            <span class="field__label">Onyomi (âm On)</span>
+            <input formControlName="onyomi" type="text" placeholder="Vd: スイ" class="field__input" />
+          </label>
+          <label class="field">
+            <span class="field__label">Kunyomi (âm Kun)</span>
+            <input formControlName="kunyomi" type="text" placeholder="Vd: みず" class="field__input" />
+          </label>
+        </div>
+
+        <div class="form-row">
+          <label class="field">
+            <span class="field__label">Số nét <span class="required">*</span></span>
+            <input formControlName="strokeCount" type="number" min="0" class="field__input" />
+          </label>
+          <label class="field">
+            <span class="field__label">Cấp JLPT</span>
+            <select formControlName="jlptLevel" class="field__input">
+              <option [ngValue]="null">— Không —</option>
+              @for (lvl of jlptLevels; track lvl) {
+                <option [ngValue]="lvl">N{{ lvl }}</option>
+              }
+            </select>
+          </label>
+        </div>
+
+        <label class="field">
+          <span class="field__label">Bộ thủ</span>
+          <select formControlName="radicalId" class="field__input">
+            <option [ngValue]="null">— Không —</option>
+            @for (r of radicals(); track r.id) {
+              <option [ngValue]="r.id">{{ r.radicalCharacter }} · {{ r.radicalName }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="field__label">Mnemonic / Ghi nhớ</span>
+          <textarea formControlName="mnemonic" rows="2" class="field__input field__textarea" placeholder="Mẹo nhớ (không bắt buộc)"></textarea>
+        </label>
+
+        @if (modalError()) { <div class="alert alert--error">{{ modalError() }}</div> }
+
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" (click)="closeModal()">Hủy</button>
+          <button type="submit" class="btn btn--primary" [disabled]="kanjiForm.invalid || modalSaving()">
+            {{ modalSaving() ? 'Đang lưu...' : (modalMode() === 'create' ? 'Thêm Kanji' : 'Lưu thay đổi') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ══ DETAIL DRAWER ════════════════════════════════════════════════════ -->
+@if (detailVisible()) {
+  <div class="drawer-overlay" (click)="closeDetail()">
+    <aside class="drawer" (click)="$event.stopPropagation()">
+      @if (detailKanji(); as k) {
+
+        <button class="drawer__close" title="Đóng" (click)="closeDetail()">
+          <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+
+        <!-- Hero -->
+        <div class="kd-hero">
+          <span class="kd-glyph">{{ k.character }}</span>
+          <div class="kd-hero__info">
+            <p class="kd-amhanviet">{{ k.amHanViet }}</p>
+            <p class="kd-meaning">{{ k.meaning }}</p>
+            <div class="kd-hero__tags">
+              <span class="stroke-badge">{{ k.strokeCount }} nét</span>
+              @if (k.jlptLevel != null) {
+                <span class="jlpt-chip jlpt-chip--n{{ k.jlptLevel }}">JLPT N{{ k.jlptLevel }}</span>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Readings -->
+        <section class="vd-section">
+          <h3 class="vd-section__title">
+            <svg viewBox="0 0 24 24"><path d="M3 5h12"/><path d="M3 12h18"/><path d="M3 19h12"/></svg>
+            Âm đọc
+          </h3>
+          <div class="kd-readings">
+            <div class="kd-reading-card">
+              <span class="kd-reading-card__label">Onyomi (音)</span>
+              <span class="kd-reading-card__value">{{ k.onyomi || '—' }}</span>
+            </div>
+            <div class="kd-reading-card">
+              <span class="kd-reading-card__label">Kunyomi (訓)</span>
+              <span class="kd-reading-card__value">{{ k.kunyomi || '—' }}</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Radical -->
+        @if (k.radical; as r) {
+          <section class="vd-section">
+            <h3 class="vd-section__title">
+              <svg viewBox="0 0 24 24"><path d="M6 7h12"/><path d="M12 7v10"/><path d="m8 12 4 5 4-5"/></svg>
+              Bộ thủ
+            </h3>
+            <div class="kd-radical">
+              <span class="kd-radical__glyph">{{ r.radicalCharacter }}</span>
+              <div>
+                <strong>{{ r.radicalName }}</strong>
+                @if (r.englishName) { <span class="kd-radical__en">{{ r.englishName }}</span> }
+                @if (r.description) { <p class="kd-radical__desc">{{ r.description }}</p> }
+              </div>
+            </div>
+          </section>
+        }
+
+
+        <!-- Mnemonic -->
+        @if (k.mnemonic) {
+          <section class="vd-section">
+            <h3 class="vd-section__title">
+              <svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.5 1 1.3 1 2.1h6c0-.8.4-1.6 1-2.1A7 7 0 0 0 12 2z"/></svg>
+              Ghi nhớ
+            </h3>
+            <blockquote class="vd-example"><p class="vd-example__vi">{{ k.mnemonic }}</p></blockquote>
+          </section>
+        }
+
+        <!-- Meta -->
+        <section class="vd-section">
+          <h3 class="vd-section__title">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            Thông tin
+          </h3>
+          <dl class="vd-meta">
+            <div class="vd-meta__row"><dt>Số nét</dt><dd>{{ k.strokeCount }}</dd></div>
+            <div class="vd-meta__row"><dt>JLPT</dt><dd>{{ k.jlptLevel != null ? 'N' + k.jlptLevel : '—' }}</dd></div>
+            <div class="vd-meta__row"><dt>Mã kanji</dt><dd>#{{ k.id }}</dd></div>
+          </dl>
+        </section>
+
+        <div class="drawer__actions">
+          <button class="btn btn--ghost" (click)="closeDetail()">Đóng</button>
+          <button class="btn btn--primary" (click)="editFromDetail()">
+            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            Chỉnh sửa
+          </button>
+        </div>
+      }
+    </aside>
+  </div>
+}

@@ -1,0 +1,121 @@
+<div class="login-shell">
+  <div class="login-layout">
+    <section class="hero-panel">
+      <div class="hero-backdrop"></div>
+
+      <div class="brand-row">
+        <img src="/Logo.png" alt="Kitsune Admin logo" class="brand-logo" />
+        <div>
+          <div class="brand-name">Kitsune Admin</div>
+          <div class="brand-tagline">Kanji & Radical Control Room</div>
+        </div>
+      </div>
+
+      <div class="hero-copy">
+        <h1>Quản trị hệ thống<br />Cùng <span>Kitsune</span> Admin</h1>
+        <p>Đăng nhập để quản lý thư viện Kanji, Radical và kích hoạt import từ KanjiDictVN.</p>
+      </div>
+
+      <div class="feature-grid">
+        <article class="feature-card">
+          <div class="feature-icon purple">⚙️</div>
+          <div>
+            <h3>Quản lý Kanji</h3>
+            <p>Thư viện Kanji & Radical toàn diện</p>
+          </div>
+        </article>
+        <article class="feature-card">
+          <div class="feature-icon blue">📊</div>
+          <div>
+            <h3>Thống kê hệ thống</h3>
+            <p>Báo cáo và phân tích chi tiết</p>
+          </div>
+        </article>
+      </div>
+
+      <blockquote>
+        <span class="quote-mark">"</span>継続は力なり。"
+        <span class="quote-translation">Kiên trì là sức mạnh.</span>
+      </blockquote>
+    </section>
+
+    <section class="auth-panel">
+      <div class="auth-card">
+        <div class="auth-header">
+          <div>
+            <h2>Đăng nhập Admin</h2>
+            <p>Chỉ tài khoản có role <strong>ADMIN</strong> mới được vào.</p>
+          </div>
+          <div class="admin-badge">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Admin
+          </div>
+        </div>
+
+        <form class="login-form" [formGroup]="loginForm" (ngSubmit)="submit()">
+          <div class="form-field">
+            <label for="login">Email hoặc tên đăng nhập</label>
+            <div class="input-wrapper">
+              <span class="input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+              </span>
+              <input id="login" type="text" formControlName="login" placeholder="admin@kitsune.local" />
+            </div>
+            @if (hasError('login')) {
+              <small class="form-error">Vui lòng nhập email hoặc tên đăng nhập.</small>
+            }
+          </div>
+
+          <div class="form-field">
+            <label for="password">Mật khẩu</label>
+            <div class="input-wrapper">
+              <span class="input-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              </span>
+              <input id="password" [type]="showPassword() ? 'text' : 'password'" formControlName="password" placeholder="••••••••" />
+              <button type="button" class="toggle-password" (click)="togglePassword()" aria-label="Ẩn hiện mật khẩu">
+                @if (!showPassword()) {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                } @else {
+                  <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                }
+              </button>
+            </div>
+            @if (hasError('password')) {
+              <small class="form-error">Mật khẩu phải có ít nhất 6 ký tự.</small>
+            }
+          </div>
+
+          <div class="link-row">
+            <a routerLink="/forgot-password" class="forgot-link">Quên mật khẩu?</a>
+          </div>
+
+          @if (errorMessage()) {
+            <p class="form-message error">{{ errorMessage() }}</p>
+          }
+          @if (successMessage()) {
+            <p class="form-message success">{{ successMessage() }}</p>
+          }
+
+          <button class="submit-btn" type="submit" [disabled]="isSubmitting()">
+            {{ isSubmitting() ? 'Đang xác thực...' : 'Vào trang quản trị →' }}
+          </button>
+        </form>
+
+        <div class="separator"><span>Hoặc</span></div>
+
+        <div class="alt-links">
+          <a class="alt-link" routerLink="/register">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+            Tạo tài khoản Admin mới
+          </a>
+        </div>
+
+        <div class="security-note">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          Khu vực quản trị được bảo mật và giám sát
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

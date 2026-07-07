@@ -1,0 +1,237 @@
+<!-- frontend/Kitsune.Web.User/src/app/features/profile/pages/profile/profile.component.html -->
+<div class="profile-page">
+
+  <!-- Toast -->
+  @if (toast()) {
+    <div class="toast" [class.toast-success]="toast()!.type === 'success'" [class.toast-error]="toast()!.type === 'error'">
+      {{ toast()!.message }}
+    </div>
+  }
+
+  <!-- Hero Card -->
+  <div class="profile-hero">
+    <div class="hero-bg-decoration"></div>
+    <div class="hero-content">
+      <!-- Avatar -->
+      <div class="avatar-container">
+        @if (avatarUrl()) {
+          <img class="avatar-img" [src]="avatarUrl()" [alt]="displayName" />
+        } @else {
+          <div class="avatar-initials">{{ initials }}</div>
+        }
+        @if (userProfile()?.isVerified) {
+          <span class="verified-badge">✓</span>
+        }
+      </div>
+
+      <!-- Info -->
+      <div class="hero-info">
+        <div class="hero-name-row">
+          <h1 class="hero-name">{{ displayName }}</h1>
+          @if (userProfile()?.isVerified) {
+            <span class="verified-chip">✓ Đã xác thực</span>
+          }
+        </div>
+        <p class="hero-username">@{{ username }}</p>
+        <p class="hero-email">{{ userProfile()?.email }}</p>
+        <div class="roles-row">
+          @for (role of userProfile()?.roles ?? []; track role) {
+            <span class="role-badge">{{ role }}</span>
+          }
+        </div>
+      </div>
+
+      <button class="btn-logout" (click)="logout()">Đăng xuất</button>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-icon-box vocab">📚</div>
+      <div class="stat-body">
+        @if (isLoadingStats()) {
+          <div class="stat-value-skeleton"></div>
+        } @else {
+          <div class="stat-value">{{ stats().vocabCount }}</div>
+        }
+        <span class="stat-label">Từ vựng đã học</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-box kanji">漢</div>
+      <div class="stat-body">
+        @if (isLoadingStats()) {
+          <div class="stat-value-skeleton"></div>
+        } @else {
+          <div class="stat-value">{{ stats().kanjiCount }}</div>
+        }
+        <span class="stat-label">Kanji đã học</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon-box quiz">🎯</div>
+      <div class="stat-body">
+        @if (isLoadingStats()) {
+          <div class="stat-value-skeleton"></div>
+        } @else {
+          <div class="stat-value">{{ stats().quizCount }}</div>
+        }
+        <span class="stat-label">Quiz đã làm</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs-bar">
+    @for (tab of tabs; track tab.id) {
+      <button
+        class="tab-btn"
+        [class.active]="activeTab() === tab.id"
+        (click)="setTab(tab.id)"
+      >
+        {{ tab.icon }} {{ tab.label }}
+      </button>
+    }
+  </div>
+
+  <!-- ── INFO TAB ── -->
+  @if (activeTab() === 'info') {
+    <div class="tab-panel">
+      <div class="info-card">
+        <h2 class="panel-title">Thông tin cá nhân</h2>
+        <div class="info-grid">
+          <div class="info-row">
+            <span class="info-label">Họ và tên</span>
+            <div class="info-value">
+              <input
+                class="form-input"
+                [ngModel]="editFullName()"
+              (ngModelChange)="onEditFullName($event)"
+              placeholder="Nhập họ và tên..."
+              [disabled]="isSaving()"
+            />
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Tên đăng nhập</span>
+            <span class="info-value">{{ username }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Email</span>
+            <span class="info-value">{{ userProfile()?.email }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Vai trò</span>
+            <div class="info-value">
+              @for (role of userProfile()?.roles ?? []; track role) {
+                <span class="role-badge">{{ role }}</span>
+              }
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Trạng thái</span>
+            <span class="info-value">
+              @if (userProfile()?.isVerified) {
+                <span class="verified-chip">Đã xác thực</span>
+              } @else {
+                <span class="unverified-chip">Chưa xác thực</span>
+              }
+            </span>
+          </div>
+        </div>
+        <div class="form-actions" style="margin-top: 20px;">
+          <button class="btn-save" (click)="saveFullName()" [disabled]="isSaving()">
+            {{ isSaving() ? 'Đang lưu...' : 'Lưu thay đổi' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ── AVATAR TAB ── -->
+  @if (activeTab() === 'avatar') {
+    <div class="tab-panel">
+      <div class="info-card">
+        <h2 class="panel-title">Ảnh đại diện</h2>
+        <div class="avatar-upload-area">
+          <div class="avatar-upload-preview" (click)="onAvatarClick()">
+            @if (avatarPreview()) {
+              <img [src]="avatarPreview()" alt="Avatar preview" class="avatar-upload-img" />
+            } @else {
+              <div class="avatar-upload-placeholder">
+                <span class="avatar-upload-icon">📷</span>
+                <span class="avatar-upload-text">Nhấn để chọn ảnh</span>
+              </div>
+            }
+            @if (isUploadingAvatar()) {
+              <div class="avatar-upload-overlay">
+                <div class="spinner-sm"></div>
+                <span>Đang tải...</span>
+              </div>
+            }
+          </div>
+          <div class="avatar-upload-info">
+            <p class="avatar-upload-hint">Nhấn vào ảnh để chọn ảnh mới</p>
+            <p class="avatar-upload-hint">Định dạng: JPG, PNG, GIF. Kích thước tối đa: 5MB</p>
+            @if (avatarPreview()) {
+              <button class="btn-remove-avatar" (click)="removeAvatar()" [disabled]="isUploadingAvatar()">
+                Xóa ảnh đại diện
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ── FOLDERS TAB ── -->
+  @if (activeTab() === 'folders') {
+    <div class="tab-panel">
+      <div class="placeholder-card">
+        <div class="placeholder-icon">📁</div>
+        <h3>Thư mục của bạn</h3>
+        <p>Quản lý các thư mục từ vựng của bạn</p>
+        <button class="btn-save" (click)="goToFolders()">Xem tất cả thư mục</button>
+      </div>
+    </div>
+  }
+
+  <!-- ── SRS TAB ── -->
+  @if (activeTab() === 'srs') {
+    <div class="tab-panel">
+      <div class="placeholder-card">
+        <div class="placeholder-icon">📊</div>
+        <h3>Tiến độ SRS</h3>
+        <p>Xem biểu đồ tiến độ ôn tập của bạn</p>
+        <button class="btn-save" (click)="goToSrs()">Xem chi tiết</button>
+      </div>
+    </div>
+  }
+
+  <!-- ── SETTINGS TAB ── -->
+  @if (activeTab() === 'settings') {
+    <div class="tab-panel">
+      <div class="settings-card">
+        <h2 class="panel-title">Cài đặt tài khoản</h2>
+        <div class="info-grid">
+          <div class="info-row">
+            <span class="info-label">Xác thực email</span>
+            <span class="info-value">
+              @if (userProfile()?.isVerified) {
+                <span class="verified-chip">Đã xác thực</span>
+              } @else {
+                <span class="unverified-chip">Chưa xác thực</span>
+              }
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="danger-zone-card">
+        <h3 class="danger-title">Khu vực nguy hiểm</h3>
+        <p class="danger-desc">Các hành động dưới đây không thể hoàn tác. Hãy cân nhắc kỹ trước khi thực hiện.</p>
+        <button class="btn-danger" (click)="logout()">Đăng xuất khỏi tất cả thiết bị</button>
+      </div>
+    </div>
+  }
+</div>

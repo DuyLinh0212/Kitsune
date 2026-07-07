@@ -1,0 +1,97 @@
+# =========================
+# IDEs and Editors
+# =========================
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln.docstates
+.vs/
+.history/
+*.code-workspace
+*.swp
+
+# =========================
+# Node / Angular
+# =========================
+node_modules/
+npm-debug.log
+yarn-error.log
+yarn-debug.log
+pnpm-debug.log
+dist/
+out/
+.angular/
+.vercel/
+
+# =========================
+# Flutter / Dart
+# =========================
+.dart_tool/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+*.g.dart
+*.freezed.dart
+
+# =========================
+# Supabase
+# =========================
+supabase/.temp/
+supabase/.branches/
+
+# =========================
+# OS Generated Files
+# =========================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# =========================
+# Environments & Secrets
+# =========================
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.pem
+*.key
+
+# =========================
+# Agent / AI / Temp
+# =========================
+.agent/
+.claude/
+memory/
+scratch/
+brain/
+*.log
+
+# =========================
+# Databases & Backups
+# =========================
+*.sqlite
+*.sqlite3
+*.sql
+backup.sql
+
+# =========================
+# Documentation
+# =========================
+*.md
+!README.md
+!readme.md
+!Readme.md

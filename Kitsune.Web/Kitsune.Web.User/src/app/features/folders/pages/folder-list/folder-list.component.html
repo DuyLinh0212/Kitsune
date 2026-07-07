@@ -1,0 +1,202 @@
+<!-- Toast notification -->
+@if (toast()) {
+  <div class="toast" [class.toast-success]="toast()!.type === 'success'" [class.toast-error]="toast()!.type === 'error'">
+    <span class="toast-icon">{{ toast()!.type === 'success' ? '✓' : '✕' }}</span>
+    {{ toast()!.text }}
+  </div>
+}
+
+<div class="page-container">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Thư Mục Của Tôi</h1>
+      <p class="page-subtitle">Quản lý và tổ chức từ vựng của bạn</p>
+    </div>
+    <button class="btn-primary" (click)="openCreateModal()">
+      <span class="btn-icon">＋</span>
+      Tạo thư mục
+    </button>
+  </div>
+
+  <!-- Loading state -->
+  @if (isLoading()) {
+    <div class="loading-container">
+      <div class="spinner"></div>
+      <p class="loading-text">Đang tải thư mục...</p>
+    </div>
+  }
+
+  <!-- Empty state -->
+  @if (!isLoading() && folders().length === 0) {
+    <div class="empty-state">
+      <div class="empty-illustration">📂</div>
+      <h2 class="empty-title">Chưa có thư mục nào</h2>
+      <p class="empty-desc">Hãy tạo thư mục đầu tiên để bắt đầu tổ chức từ vựng của bạn.</p>
+      <button class="btn-primary" (click)="openCreateModal()">
+        <span class="btn-icon">＋</span>
+        Tạo thư mục đầu tiên
+      </button>
+    </div>
+  }
+
+  <!-- Folder grid -->
+  @if (!isLoading() && folders().length > 0) {
+    <div class="folder-grid">
+      @for (folder of folders(); track folder.id) {
+        <div class="folder-card">
+          <div class="card-top">
+            <div class="folder-icon">📁</div>
+            <div class="menu-wrapper">
+              <button class="menu-btn" (click)="toggleMenu(folder.id)" title="Tùy chọn">
+                ⋮
+              </button>
+              @if (openMenuId() === folder.id) {
+                <div class="dropdown-menu" (mouseleave)="closeMenu()">
+                  <button class="dropdown-item" (click)="openRenameModal(folder)">
+                    ✏️ Đổi tên
+                  </button>
+                  <button class="dropdown-item dropdown-item-danger" (click)="deleteFolder(folder.id)">
+                    🗑️ Xóa
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="card-body">
+            <h3 class="folder-name">{{ folder.name }}</h3>
+            @if (folder.description) {
+              <p class="folder-desc">{{ folder.description }}</p>
+            } @else {
+              <p class="folder-desc folder-desc-empty">Chưa có mô tả</p>
+            }
+          </div>
+
+          <div class="card-footer">
+            <div class="vocab-count">
+              <span class="vocab-icon">📝</span>
+              <span>{{ folder.vocabCount }} từ vựng</span>
+            </div>
+            <div class="card-badges">
+              @if (folder.isPublic) {
+                <span class="badge badge-public">Công khai</span>
+              } @else {
+                <span class="badge badge-private">Riêng tư</span>
+              }
+            </div>
+          </div>
+
+          <div class="card-actions">
+            <a [routerLink]="['/folders', folder.id]" class="btn-view">
+              Xem từ vựng →
+            </a>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- Create Folder Modal -->
+@if (showCreateModal()) {
+  <div class="modal-backdrop" (click)="closeCreateModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">Tạo thư mục mới</h2>
+        <button class="modal-close" (click)="closeCreateModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="folderName">Tên thư mục <span class="required">*</span></label>
+          <input
+            id="folderName"
+            class="form-input"
+            type="text"
+            placeholder="Nhập tên thư mục..."
+            [ngModel]="newFolderName()"
+            (ngModelChange)="newFolderName.set($event)"
+            (keydown.enter)="createFolder()"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="folderDesc">Mô tả</label>
+          <textarea
+            id="folderDesc"
+            class="form-input form-textarea"
+            placeholder="Nhập mô tả (tuỳ chọn)..."
+            [ngModel]="newDescription()"
+            (ngModelChange)="newDescription.set($event)"
+          ></textarea>
+        </div>
+        <div class="form-group form-toggle-group">
+          <label class="form-label">Hiển thị công khai</label>
+          <label class="toggle-switch">
+            <input
+              type="checkbox"
+              [ngModel]="newIsPublic()"
+              (ngModelChange)="newIsPublic.set($event)"
+            />
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeCreateModal()">Hủy</button>
+        <button class="btn-primary" (click)="createFolder()" [disabled]="isCreating()">
+          @if (isCreating()) {
+            <span class="btn-spinner"></span> Đang tạo...
+          } @else {
+            Tạo thư mục
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- Rename Modal -->
+@if (showRenameModal()) {
+  <div class="modal-backdrop" (click)="closeRenameModal()">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h2 class="modal-title">Đổi tên thư mục</h2>
+        <button class="modal-close" (click)="closeRenameModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="renameName">Tên mới <span class="required">*</span></label>
+          <input
+            id="renameName"
+            class="form-input"
+            type="text"
+            placeholder="Nhập tên mới..."
+            [ngModel]="renameName()"
+            (ngModelChange)="renameName.set($event)"
+            (keydown.enter)="saveRename()"
+          />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="renameDesc">Mô tả</label>
+          <textarea
+            id="renameDesc"
+            class="form-input form-textarea"
+            placeholder="Nhập mô tả..."
+            [ngModel]="renameDescription()"
+            (ngModelChange)="renameDescription.set($event)"
+          ></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" (click)="closeRenameModal()">Hủy</button>
+        <button class="btn-primary" (click)="saveRename()" [disabled]="isRenaming()">
+          @if (isRenaming()) {
+            <span class="btn-spinner"></span> Đang lưu...
+          } @else {
+            Lưu thay đổi
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+}

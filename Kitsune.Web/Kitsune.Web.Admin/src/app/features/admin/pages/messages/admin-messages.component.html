@@ -1,0 +1,38 @@
+<div class="page">
+  <h2>Tin nhắn từ Người dùng</h2>
+  <div class="layout">
+    <div class="sidebar">
+      @if (isLoading()) { <p>Đang tải...</p> }
+      @else {
+        @for (conv of conversations(); track conv.userId) {
+          <div class="conv-item" [class.active]="selectedUserId() === conv.userId" (click)="selectUser(conv.userId)">
+            <div class="conv-name">{{ conv.username }}</div>
+            <div class="conv-last">{{ conv.lastMessage }}</div>
+            <div class="conv-meta">
+              <span>{{ conv.lastMessageAt | date:'dd/MM' }}</span>
+              @if (conv.unreadCount > 0) { <span class="unread">{{ conv.unreadCount }}</span> }
+            </div>
+          </div>
+        }
+      }
+    </div>
+    <div class="chat-area">
+      @if (!selectedUserId()) { <p class="placeholder">Chọn cuộc trò chuyện</p> }
+      @else {
+        <div class="messages">
+          @for (m of messages(); track m.id) {
+            <div class="msg" [class.sent]="m.senderId === 1">
+              <div class="msg-sender">{{ m.senderName }}</div>
+              <div class="msg-content">{{ m.content }}</div>
+              <div class="msg-time">{{ m.createdAt | date:'HH:mm dd/MM' }}</div>
+            </div>
+          }
+        </div>
+        <form class="reply-bar" (ngSubmit)="send()">
+          <input [(ngModel)]="replyText" name="reply" placeholder="Nhập tin nhắn..." />
+          <button type="submit" [disabled]="!replyText().trim()">Gửi</button>
+        </form>
+      }
+    </div>
+  </div>
+</div>

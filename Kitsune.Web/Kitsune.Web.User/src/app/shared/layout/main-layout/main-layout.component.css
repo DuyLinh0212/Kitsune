@@ -1,0 +1,46 @@
+/* ===== MAIN LAYOUT ===== */
+.main-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f8fafc;
+  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
+  color: #1f2937;
+}
+
+/* ===== MAIN CONTENT ===== */
+.main-content {
+  flex: 1;
+  margin-left: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  transition: margin-left 0.25s ease;
+}
+
+.main-content.sidebar-open {
+  margin-left: 240px;
+}
+
+/* ===== PAGE CONTENT ===== */
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Desktop: content luôn shift sang phải để nhường chỗ sidebar */
+@media (min-width: 769px) {
+  .main-content {
+    margin-left: 240px !important;
+  }
+}
+
+/* Mobile: không shift, sidebar overlay */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+  }
+  .main-content.sidebar-open {
+    margin-left: 0;
+  }
+}

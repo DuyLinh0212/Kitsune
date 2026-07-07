@@ -1,0 +1,389 @@
+<div class="folder-detail-page">
+  @if (toast()) {
+    <div class="toast" [class.toast--error]="toast()!.type === 'error'">
+      <span class="toast__icon">{{ toast()!.type === 'success' ? 'OK' : '!' }}</span>
+      <span>{{ toast()!.text }}</span>
+    </div>
+  }
+
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a [routerLink]="['/folders']" class="breadcrumb__link">Folder</a>
+    <span class="breadcrumb__sep">/</span>
+    <span class="breadcrumb__current">{{ folder()?.name ?? 'Đang tải...' }}</span>
+  </nav>
+
+  <section class="hero-sheet">
+    <div class="hero-sheet__copy">
+      <span class="hero-sheet__eyebrow">Study dossier</span>
+      <h1>{{ folder()?.name ?? 'Folder đang mở' }}</h1>
+      <p>
+        {{ folder()?.description || 'Bộ thẻ này được sắp xếp để đọc nhanh, tra cứu nhanh và chuyển ngay sang màn chi tiết khi cần.' }}
+      </p>
+      <div class="hero-sheet__stats">
+        <div class="hero-stat">
+          <strong>{{ vocabCount }}</strong>
+          <span>Từ vựng</span>
+        </div>
+        <div class="hero-stat">
+          <strong>{{ kanjiCount }}</strong>
+          <span>kanji</span>
+        </div>
+        <div class="hero-stat">
+          <strong>{{ totalKanjiMentions }}</strong>
+          <span>lần xuất hiện</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-sheet__meta">
+      <a [routerLink]="['/folders']" class="hero-link">Quay lại danh sách</a>
+      <span class="hero-badge" [class.hero-badge--public]="folder()?.isPublic" [class.hero-badge--private]="!folder()?.isPublic">
+        {{ folder()?.isPublic ? 'Công khai' : 'Riêng tư' }}
+      </span>
+      <div class="hero-note">
+        <strong>Tương tác mới</strong>
+        <span>Double click để mở trang chi tiết. Hover hơn 1 giây để xem preview.</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="workspace-toolbar">
+    <label class="search-box">
+      <span class="search-box__icon">Tìm</span>
+      <input
+        type="text"
+        [ngModel]="searchQuery()"
+        (ngModelChange)="onSearchInput($event)"
+        placeholder="Lọc theo từ, nghĩa, âm Hán Việt hay kanji..."
+      />
+      @if (searchQuery()) {
+        <button type="button" class="search-box__clear" (click)="onSearchInput('')">Xóa</button>
+      }
+    </label>
+
+    <div class="workspace-toolbar__summary">
+      <span>{{ filteredVocabs().length }} từ đang hiện</span>
+      <span>{{ filteredKanji().length }} kanji đang hiện</span>
+    </div>
+  </section>
+
+  @if (isLoading()) {
+    <section class="workspace-loading">
+      <div class="loading-card"></div>
+      <div class="loading-card loading-card--wide"></div>
+      <div class="loading-card"></div>
+    </section>
+  } @else {
+    <section class="study-workspace">
+      <div class="content-column">
+        <article class="desk-panel">
+          <header class="desk-panel__header">
+            <div>
+              <span class="section-kicker">Vocabulary ledger</span>
+              <h2>Bảng từ vựng</h2>
+            </div>
+            <span class="panel-count">{{ filteredVocabs().length }}</span>
+          </header>
+
+          @if (filteredVocabs().length === 0) {
+            <div class="empty-panel">
+              <strong>Không có từ vựng nào khớp bộ lọc.</strong>
+              <span>Thử đổi từ khóa để xem lại danh sách.</span>
+            </div>
+          } @else {
+            <div class="vocab-table-wrap">
+              <table class="vocab-table">
+                <thead>
+                  <tr>
+                    <th>Từ</th>
+                    <th>Phiên âm</th>
+                    <th>Nghĩa</th>
+                    <th>Kanji</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (vocab of filteredVocabs(); track vocab.id) {
+                    <tr
+                      class="vocab-row"
+                      [class.vocab-row--active]="isSelectedVocab(vocab.id)"
+                      (click)="selectVocab(vocab)"
+                      (dblclick)="openVocabDetail(vocab)"
+                      (mouseenter)="handleVocabHover(vocab, $event)"
+                      (mousemove)="updatePreviewPosition($event)"
+                      (mouseleave)="leavePreview()"
+                    >
+                      <td>
+                        <div class="cell-main">
+                          <strong>{{ vocab.word }}</strong>
+                          <span>#{{ vocab.id }}</span>
+                        </div>
+                      </td>
+                      <td>{{ vocab.pronunciation || '---' }}</td>
+                      <td>{{ vocab.meaning }}</td>
+                      <td>
+                        <div class="kanji-inline">
+                          @if (vocab.kanjiComponents.length === 0) {
+                            <span class="kanji-inline__empty">Không có</span>
+                          } @else {
+                            @for (item of vocab.kanjiComponents; track item.kanjiId) {
+                              <button
+                                type="button"
+                                class="kanji-pill"
+                                (click)="selectKanji({
+                                  kanjiId: item.kanjiId,
+                                  character: item.character,
+                                  amHanViet: item.amHanViet,
+                                  usageCount: 1,
+                                  examples: [vocab.word],
+                                  strokeCount: null
+                                }); $event.stopPropagation()"
+                                (dblclick)="openKanjiDetail({
+                                  kanjiId: item.kanjiId,
+                                  character: item.character,
+                                  amHanViet: item.amHanViet,
+                                  usageCount: 1,
+                                  examples: [vocab.word],
+                                  strokeCount: null
+                                }); $event.stopPropagation()"
+                                (mouseenter)="handleKanjiHover({
+                                  kanjiId: item.kanjiId,
+                                  character: item.character,
+                                  amHanViet: item.amHanViet,
+                                  usageCount: 1,
+                                  examples: [vocab.word],
+                                  strokeCount: null
+                                }, $event); $event.stopPropagation()"
+                                (mousemove)="updatePreviewPosition($event); $event.stopPropagation()"
+                                (mouseleave)="leavePreview(); $event.stopPropagation()"
+                              >
+                                {{ item.character }}
+                              </button>
+                            }
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </article>
+
+        <article class="desk-panel desk-panel--kanji">
+          <header class="desk-panel__header">
+            <div>
+              <span class="section-kicker">Kanji index</span>
+              <h2>Bản đồ kanji</h2>
+            </div>
+            <span class="panel-count">{{ filteredKanji().length }}</span>
+          </header>
+
+          @if (filteredKanji().length === 0) {
+            <div class="empty-panel">
+              <strong>Chưa có kanji nào trong bộ lọc này.</strong>
+              <span>Những từ không có kanji vẫn được giữ nguyên trong bảng từ vựng.</span>
+            </div>
+          } @else {
+            <div class="kanji-board">
+              @for (item of filteredKanji(); track item.kanjiId) {
+                <button
+                  type="button"
+                  class="kanji-card"
+                  [class.kanji-card--active]="isSelectedKanji(item.kanjiId)"
+                  (click)="selectKanji(item)"
+                  (dblclick)="openKanjiDetail(item)"
+                  (mouseenter)="handleKanjiHover(item, $event)"
+                  (mousemove)="updatePreviewPosition($event)"
+                  (mouseleave)="leavePreview()"
+                >
+                  <span class="kanji-card__char">{{ item.character }}</span>
+                  <span class="kanji-card__hv">{{ item.amHanViet }}</span>
+                  <span class="kanji-card__meta">{{ item.usageCount }} từ liên quan</span>
+                </button>
+              }
+            </div>
+          }
+        </article>
+      </div>
+
+      <aside class="inspector">
+        <div class="inspector__frame">
+          <span class="section-kicker">Reference panel</span>
+          <h2>{{ activePanelTitle }}</h2>
+          <p>{{ activePanelSubtitle }}</p>
+        </div>
+
+        @if (selectedVocab(); as vocab) {
+          <div class="inspector-card inspector-card--vocab">
+            <div class="inspector-vocab__hero">
+              <strong>{{ vocab.word }}</strong>
+              <span>{{ vocab.pronunciation || 'Không có phiên âm' }}</span>
+            </div>
+            <p class="inspector-vocab__meaning">{{ vocab.meaning }}</p>
+
+            @if (vocab.kanjiComponents.length > 0) {
+              <div class="inspector-section">
+                <span class="inspector-section__label">Thành phần kanji</span>
+                <div class="inspector-chip-row">
+                  @for (item of vocab.kanjiComponents; track item.kanjiId) {
+                    <button
+                      type="button"
+                      class="inspector-chip"
+                      (click)="selectKanji({
+                        kanjiId: item.kanjiId,
+                        character: item.character,
+                        amHanViet: item.amHanViet,
+                        usageCount: 1,
+                        examples: [vocab.word],
+                        strokeCount: null
+                      })"
+                    >
+                      {{ item.character }} · {{ item.amHanViet }}
+                    </button>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (vocab.specificData) {
+              <div class="inspector-section">
+                <span class="inspector-section__label">Specific data</span>
+                <pre class="inspector-code">{{ vocab.specificData | json }}</pre>
+              </div>
+            }
+
+            <button type="button" class="primary-action" (click)="openVocabDetail(vocab)">
+              Mở trang tra cứu từ này
+            </button>
+          </div>
+        } @else if (selectedKanji(); as kanji) {
+          <div class="inspector-card inspector-card--kanji">
+            <div class="inspector-kanji__hero">
+              <div class="inspector-kanji__char">{{ kanji.character }}</div>
+              <div>
+                <strong>{{ kanji.amHanViet }}</strong>
+                <span>{{ kanji.usageCount }} từ liên quan</span>
+              </div>
+            </div>
+
+            @if (selectedKanjiLoading()) {
+              <div class="inline-loading">Đang tải chi tiết kanji...</div>
+            } @else if (selectedKanjiDetail(); as detail) {
+              <div class="inspector-section">
+                <span class="inspector-section__label">Thông tin nhanh</span>
+                <div class="fact-grid">
+                  <div class="fact-box">
+                    <span>Onyomi</span>
+                    <strong>{{ detail.onyomi || '---' }}</strong>
+                  </div>
+                  <div class="fact-box">
+                    <span>Kunyomi</span>
+                    <strong>{{ detail.kunyomi || '---' }}</strong>
+                  </div>
+                  <div class="fact-box">
+                    <span>Số nét</span>
+                    <strong>{{ detail.strokeCount }}</strong>
+                  </div>
+                  <div class="fact-box">
+                    <span>JLPT</span>
+                    <strong [style.color]="getJlptColor(detail.jlptLevel)">{{ detail.jlptLevel ? 'N' + detail.jlptLevel : '---' }}</strong>
+                  </div>
+                </div>
+              </div>
+
+              <div class="inspector-section">
+                <span class="inspector-section__label">Nghĩa</span>
+                <p class="inspector-copy">{{ detail.meaning }}</p>
+              </div>
+
+              @if (detail.radical) {
+                <div class="inspector-section">
+                  <span class="inspector-section__label">Bộ thủ</span>
+                  <div class="radical-box">
+                    <span>{{ detail.radical.radicalCharacter }}</span>
+                    <div>
+                      <strong>{{ detail.radical.radicalName }}</strong>
+                      <p>{{ detail.radical.description || detail.radical.englishName || '---' }}</p>
+                    </div>
+                  </div>
+                </div>
+              }
+
+              <div class="inspector-section">
+                <span class="inspector-section__label">Nét viết</span>
+                <app-kanji-stroke-writer [character]="detail.character" [width]="220" [height]="220" />
+              </div>
+            }
+
+            <div class="inspector-section">
+              <span class="inspector-section__label">Xuất hiện trong</span>
+              <div class="inspector-chip-row">
+                @for (example of kanji.examples; track example) {
+                  <span class="soft-chip">{{ example }}</span>
+                }
+              </div>
+            </div>
+
+            <button type="button" class="primary-action" (click)="openKanjiDetail(kanji)">
+              Mở trang tra cứu kanji này
+            </button>
+          </div>
+        } @else {
+          <div class="empty-panel empty-panel--tall">
+            <strong>Chọn 1 mục bất kỳ.</strong>
+            <span>Bảng trái ưu tiên đọc nhanh. Khung này dùng để xem sâu hơn trước khi chuyển trang.</span>
+          </div>
+        }
+      </aside>
+    </section>
+  }
+
+  @if (hoverPreview() && hoverPreviewVisible()) {
+    <div
+      class="hover-preview"
+      [style.left.px]="hoverPreview()!.position.x"
+      [style.top.px]="hoverPreview()!.position.y"
+      (mouseenter)="keepPreviewOpen()"
+      (mouseleave)="leavePreview()"
+    >
+      @if (hoverPreview()!.kind === 'vocab') {
+        <div class="preview-card">
+          <span class="preview-card__label">Vocabulary preview</span>
+          <strong class="preview-card__headline">{{ hoverPreviewVocab()!.word }}</strong>
+          <span class="preview-card__reading">{{ hoverPreviewVocab()!.pronunciation || 'Không có phiên âm' }}</span>
+          <p class="preview-card__copy">{{ hoverPreviewVocab()!.meaning }}</p>
+          @if (hoverPreviewVocab()!.kanjiComponents.length > 0) {
+            <div class="preview-pill-row">
+              @for (item of hoverPreviewVocab()!.kanjiComponents; track item.kanjiId) {
+                <span class="soft-chip">{{ item.character }} · {{ item.amHanViet }}</span>
+              }
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="preview-card preview-card--kanji">
+          <span class="preview-card__label">Kanji preview</span>
+          <div class="preview-kanji-head">
+            <strong class="preview-kanji-head__char">{{ hoverPreviewKanji()!.character }}</strong>
+            <div>
+              <strong>{{ hoverPreviewKanji()!.amHanViet }}</strong>
+              <span>{{ hoverPreviewKanji()!.usageCount }} từ liên quan</span>
+            </div>
+          </div>
+
+          @if (hoverKanjiLoading()) {
+            <div class="inline-loading">Đang tải stroke và thông tin...</div>
+          } @else if (hoverKanjiDetail(); as detail) {
+            <div class="preview-facts">
+              <span>{{ detail.meaning }}</span>
+              <span>{{ detail.strokeCount }} nét</span>
+              <span>{{ detail.onyomi || detail.kunyomi || 'Không có cách đọc' }}</span>
+            </div>
+            <app-kanji-stroke-writer [character]="detail.character" [width]="180" [height]="180" />
+          }
+        </div>
+      }
+    </div>
+  }
+</div>

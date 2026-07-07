@@ -1,0 +1,224 @@
+<!-- Toast Notification -->
+@if (toast()) {
+  <div class="toast" [class]="'toast toast-' + toast()!.type">
+    {{ toast()!.text }}
+  </div>
+}
+
+<!-- Main Container -->
+<div class="quiz-play-container">
+
+  <!-- ── Loading State ──────────────────────────────────────────────────── -->
+  @if (quizState() === 'loading') {
+    <div class="state-center">
+      <div class="spinner"></div>
+      <p class="loading-text">Đang tải quiz...</p>
+    </div>
+  }
+
+  <!-- ── Ready State ────────────────────────────────────────────────────── -->
+  @if (quizState() === 'ready') {
+    <div class="ready-card card fade-in">
+      <!-- Back button -->
+      <button class="btn-back" (click)="backFromReady()">
+        ← Quay lại
+      </button>
+
+      @if (quizMeta()) {
+        <div class="ready-header">
+          <div class="quiz-icon">🎌</div>
+          <h1 class="quiz-title">{{ quizMeta()!.title }}</h1>
+
+          @if (quizMeta()!.modes.length > 0) {
+            <div class="modes-row">
+              @for (mode of quizMeta()!.modes; track mode) {
+                <span class="mode-badge">{{ mode }}</span>
+              }
+            </div>
+          }
+
+          <div class="quiz-meta-info">
+            <span class="meta-item">
+              📋 {{ estimatedQuestions() }} câu hỏi
+            </span>
+            @if (quizMeta()!.timeLimitInSeconds > 0) {
+              <span class="meta-item timer-meta">
+                ⏱ {{ quizMeta()!.timeLimitInSeconds / 60 | number:'1.0-0' }} phút
+              </span>
+            } @else {
+              <span class="meta-item">⏱ Không giới hạn thời gian</span>
+            }
+          </div>
+        </div>
+
+        @if (estimatedQuestions() === 0) {
+          <div class="no-questions">
+            <p>Quiz này chưa có câu hỏi nào. Vui lòng liên hệ người tạo.</p>
+            <button class="btn-secondary" (click)="backFromReady()">Quay lại</button>
+          </div>
+        } @else {
+          <button class="btn-start" (click)="startQuiz()" [disabled]="isGenerating()">
+            @if (isGenerating()) { <span class="spinner-sm"></span> Đang chuẩn bị... }
+            @else { ▶ Bắt đầu }
+          </button>
+        }
+      }
+    </div>
+  }
+
+  <!-- ── Playing / Reviewing State ─────────────────────────────────────── -->
+  @if (quizState() === 'playing' || quizState() === 'reviewing') {
+    <div class="play-layout">
+
+      <!-- Header bar -->
+      <div class="play-header">
+        <button class="btn-back-small" (click)="backToQuizzes()" title="Thoát quiz">✕ Thoát</button>
+
+        <div class="progress-section">
+          <span class="question-counter">Câu {{ currentIndex() + 1 }} / {{ totalQuestions() }}</span>
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" [style.width.%]="progressPercent()"></div>
+          </div>
+        </div>
+
+        @if (quizMeta() && quizMeta()!.timeLimitInSeconds > 0) {
+          <div class="timer-display" [class.timer-danger]="isTimerDanger()">
+            ⏱ {{ formattedTimeLeft() }}
+          </div>
+        } @else {
+          <div class="score-mini">
+            <span class="score-correct">✓ {{ correctCount() }}</span>
+            <span class="score-divider">/</span>
+            <span class="score-incorrect">✗ {{ incorrectCount() }}</span>
+          </div>
+        }
+      </div>
+
+      <!-- Question card -->
+      @if (currentQuestion()) {
+        <div class="question-card card fade-in" [attr.key]="currentIndex()">
+          <div class="question-text">
+            {{ currentQuestion()!.questionText }}
+          </div>
+
+          <!-- MC Options -->
+          @if (currentQuestion()!.type === 'mc') {
+            <div class="options-grid">
+              @for (option of currentQuestion()!.options; track option) {
+                <button
+                  class="option-btn"
+                  [class]="getOptionClass(option)"
+                  (click)="selectOption(option)"
+                  [disabled]="isAnswerRevealed()">
+                  {{ option }}
+                </button>
+              }
+            </div>
+
+            <!-- Feedback banner (MC) -->
+            @if (isAnswerRevealed()) {
+              <div class="feedback-banner" [class.feedback-correct]="lastAnswerCorrect()" [class.feedback-incorrect]="!lastAnswerCorrect()">
+                @if (lastAnswerCorrect()) {
+                  <span>✅ Đúng! Xuất sắc!</span>
+                } @else {
+                  <span>❌ Sai! Đáp án đúng: <strong>{{ currentQuestion()!.correctAnswer }}</strong></span>
+                }
+              </div>
+            }
+          }
+
+          <!-- Fill-in-the-blank -->
+          @if (currentQuestion()!.type === 'fill') {
+            <div class="fill-section">
+              <input
+                class="fill-input"
+                [class.fill-correct]="fillAnswerCorrect() === true"
+                [class.fill-incorrect]="fillAnswerCorrect() === false"
+                type="text"
+                placeholder="Nhập câu trả lời..."
+                [ngModel]="fillAnswer()"
+                (ngModelChange)="fillAnswer.set($event)"
+                (keydown)="onFillKeydown($event)"
+                [disabled]="isAnswerRevealed()"
+                autofocus />
+              <button
+                class="btn-submit-fill"
+                (click)="submitFillAnswer()"
+                [disabled]="isAnswerRevealed() || !fillAnswer().trim()">
+                Trả lời
+              </button>
+            </div>
+
+            <!-- Feedback banner (Fill) -->
+            @if (isAnswerRevealed()) {
+              <div class="feedback-banner" [class.feedback-correct]="fillAnswerCorrect()" [class.feedback-incorrect]="fillAnswerCorrect() === false">
+                @if (fillAnswerCorrect()) {
+                  <span>✅ Đúng! Xuất sắc!</span>
+                } @else {
+                  <span>❌ Sai! Đáp án đúng: <strong>{{ currentQuestion()!.correctAnswer }}</strong></span>
+                }
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ── Completed State ────────────────────────────────────────────────── -->
+  @if (quizState() === 'completed') {
+    <div class="completed-card card fade-in">
+      <!-- Celebration header -->
+      <div class="completed-hero">
+        @if (celebrationMode()) {
+          <div class="celebration-emoji">🎉🏆🎊</div>
+          <h2 class="completed-title">Hoàn thành xuất sắc!</h2>
+        } @else {
+          <div class="celebration-emoji">📝</div>
+          <h2 class="completed-title">Hoàn thành!</h2>
+        }
+      </div>
+
+      <!-- Score circle -->
+      <div class="score-circle" [class.score-great]="celebrationMode()" [class.score-ok]="!celebrationMode()">
+        <span class="score-number">{{ scorePercent() }}%</span>
+        <span class="score-label">Điểm số</span>
+      </div>
+
+      <!-- Stats -->
+      <div class="stats-grid">
+        <div class="stat-item stat-correct">
+          <span class="stat-icon">✅</span>
+          <span class="stat-value">{{ correctCount() }}</span>
+          <span class="stat-label">Đúng</span>
+        </div>
+        <div class="stat-item stat-incorrect">
+          <span class="stat-icon">❌</span>
+          <span class="stat-value">{{ incorrectCount() }}</span>
+          <span class="stat-label">Sai</span>
+        </div>
+        <div class="stat-item stat-total">
+          <span class="stat-icon">📋</span>
+          <span class="stat-value">{{ totalQuestions() }}</span>
+          <span class="stat-label">Tổng câu</span>
+        </div>
+        <div class="stat-item stat-time">
+          <span class="stat-icon">⏱</span>
+          <span class="stat-value">{{ timeSpentSeconds() }}s</span>
+          <span class="stat-label">Thời gian</span>
+        </div>
+      </div>
+
+      @if (isSaving()) {
+        <p class="saving-text">Đang lưu kết quả...</p>
+      }
+
+      <!-- Action buttons -->
+      <div class="completed-actions">
+        <button class="btn-start" (click)="playAgain()">🔄 Làm lại</button>
+        <button class="btn-secondary" (click)="backToQuizzes()">← Quay lại</button>
+      </div>
+    </div>
+  }
+
+</div>

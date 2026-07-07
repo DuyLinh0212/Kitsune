@@ -1,0 +1,49 @@
+/* System Logs — reuses mgmt-page shared patterns */
+.mgmt-page { padding: 28px 32px; max-width: 1300px; margin: 0 auto; font-family: 'Inter', 'Segoe UI', sans-serif; }
+.page-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; }
+.page-title { font-size: 26px; font-weight: 800; color: #1a1a2e; margin: 0 0 4px; }
+.page-subtitle { font-size: 14px; color: #6b6b8a; margin: 0; }
+.btn-refresh { display: flex; align-items: center; gap: 8px; padding: 9px 16px; background: #fff; border: 1.5px solid #e2e2ee; border-radius: 10px; font-size: 14px; font-weight: 600; color: #2a2a4a; cursor: pointer; transition: all 0.2s; }
+.btn-refresh:hover { border-color: #c0b0e8; background: #faf9ff; }
+.filter-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.search-wrapper { position: relative; flex: 1; min-width: 240px; }
+.search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #a0a0c0; pointer-events: none; }
+.search-input { width: 100%; padding: 10px 14px 10px 40px; border: 1.5px solid #e2e2ee; border-radius: 10px; font-size: 14px; color: #1a1a2e; background: #fff; outline: none; transition: border-color 0.2s; }
+.search-input:focus { border-color: #6c4de6; box-shadow: 0 0 0 3px rgba(108,77,230,0.1); }
+
+.type-tabs { display: flex; gap: 6px; }
+.type-tab { padding: 7px 14px; border: 1.5px solid #e2e2ee; border-radius: 8px; background: #fff; font-size: 13.5px; font-weight: 600; color: #6b6b8a; cursor: pointer; transition: all 0.2s; }
+.type-tab.active { background: #6c4de6; color: #fff; border-color: #6c4de6; }
+.type-tab:not(.active):hover { border-color: #c0b0e8; color: #6c4de6; }
+
+.count-badge { padding: 6px 14px; background: #ede8fb; color: #6c4de6; border-radius: 20px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+
+.state-card { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 48px; border-radius: 16px; text-align: center; font-size: 15px; color: #6b6b8a; }
+.state-card.loading { background: #fafafa; border: 2px dashed #e2e2ee; }
+.state-card.error   { background: #fff5f7; border: 2px dashed #f5c6d0; color: #a93450; }
+.state-card.empty   { background: #faf9ff; border: 2px dashed #e2d8f8; }
+.spinner { width: 32px; height: 32px; border: 3px solid #ede8fb; border-top-color: #6c4de6; border-radius: 50%; animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.empty-icon { font-size: 40px; }
+.btn-retry { padding: 8px 20px; background: #6c4de6; color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+
+.table-wrapper { background: #fff; border: 1px solid #e8e8f0; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+.data-table { width: 100%; border-collapse: collapse; }
+.data-table thead tr { background: #f8f7ff; }
+.data-table th { padding: 13px 16px; font-size: 13px; font-weight: 700; color: #5a5a7a; text-align: left; border-bottom: 1px solid #e8e8f0; }
+.data-table td { padding: 13px 16px; font-size: 14px; color: #2a2a4a; border-bottom: 1px solid #f0f0f8; vertical-align: middle; }
+.data-table tbody tr:last-child td { border-bottom: none; }
+.data-table tbody tr:hover { background: #faf9ff; }
+
+.action-badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; }
+.badge-quiz { background: #e8f0fe; color: #3a5cd6; }
+.badge-srs  { background: #e8faf0; color: #2a8a5a; }
+
+.user-chip { padding: 3px 10px; background: #f0edff; color: #6c4de6; border-radius: 20px; font-size: 12.5px; font-weight: 600; }
+.cell-desc { color: #5a5a7a; max-width: 400px; }
+.cell-date { color: #7070a0; font-size: 12.5px; white-space: nowrap; }
+
+@media (max-width: 700px) {
+  .mgmt-page { padding: 16px; }
+  .type-tabs { display: none; }
+}

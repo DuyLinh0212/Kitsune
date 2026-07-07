@@ -1,0 +1,24 @@
+// kitsune_app/lib/core/constants/supabase_config.dart
+
+class SupabaseConfig {
+  static const String url = 'https://wzwwopifwhijewbmyywz.supabase.co';
+  static const String anonKey = 'sb_publishable_ZaSAPkaTIBw_P9S18KmGDg_OmpJVQjB';
+
+  static const String vocabSelect =
+      'Id,FolderId,LanguageId,Word,Pronunciation,Meaning,SpecificData,CreatedAt,VocabularyFolder:FolderId(FolderName),Languages:LanguageId(LanguageCode,LanguageName),KanjiComponents:KanjiComponents(KanjiId,Kanji:KanjiId(Id,Character,AmHanViet),"Order")';
+
+  static const String kanjiSelect =
+      'Id,Character,Onyomi,Kunyomi,AmHanViet,Meaning,StrokeCount,JlptLevel,Mnemonic,Radical:RadicalId(Id,RadicalCharacter,RadicalName,EnglishName,Description)';
+
+  static const String userProfileSelect =
+      'Id, Username, Email, FullName, AvatarUrl, IsVerified, CreatedAt, User_Role(Role(RoleName))';
+
+  static const String quizMetaSelect =
+      'Id, Title, Description, TimeLimitInSeconds, CreatedAt, Creator:CreatorId(FullName, Username)';
+
+  static const String srsCardSelect =
+      'Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate';
+
+  static const String kanjiComponentWithKanjiSelect =
+      'VocabularyId, KanjiId, "Order", Kanji:KanjiId(Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi)';
+}

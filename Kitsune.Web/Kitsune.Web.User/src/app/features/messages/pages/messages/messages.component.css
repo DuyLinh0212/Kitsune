@@ -1,0 +1,234 @@
+:host {
+  display: block;
+  min-height: calc(100vh - 64px);
+}
+
+/* ===== PAGE ===== */
+.messages-page {
+  min-height: calc(100vh - 64px);
+  background: linear-gradient(135deg, #4c1d95 0%, #6d28d9 35%, #8b5cf6 65%, #a78bfa 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  padding: 40px 20px;
+}
+
+/* ===== ANIMATED BUBBLES ===== */
+.bubbles-container {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bubble {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  animation: floatUp linear infinite;
+}
+
+.bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 16px;
+  width: 12px;
+  height: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  transform: rotate(45deg);
+}
+
+.bubble-1 { left: 8%;  bottom: -60px; animation-duration: 8s;  animation-delay: 0s;   }
+.bubble-2 { left: 22%; bottom: -60px; animation-duration: 11s; animation-delay: 2s;   }
+.bubble-3 { left: 38%; bottom: -60px; animation-duration: 9s;  animation-delay: 4s;   }
+.bubble-4 { left: 55%; bottom: -60px; animation-duration: 12s; animation-delay: 1s;   }
+.bubble-5 { left: 68%; bottom: -60px; animation-duration: 7s;  animation-delay: 3s; font-size: 22px; padding: 12px; }
+.bubble-6 { left: 80%; bottom: -60px; animation-duration: 10s; animation-delay: 5s;   }
+.bubble-7 { left: 12%; bottom: -60px; animation-duration: 13s; animation-delay: 6s; font-size: 20px; padding: 10px; }
+
+@keyframes floatUp {
+  0%   { transform: translateY(0)   rotate(0deg);   opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(-110vh) rotate(8deg); opacity: 0; }
+}
+
+/* ===== CONTENT ===== */
+.content-wrapper {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 520px;
+  width: 100%;
+}
+
+/* ===== ICON RING ===== */
+.icon-ring {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  animation: pulse 2.5s ease-in-out infinite;
+}
+
+.icon-inner {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.main-icon {
+  font-size: 36px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.3));
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255,255,255,0.2); }
+  50% { transform: scale(1.05); box-shadow: 0 0 0 16px rgba(255,255,255,0); }
+}
+
+/* ===== STATUS BADGE ===== */
+.status-badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.25);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #fbbf24;
+  animation: blink 1.5s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+/* ===== HEADING ===== */
+.heading {
+  font-size: 32px;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 12px;
+  line-height: 1.2;
+  text-shadow: 0 2px 16px rgba(0,0,0,0.2);
+}
+
+.subheading {
+  font-size: 18px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  margin: 0 0 20px;
+}
+
+.description {
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  line-height: 1.7;
+  margin: 0 0 32px;
+  max-width: 420px;
+}
+
+/* ===== FEATURES GRID ===== */
+.features-grid {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.feature-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 12px;
+  padding: 10px 16px;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s;
+}
+
+.feature-item:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+.feature-icon { font-size: 18px; }
+
+.feature-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+/* ===== RELEASE BADGE ===== */
+.release-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.35);
+  border-radius: 16px;
+  padding: 14px 28px;
+  backdrop-filter: blur(12px);
+}
+
+.release-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.release-quarter {
+  font-size: 28px;
+  font-weight: 900;
+  color: #fff;
+  letter-spacing: 0.02em;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.2);
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 480px) {
+  .heading { font-size: 24px; }
+  .subheading { font-size: 15px; }
+  .features-grid { gap: 8px; }
+  .feature-item { padding: 8px 12px; }
+}
