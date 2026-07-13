@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/dashboard_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -51,7 +52,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       ),
       body: KitsuneBackdrop(
         child: _userId == null
-            ? const Center(child: CircularProgressIndicator())
+            ? const KitsuneLoadingFox(message: 'Đang tải...')
             : RefreshIndicator(
                 onRefresh: () async {
                   ref.invalidate(userStatsProvider(_userId!));
@@ -79,7 +80,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                     const SizedBox(height: AppTheme.space24),
                     const KitsuneSectionHeader(
                       title: 'Nhịp học tuần này',
-                      subtitle: 'Xem đà học của bạn trước khi chọn bước tiếp theo.',
                     ),
                     const SizedBox(height: AppTheme.space12),
                     _buildWeekChart(),
@@ -121,8 +121,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final statsAsync = ref.watch(userStatsProvider(_userId!));
     return statsAsync.when(
       data: (stats) {
-        return KitsunePassportHeader(
-          eyebrow: 'Study passport',
+        return KitsuneHeroCard(
           title: 'Xin chào ${user?.displayName ?? 'bạn'}, hôm nay mình học gì tiếp?',
           subtitle: stats.srsCardsDue > 0
               ? 'Bạn đang có ${stats.srsCardsDue} thẻ đến hạn. Đây là lúc tốt nhất để giữ nhịp nhớ lâu.'

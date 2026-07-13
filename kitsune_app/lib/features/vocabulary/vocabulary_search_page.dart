@@ -4,6 +4,7 @@ import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class VocabularySearchPage extends ConsumerStatefulWidget {
@@ -19,6 +20,15 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
   List<VocabularyDto> _results = [];
   List<VocabularyDto> _randomItems = [];
   bool _isSearching = false;
+  String? _speakingWord;
+
+  Future<void> _speak(String word) async {
+    setState(() => _speakingWord = word);
+    await ref.read(ttsServiceProvider).speak(word);
+    if (mounted) {
+      setState(() => _speakingWord = null);
+    }
+  }
 
   @override
   void initState() {
@@ -78,8 +88,7 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
                 children: [
-                  const KitsunePassportHeader(
-                    eyebrow: 'Vocabulary search',
+                  const KitsuneHeroCard(
                     title: 'Tra nhanh, lưu đúng và quay lại ôn sau.',
                     subtitle:
                         'Tìm theo chữ Nhật, romaji hoặc nghĩa tiếng Việt rồi tiếp tục học ngay trong cùng một nhịp.',
@@ -108,7 +117,7 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
             ),
             Expanded(
               child: _isSearching
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const KitsuneLoadingFox(size: 90)
                   : displayItems.isEmpty
                       ? const Padding(
                           padding: EdgeInsets.all(16),
@@ -166,13 +175,33 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      vocab.word,
-                      style: const TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w800,
-                        color: KitsuneColors.onSurface,
-                      ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          vocab.word,
+                          style: AppTheme.japaneseStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: KitsuneColors.onSurface,
+                          ),
+                        ),
+                        const SizedBox(width: AppTheme.space8),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () => _speak(vocab.word),
+                          child: Padding(
+                            padding: const EdgeInsets.all(4),
+                            child: Icon(
+                              Icons.volume_up_rounded,
+                              size: 20,
+                              color: _speakingWord == vocab.word
+                                  ? KitsuneColors.primary
+                                  : KitsuneColors.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                     if (vocab.pronunciation != null) ...[
                       const SizedBox(height: AppTheme.space4),

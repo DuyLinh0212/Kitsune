@@ -2,9 +2,10 @@
 .main-layout {
   display: flex;
   min-height: 100vh;
-  background: #f8fafc;
+  background: var(--paper-base);
   font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  color: #1f2937;
+  color: var(--ink-primary);
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 /* ===== MAIN CONTENT ===== */

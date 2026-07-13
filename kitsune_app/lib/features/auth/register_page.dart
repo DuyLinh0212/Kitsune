@@ -90,9 +90,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const KitsunePassportHeader(
-                        eyebrow: 'Create account',
-                        title: 'Bắt đầu một study passport mới.',
+                      const KitsuneHeroCard(
+                        title: 'Bắt đầu hành trình học tiếng Nhật của bạn.',
                         subtitle:
                             'Tạo tài khoản để đồng bộ tiến độ, thư mục riêng và các quiz bạn tự xây dựng.',
                         accent: KitsuneColors.secondary,
@@ -194,7 +193,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.2,
-                                        color: Colors.white,
+                                        color: KitsuneColors.onPrimary,
                                       ),
                                     )
                                   : const Text('Tạo tài khoản'),

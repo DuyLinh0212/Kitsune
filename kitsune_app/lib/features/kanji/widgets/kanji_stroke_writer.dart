@@ -75,7 +75,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
       }
       setState(() {
         _isLoading = false;
-        _error = 'Khong co du lieu kanji.';
+        _error = 'Không có dữ liệu kanji.';
         _strokes = const [];
       });
       return;
@@ -108,7 +108,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
       if (response.statusCode == 404 || response.data == null || response.data!.trim().isEmpty) {
         setState(() {
           _isLoading = false;
-          _error = 'Khong co du lieu net viet cho chu nay.';
+          _error = 'Không có dữ liệu nét viết cho chữ này.';
           _strokes = const [];
         });
         return;
@@ -122,7 +122,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
       if (parsed.strokes.isEmpty) {
         setState(() {
           _isLoading = false;
-          _error = 'Khong co du lieu net viet cho chu nay.';
+          _error = 'Không có dữ liệu nét viết cho chữ này.';
           _strokes = const [];
         });
         return;
@@ -142,7 +142,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
 
       setState(() {
         _isLoading = false;
-        _error = 'Khong tai duoc du lieu net viet.';
+        _error = 'Không tải được dữ liệu nét viết.';
         _strokes = const [];
       });
     }
@@ -205,7 +205,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
       height: widget.height,
       padding: EdgeInsets.all(widget.compact ? 6 : 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFFDF7),
+        color: KitsuneColors.surface,
         borderRadius: BorderRadius.circular(widget.compact ? 14 : 18),
         border: Border.all(
           color: _error != null
@@ -249,7 +249,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
                           children: [
                             Text(
                               widget.character,
-                              style: TextStyle(
+                              style: AppTheme.japaneseStyle(
                                 fontSize: widget.compact ? 40 : 54,
                                 fontWeight: FontWeight.w800,
                                 color: KitsuneColors.onSurface,
@@ -258,7 +258,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
                             if (!widget.compact) ...[
                               const SizedBox(height: 8),
                               Text(
-                                _error ?? 'Khong co du lieu net viet.',
+                                _error ?? 'Không có dữ liệu nét viết.',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   color: KitsuneColors.onSurfaceVariant,
@@ -268,7 +268,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
                               const SizedBox(height: 10),
                               OutlinedButton(
                                 onPressed: _load,
-                                child: const Text('Thu lai'),
+                                child: const Text('Thử lại'),
                               ),
                             ],
                           ],
@@ -319,7 +319,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'THU TU NET',
+                    'THỨ TỰ NÉT',
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
@@ -329,7 +329,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Tung net duoc ve cham de de quan sat.',
+                    'Từng nét được vẽ chậm để dễ quan sát.',
                     style: const TextStyle(fontSize: 11, color: KitsuneColors.onSurfaceVariant),
                   ),
                 ],
@@ -337,7 +337,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
             ),
             IconButton(
               onPressed: (_isLoading || _error != null) ? null : _replay,
-              tooltip: 'Phat lai net viet',
+              tooltip: 'Phát lại nét viết',
               icon: const Icon(Icons.replay_rounded, size: 20),
               style: IconButton.styleFrom(
                 backgroundColor: KitsuneColors.surface,
@@ -426,19 +426,19 @@ class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final borderPaint = Paint()
-      ..color = const Color(0x33B91C1C)
+      ..color = KitsuneColors.surfaceBorder.withValues(alpha: 0.55)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1;
 
     final centerPaint = Paint()
-      ..color = const Color(0x22B91C1C)
+      ..color = KitsuneColors.onSurfaceVariant.withValues(alpha: 0.18)
       ..strokeWidth = 1;
 
     final dashedRect = RRect.fromRectAndRadius(
       Rect.fromLTWH(4, 4, size.width - 8, size.height - 8),
       const Radius.circular(12),
     );
-    canvas.drawRRect(dashedRect, borderPaint..color = const Color(0x33C9B89C));
+    canvas.drawRRect(dashedRect, borderPaint);
 
     canvas.drawLine(
       Offset(size.width / 2, 0),

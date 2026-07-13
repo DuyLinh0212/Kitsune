@@ -27,8 +27,7 @@ class FolderListPage extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
               children: [
-                KitsunePassportHeader(
-                  eyebrow: 'Folders',
+                KitsuneHeroCard(
                   title: '${folders.length} ngăn học đang chờ được mở lại.',
                   subtitle:
                       'Sắp xếp từ vựng theo chủ đề, theo bài hoặc theo mục tiêu cá nhân để việc ôn tập rõ ràng hơn.',

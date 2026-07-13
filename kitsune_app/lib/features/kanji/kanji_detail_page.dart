@@ -278,7 +278,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
         border: Border.all(color: KitsuneColors.surfaceBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14152238),
+            color: Color(0x142B2018),
             blurRadius: 24,
             offset: Offset(0, 14),
           ),
@@ -289,25 +289,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  'KANJI DETAIL',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: accent,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
+              KitsuneTailMark(color: accent),
               const Spacer(),
               if (kanji.jlptLevel != null)
                 Container(
@@ -392,7 +374,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                             color: KitsuneColors.primary,
                           ),
                         _ReadingChip(
-                          label: 'Am Han Viet',
+                          label: 'Âm Hán Việt',
                           value: kanji.amHanViet,
                           color: accent,
                         ),
@@ -473,7 +455,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
             child: Center(
               child: Text(
                 radical.radicalCharacter,
-                style: TextStyle(
+                style: AppTheme.japaneseStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w800,
                   color: accent,
@@ -584,7 +566,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                                       children: [
                                         Text(
                                           items[i].word,
-                                          style: const TextStyle(
+                                          style: AppTheme.japaneseStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w800,
                                             color: KitsuneColors.onSurface,
@@ -693,7 +675,11 @@ class _DetailHeader extends StatelessWidget {
               ),
               Text(
                 character,
-                style: Theme.of(context).textTheme.headlineSmall,
+                style: AppTheme.japaneseStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w600,
+                  color: KitsuneColors.onSurface,
+                ),
               ),
             ],
           ),

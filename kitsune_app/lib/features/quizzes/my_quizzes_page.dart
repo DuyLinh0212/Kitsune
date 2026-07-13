@@ -25,8 +25,7 @@ class MyQuizzesPage extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
               children: [
-                const KitsunePassportHeader(
-                  eyebrow: 'Personal quiz bank',
+                const KitsuneHeroCard(
                   title: 'Những bộ đề bạn tự thiết kế để học theo cách riêng.',
                   subtitle:
                       'Tập trung vào đúng nhóm từ hoặc kanji bạn muốn luyện, rồi chơi lại bất cứ lúc nào.',

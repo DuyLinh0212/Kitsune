@@ -45,6 +45,12 @@
       </div>
     </div>
 
+    @if (isLoading()) {
+      <div class="bento-card dashboard-loading">
+        <app-loading-fox message="Đang tải bảng điều khiển..." />
+      </div>
+    } @else {
+
     <!-- 2. SRS CARD (Core Action) -->
     <div class="bento-card srs-card">
       <div class="card-header">
@@ -55,12 +61,7 @@
         <button class="header-link" (click)="router.navigate(['/srs'])">Đi tới Ôn tập →</button>
       </div>
 
-      @if (isLoading()) {
-        <div class="srs-due-block">
-          <div class="sk-box sk-circle"></div>
-          <div class="sk-box sk-srs-text"></div>
-        </div>
-      } @else if (srsCardsDue() > 0) {
+      @if (srsCardsDue() > 0) {
         <div class="srs-due-block">
           <div class="srs-due-badge">{{ srsCardsDue() }}</div>
           <p class="srs-due-text">thẻ từ vựng đang chờ bạn ôn tập</p>
@@ -86,13 +87,7 @@
         <button class="header-link" (click)="router.navigate(['/folders'])">Xem tất cả</button>
       </div>
 
-      @if (isLoading()) {
-        <div class="folders-grid">
-          @for (_ of [1,2,3,4]; track $index) {
-            <div class="sk-box sk-folder"></div>
-          }
-        </div>
-      } @else if (folders().length === 0) {
+      @if (folders().length === 0) {
         <div class="empty-state">
           <span>📂</span>
           <p>Bạn chưa tạo thư mục nào</p>
@@ -127,13 +122,7 @@
         <button class="header-link" (click)="router.navigate(['/my-quizzes'])">Xem tất cả</button>
       </div>
 
-      @if (isLoading()) {
-        <div class="quiz-list">
-          @for (_ of [1,2,3]; track $index) {
-            <div class="sk-box sk-list-item"></div>
-          }
-        </div>
-      } @else if (myQuizzes().length === 0) {
+      @if (myQuizzes().length === 0) {
         <div class="empty-state">
           <span>📝</span>
           <p>Chưa có bài quiz nào</p>
@@ -170,13 +159,7 @@
         <button class="header-link" (click)="router.navigate(['/leaderboard'])">Bảng xếp hạng</button>
       </div>
 
-      @if (isLoading()) {
-        <div class="lb-list">
-          @for (_ of [1,2,3,4,5]; track $index) {
-            <div class="sk-box sk-list-item"></div>
-          }
-        </div>
-      } @else if (leaderboard().length === 0) {
+      @if (leaderboard().length === 0) {
         <div class="empty-state small">
           <p>Đang cập nhật...</p>
         </div>
@@ -196,6 +179,8 @@
         </div>
       }
     </div>
+
+    }
 
   </div>
 </div>

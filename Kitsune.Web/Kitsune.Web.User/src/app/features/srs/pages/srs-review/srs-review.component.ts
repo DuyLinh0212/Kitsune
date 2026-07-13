@@ -11,6 +11,8 @@ import {
   SrsMode,
   SrsService,
 } from '../../../../core/services/srs.service';
+import { TtsService } from '../../../../core/services/tts.service';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 interface DashboardFolder extends FolderDto, FolderSrsOverview {}
 
@@ -43,13 +45,14 @@ interface LevelBucket {
 @Component({
   selector: 'app-srs-review',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, LoadingFoxComponent],
   templateUrl: './srs-review.component.html',
   styleUrl: './srs-review.component.css',
 })
 export class SrsReviewComponent implements OnInit, OnDestroy {
   private readonly folderService = inject(FolderService);
   private readonly srsService = inject(SrsService);
+  readonly ttsService = inject(TtsService);
 
   // ─── Core state ────────────────────────────────────────────────────────────
   readonly isLoading = signal(true);
@@ -195,7 +198,6 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
               learnedCards: 0,
               masteredCards: 0,
               nextDueAt: null,
-              canSwitchFolder: true,
             } satisfies DashboardFolder;
           }
         })
@@ -273,6 +275,11 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   flipCard(): void {
     if (this.phase() !== 'flashcard') return;
     this.isCardFlipped.update((value) => !value);
+  }
+
+  speakWord(card: SRSCardDto, event: Event): void {
+    event.stopPropagation();
+    this.ttsService.speak(card.word);
   }
 
   async markFlashcardLearned(): Promise<void> {
@@ -382,13 +389,6 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     return `${done + 1}/${Math.max(total, 1)}`;
   }
 
-  isFolderLocked(folder: DashboardFolder): boolean {
-    const active = this.activeFolder();
-    if (!active) return false;
-    if (active.folderId === folder.folderId) return false;
-    return !active.canSwitchFolder;
-  }
-
   getModeLabel(mode: SrsMode): string {
     const labels: Record<SrsMode, string> = {
       MEAN_FROM_WORD: 'Nghĩa của từ',
@@ -403,12 +403,12 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
   getModeColor(mode: SrsMode): string {
     const colors: Record<SrsMode, string> = {
-      MEAN_FROM_WORD: '#3b82f6',
-      WORD_FROM_MEAN: '#8b5cf6',
-      FILL_BLANK: '#f59e0b',
-      ON_KUN_READ: '#ef4444',
-      HAN_VIET: '#ec4899',
-      COMPOSE_KANJI: '#10b981',
+      MEAN_FROM_WORD: '#3B6FA0',
+      WORD_FROM_MEAN: '#E2672B',
+      FILL_BLANK: '#D9A441',
+      ON_KUN_READ: '#B23A2E',
+      HAN_VIET: '#5F7A52',
+      COMPOSE_KANJI: '#4F8B5C',
     };
     return colors[mode] ?? '#6b7280';
   }

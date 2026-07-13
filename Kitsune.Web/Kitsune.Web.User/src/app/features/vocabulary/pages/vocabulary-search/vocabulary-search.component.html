@@ -101,7 +101,19 @@
       <div class="detail-header">
         <div class="detail-header__top">
           <div>
-            <div class="detail-word">{{ v.word }}</div>
+            <div class="detail-word-row">
+              <div class="detail-word">{{ v.word }}</div>
+              @if (ttsService.isSupported) {
+                <button
+                  type="button"
+                  class="btn-speak"
+                  [class.btn-speak--active]="ttsService.isSpeaking(v.word)"
+                  (click)="speakWord(v)"
+                  aria-label="Phát âm"
+                  title="Phát âm"
+                >🔊</button>
+              }
+            </div>
             @if (v.pronunciation) {
             <div class="detail-reading">{{ v.pronunciation }}</div>
             }
@@ -217,10 +229,7 @@
     </button>
 
     @if (isLoadingKanji()) {
-    <div class="kanji-modal__loading">
-      <div class="loading-ring"></div>
-      <p>Đang tải thông tin Kanji...</p>
-    </div>
+    <app-loading-fox message="Đang tải thông tin Kanji..." [size]="80" />
     }
 
     @if (!isLoadingKanji() && selectedKanji(); as k) {

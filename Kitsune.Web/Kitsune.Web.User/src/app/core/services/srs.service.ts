@@ -42,7 +42,6 @@ export interface FolderSrsOverview {
   learnedCards: number;
   masteredCards: number;
   nextDueAt: string | null;
-  canSwitchFolder: boolean;
 }
 
 export interface FolderSrsSession {
@@ -52,6 +51,34 @@ export interface FolderSrsSession {
   cards: SRSCardDto[];
   flashcards: SRSCardDto[];
   quizCards: SRSCardDto[];
+}
+
+export interface BoxLevelStat {
+  boxLevel: number;
+  count: number;
+}
+
+export interface MostWrongItem {
+  cardId: number;
+  type: SrsItemType;
+  word: string;
+  meaning: string;
+  wrongCount: number;
+}
+
+export interface AccuracyPoint {
+  date: string;
+  correct: number;
+  total: number;
+}
+
+export interface SrsStatsOverview {
+  totalReviews: number;
+  correctReviews: number;
+  accuracyRate: number;
+  boxLevels: BoxLevelStat[];
+  mostWrong: MostWrongItem[];
+  accuracyTrend: AccuracyPoint[];
 }
 
 interface DbCardRow {
@@ -146,10 +173,6 @@ export class SrsService {
     );
   }
 
-  canSwitchFolder(folderId: number): Observable<boolean> {
-    return from(this.canSwitchFolderNow(folderId));
-  }
-
   activateFolder(folderId: number): Observable<FolderSrsSession> {
     return from(this.activateFolderNow(folderId));
   }
@@ -164,6 +187,10 @@ export class SrsService {
 
   submitReview(cardId: number, rating: 1 | 2 | 3 | 4): Observable<void> {
     return this.submitQuizAnswer(cardId, rating >= 3);
+  }
+
+  getStatsOverview(): Observable<SrsStatsOverview> {
+    return from(this.loadStatsOverview());
   }
 
   async ensureFolderCards(folderId: number): Promise<void> {
@@ -203,14 +230,6 @@ export class SrsService {
   }
 
   private async activateFolderNow(folderId: number): Promise<FolderSrsSession> {
-    const currentActiveId = this.getActiveFolderId();
-    if (currentActiveId && currentActiveId !== folderId) {
-      const canSwitch = await this.canSwitchFolderNow(currentActiveId);
-      if (!canSwitch) {
-        throw new Error('Folder hiện tại chưa học xong. Hãy hoàn tất các thẻ level 0 trước khi đổi folder.');
-      }
-    }
-
     const session = await this.loadFolderSession(folderId);
     if (!session) {
       throw new Error('Không thể khởi tạo SRS cho folder này.');
@@ -218,12 +237,6 @@ export class SrsService {
 
     this.setActiveFolderId(folderId);
     return session;
-  }
-
-  private async canSwitchFolderNow(folderId: number): Promise<boolean> {
-    const session = await this.loadFolderSession(folderId);
-    if (!session) return true;
-    return session.overview.canSwitchFolder;
   }
 
   private async updateCardProgress(cardId: number, correct: boolean, flashcard: boolean): Promise<void> {
@@ -257,6 +270,18 @@ export class SrsService {
 
     const { error: updateError } = await supabase.from('SRSCards').update(patch).eq('Id', cardId).eq('UserId', userId);
     if (updateError) throw updateError;
+
+    const rating = flashcard ? 3 : correct ? 3 : 1;
+    const { error: logError } = await supabase.from('SRSReviewLogs').insert({
+      CardId: cardId,
+      Rating: rating,
+      OldBoxLevel: currentLevel,
+      NewBoxLevel: nextLevel,
+      OldEaseFactor: row.EaseFactor ?? 2.5,
+      NewEaseFactor: 2.5,
+      ReviewedAt: new Date().toISOString(),
+    });
+    if (logError) console.warn('Không thể ghi log ôn tập SRS:', logError.message);
   }
 
   private async loadFolderContext(folderId: number, userId: number): Promise<{
@@ -442,7 +467,6 @@ export class SrsService {
       learnedCards,
       masteredCards,
       nextDueAt,
-      canSwitchFolder: newCards === 0,
     };
   }
 
@@ -530,6 +554,120 @@ export class SrsService {
       return Math.max(0, currentLevel - nextLevel);
     }
     return currentLevel >= nextLevel ? currentLevel + 1 : 1;
+  }
+
+  private async loadStatsOverview(): Promise<SrsStatsOverview> {
+    const { data: authData } = await supabase.auth.getUser();
+    const email = authData.user?.email;
+    if (!email) throw new Error('Not authenticated');
+    const userId = await this.getCurrentUserId(email);
+
+    const { data: cardData, error: cardError } = await supabase
+      .from('SRSCards')
+      .select('Id, VocabularyId, KanjiId, BoxLevel')
+      .eq('UserId', userId);
+    if (cardError) throw cardError;
+
+    const cards = (cardData ?? []) as { Id: number; VocabularyId: number | null; KanjiId: number | null; BoxLevel: number | null }[];
+    const cardIds = cards.map((c) => c.Id);
+
+    const boxLevels = this.buildBoxLevelStats(cards);
+
+    if (cardIds.length === 0) {
+      return { totalReviews: 0, correctReviews: 0, accuracyRate: 0, boxLevels, mostWrong: [], accuracyTrend: [] };
+    }
+
+    const { data: logData, error: logError } = await supabase
+      .from('SRSReviewLogs')
+      .select('CardId, Rating, OldBoxLevel, NewBoxLevel, ReviewedAt')
+      .in('CardId', cardIds)
+      .order('ReviewedAt', { ascending: true });
+    if (logError) throw logError;
+
+    const logs = (logData ?? []) as { CardId: number; Rating: number; OldBoxLevel: number; NewBoxLevel: number; ReviewedAt: string }[];
+
+    const totalReviews = logs.length;
+    const correctReviews = logs.filter((l) => l.Rating >= 3).length;
+    const accuracyRate = totalReviews > 0 ? Math.round((correctReviews / totalReviews) * 100) : 0;
+
+    const mostWrong = await this.buildMostWrong(logs, cards);
+    const accuracyTrend = this.buildAccuracyTrend(logs);
+
+    return { totalReviews, correctReviews, accuracyRate, boxLevels, mostWrong, accuracyTrend };
+  }
+
+  private buildBoxLevelStats(cards: { BoxLevel: number | null }[]): BoxLevelStat[] {
+    const counts = new Map<number, number>();
+    for (const card of cards) {
+      const level = this.normalizeLevel(card.BoxLevel);
+      counts.set(level, (counts.get(level) ?? 0) + 1);
+    }
+    return Array.from({ length: 8 }, (_, level) => ({ boxLevel: level, count: counts.get(level) ?? 0 }));
+  }
+
+  private buildAccuracyTrend(logs: { Rating: number; ReviewedAt: string }[]): AccuracyPoint[] {
+    const buckets = new Map<string, { correct: number; total: number }>();
+    for (const log of logs) {
+      const date = log.ReviewedAt.slice(0, 10);
+      const bucket = buckets.get(date) ?? { correct: 0, total: 0 };
+      bucket.total += 1;
+      if (log.Rating >= 3) bucket.correct += 1;
+      buckets.set(date, bucket);
+    }
+    return Array.from(buckets.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-14)
+      .map(([date, stat]) => ({ date, correct: stat.correct, total: stat.total }));
+  }
+
+  private async buildMostWrong(
+    logs: { CardId: number; Rating: number; OldBoxLevel: number; NewBoxLevel: number }[],
+    cards: { Id: number; VocabularyId: number | null; KanjiId: number | null }[]
+  ): Promise<MostWrongItem[]> {
+    const wrongCounts = new Map<number, number>();
+    for (const log of logs) {
+      if (log.Rating <= 2 || log.NewBoxLevel < log.OldBoxLevel) {
+        wrongCounts.set(log.CardId, (wrongCounts.get(log.CardId) ?? 0) + 1);
+      }
+    }
+
+    const topEntries = Array.from(wrongCounts.entries())
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5);
+    if (topEntries.length === 0) return [];
+
+    const cardMap = new Map(cards.map((c) => [c.Id, c]));
+    const vocabIds = topEntries
+      .map(([cardId]) => cardMap.get(cardId)?.VocabularyId)
+      .filter((id): id is number => id != null);
+    const kanjiIds = topEntries
+      .map(([cardId]) => cardMap.get(cardId)?.KanjiId)
+      .filter((id): id is number => id != null);
+
+    const [vocabResult, kanjiResult] = await Promise.all([
+      vocabIds.length > 0
+        ? supabase.from('Vocabularies').select('Id, Word, Meaning').in('Id', vocabIds)
+        : Promise.resolve({ data: [], error: null }),
+      kanjiIds.length > 0
+        ? supabase.from('Kanji').select('Id, Character, Meaning').in('Id', kanjiIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+
+    const vocabMap = new Map(((vocabResult.data ?? []) as { Id: number; Word: string; Meaning: string }[]).map((v) => [v.Id, v]));
+    const kanjiMap = new Map(((kanjiResult.data ?? []) as { Id: number; Character: string; Meaning: string }[]).map((k) => [k.Id, k]));
+
+    return topEntries.map(([cardId, wrongCount]) => {
+      const card = cardMap.get(cardId);
+      const vocab = card?.VocabularyId != null ? vocabMap.get(card.VocabularyId) : null;
+      const kanji = card?.KanjiId != null ? kanjiMap.get(card.KanjiId) : null;
+      return {
+        cardId,
+        type: vocab ? 'vocabulary' : 'kanji',
+        word: vocab?.Word ?? kanji?.Character ?? '—',
+        meaning: vocab?.Meaning ?? kanji?.Meaning ?? '',
+        wrongCount,
+      };
+    });
   }
 
   private async getCurrentUserId(email: string): Promise<number> {

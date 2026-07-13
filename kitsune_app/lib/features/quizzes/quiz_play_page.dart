@@ -200,8 +200,8 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                           ),
                           child: Text(
                             '$_timeRemaining s',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
+                            style: AppTheme.numeralStyle(
+                              fontSize: 14,
                               color: _timeRemaining < 10
                                   ? KitsuneColors.error
                                   : KitsuneColors.onSurface,
@@ -299,8 +299,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  KitsunePassportHeader(
-                    eyebrow: 'Quiz complete',
+                  KitsuneHeroCard(
                     title: isGood ? 'Bạn giữ nhịp khá tốt.' : 'Lượt này vẫn còn chỗ để cải thiện.',
                     subtitle:
                         'Dùng kết quả này để quyết định nên quay lại quiz hay chuyển sang ôn SRS ngay bây giờ.',
@@ -317,9 +316,8 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                       child: Center(
                         child: Text(
                           '${accuracy.round()}%',
-                          style: TextStyle(
+                          style: AppTheme.numeralStyle(
                             fontSize: 28,
-                            fontWeight: FontWeight.w800,
                             color: isGood
                                 ? KitsuneColors.success
                                 : KitsuneColors.warning,

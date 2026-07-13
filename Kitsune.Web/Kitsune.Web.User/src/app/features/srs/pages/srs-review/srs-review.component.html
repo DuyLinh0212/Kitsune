@@ -9,10 +9,7 @@
 
   <!-- ─── LOADING ───────────────────────────────────────── -->
   @if (isLoading()) {
-    <div class="srs-loading">
-      <div class="loading-ring"></div>
-      <p>Đang tải dữ liệu ôn tập...</p>
-    </div>
+    <app-loading-fox message="Đang tải dữ liệu ôn tập..." />
   } @else {
 
     <!-- ══════════════════════════════════════════════════════
@@ -64,8 +61,7 @@
                   type="button"
                   class="folder-dropdown__item"
                   [class.folder-dropdown__item--active]="activeFolderId() === folder.folderId"
-                  [class.folder-dropdown__item--locked]="isFolderLocked(folder)"
-                  [disabled]="isFolderLocked(folder) || isSwitchingFolder() === folder.folderId"
+                  [disabled]="isSwitchingFolder() === folder.folderId"
                   (click)="selectFolder(folder.folderId)"
                 >
                   <div class="fd-item__main">
@@ -75,8 +71,6 @@
                     <span class="fd-item__name">{{ folder.folderName }}</span>
                     @if (activeFolderId() === folder.folderId) {
                       <span class="fd-badge fd-badge--active">Đang học</span>
-                    } @else if (isFolderLocked(folder)) {
-                      <span class="fd-badge fd-badge--locked">🔒</span>
                     }
                   </div>
                   <div class="fd-item__meta">
@@ -312,7 +306,19 @@
               >
                 <div class="flashcard-face flashcard-face--front flashcard-face--vocab-front">
                   <div class="fc-badge fc-badge--vocab">語彙</div>
-                  <div class="fc-vocab-word">{{ card.word }}</div>
+                  <div class="fc-vocab-word-row">
+                    <div class="fc-vocab-word">{{ card.word }}</div>
+                    @if (ttsService.isSupported) {
+                      <span
+                        class="fc-btn-speak"
+                        [class.fc-btn-speak--active]="ttsService.isSpeaking(card.word)"
+                        (click)="speakWord(card, $event)"
+                        role="button"
+                        aria-label="Phát âm"
+                        title="Phát âm"
+                      >🔊</span>
+                    }
+                  </div>
                   @if (card.pronunciation) {
                     <div class="fc-pronunciation">{{ card.pronunciation }}</div>
                   }
@@ -323,6 +329,16 @@
                   <div class="fc-meaning">{{ card.meaning }}</div>
                   @if (card.pronunciation) {
                     <div class="fc-pronunciation fc-pronunciation--back">{{ card.pronunciation }}</div>
+                  }
+                  @if (ttsService.isSupported) {
+                    <span
+                      class="fc-btn-speak fc-btn-speak--back"
+                      [class.fc-btn-speak--active]="ttsService.isSpeaking(card.word)"
+                      (click)="speakWord(card, $event)"
+                      role="button"
+                      aria-label="Phát âm"
+                      title="Phát âm"
+                    >🔊</span>
                   }
                 </div>
               </button>

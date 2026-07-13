@@ -5,9 +5,11 @@ import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/folder_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 import 'package:kitsune_app/providers/vocabulary_provider.dart';
+
 
 class VocabularyDetailPage extends ConsumerStatefulWidget {
   const VocabularyDetailPage({
@@ -27,6 +29,15 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
   bool _isAddingToFolder = false;
   bool? _isBookmarked;
   bool? _isInSrs;
+  String? _speakingWord;
+
+  Future<void> _speak(String word) async {
+    setState(() => _speakingWord = word);
+    await ref.read(ttsServiceProvider).speak(word);
+    if (mounted) {
+      setState(() => _speakingWord = null);
+    }
+  }
 
   @override
   void initState() {
@@ -261,9 +272,13 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
           data: (vocab) => ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
             children: [
-              KitsunePassportHeader(
-                eyebrow: 'Vocabulary detail',
+              KitsuneHeroCard(
                 title: vocab.word,
+                titleStyle: AppTheme.japaneseStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: KitsuneColors.onSurface,
+                ),
                 subtitle: vocab.pronunciation?.trim().isNotEmpty == true
                     ? vocab.pronunciation!
                     : 'Mo rong nho tu bang nghia, bo kanji va hanh dong hoc tiep theo.',
@@ -278,7 +293,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                   alignment: Alignment.center,
                   child: Text(
                     vocab.word,
-                    style: const TextStyle(
+                    style: AppTheme.japaneseStyle(
                       fontSize: 34,
                       fontWeight: FontWeight.w800,
                       color: KitsuneColors.primary,
@@ -324,6 +339,16 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                       color: KitsuneColors.secondary,
                       isActive: _isInSrs!,
                     ),
+                  InkWell(
+                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                    onTap: () => _speak(vocab.word),
+                    child: KitsuneActionBadge(
+                      icon: Icons.volume_up_rounded,
+                      label: 'Phat am',
+                      color: KitsuneColors.primary,
+                      isActive: _speakingWord == vocab.word,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppTheme.space16),
@@ -453,7 +478,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                               children: [
                                 Text(
                                   component.character,
-                                  style: const TextStyle(
+                                  style: AppTheme.japaneseStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
                                     color: KitsuneColors.onSurface,
@@ -489,7 +514,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
               ],
             ],
           ),
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const KitsuneLoadingFox(message: 'Đang tải...'),
           error: (error, _) => Center(child: Text('Loi: $error')),
         ),
       ),

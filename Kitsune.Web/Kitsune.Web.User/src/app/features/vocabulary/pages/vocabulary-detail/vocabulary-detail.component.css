@@ -20,7 +20,7 @@
 }
 
 .vocab-breadcrumb a {
-  color: #6366f1;
+  color: var(--accent-deep);
   cursor: pointer;
   font-weight: 500;
   text-decoration: none;
@@ -58,24 +58,59 @@
   flex-direction: column;
 }
 
+.vocab-word-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
 .vocab-word {
   font-size: 42px;
   font-weight: 800;
   color: #1f2937;
-  margin-bottom: 6px;
   line-height: 1.2;
+}
+
+.btn-speak {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #f3f4f6;
+  background: var(--paper-base);
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.btn-speak:hover {
+  background: var(--paper-deep);
+  transform: scale(1.05);
+}
+
+.btn-speak--active {
+  background: var(--accent-deep);
+  animation: speak-pulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes speak-pulse {
+  from { transform: scale(1); }
+  to { transform: scale(1.1); }
 }
 
 .vocab-reading {
   font-size: 18px;
-  color: #6366f1;
+  color: var(--accent-deep);
   font-weight: 500;
 }
 
 .vocab-folder-badge {
   display: inline-block;
-  background: #f5f3ff;
-  color: #6366f1;
+  background: var(--paper-base);
+  color: var(--accent-deep);
   font-size: 13px;
   font-weight: 600;
   padding: 6px 14px;
@@ -115,7 +150,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: #f5f3ff;
+  background: var(--paper-base);
   border-radius: 12px;
   padding: 10px 14px;
   min-width: 70px;
@@ -124,13 +159,13 @@
 .kanji-char {
   font-size: 26px;
   font-weight: 800;
-  color: #7c3aed;
+  color: var(--accent-deep);
   line-height: 1;
 }
 
 .kanji-hv {
   font-size: 12px;
-  color: #6366f1;
+  color: var(--accent-deep);
   font-weight: 500;
   margin-top: 4px;
 }
@@ -162,12 +197,12 @@
 }
 
 .btn-srs {
-  background: #6366f1;
+  background: var(--accent-deep);
   color: #fff;
 }
 
 .btn-srs:hover {
-  background: #4f46e5;
+  background: #78361f;
 }
 
 .btn-fav {
@@ -189,9 +224,9 @@
 }
 
 .btn-folder:hover {
-  background: #f5f3ff;
-  border-color: #6366f1;
-  color: #6366f1;
+  background: var(--paper-base);
+  border-color: var(--accent-deep);
+  color: var(--accent-deep);
 }
 
 /* ===== FOLDER CHIPS ===== */
@@ -214,15 +249,15 @@
 }
 
 .folder-chip:hover {
-  background: #f5f3ff;
-  border-color: #6366f1;
-  color: #6366f1;
+  background: var(--paper-base);
+  border-color: var(--accent-deep);
+  color: var(--accent-deep);
 }
 
 .folder-chip--new {
   border-style: dashed;
-  color: #6366f1;
-  background: #fafaff;
+  color: var(--accent-deep);
+  background: var(--paper-base);
 }
 
 /* ===== LOADING ===== */
@@ -236,7 +271,7 @@
   width: 36px;
   height: 36px;
   border: 3px solid #e5e7eb;
-  border-top-color: #6366f1;
+  border-top-color: var(--accent-deep);
   border-radius: 50%;
   margin: 0 auto 16px;
   animation: spin 0.8s linear infinite;
@@ -291,7 +326,7 @@
 }
 
 .modal-input:focus {
-  border-color: #6366f1;
+  border-color: var(--accent-deep);
 }
 
 .modal-actions {
@@ -313,7 +348,7 @@
 
 .btn-confirm {
   padding: 8px 16px;
-  background: #6366f1;
+  background: var(--accent-deep);
   border: none;
   border-radius: 8px;
   font-size: 14px;

@@ -35,7 +35,9 @@
 
     <div class="sidebar-bottom-actions">
       <button class="icon-btn">⚙️</button>
-      <button class="icon-btn">🌙</button>
+      <button class="icon-btn" (click)="themeService.toggleTheme()" [title]="'Đổi giao diện (Đang: ' + themeService.currentTheme() + ')'">
+        {{ themeService.currentTheme() === 'dark' ? '☀️' : '🌙' }}
+      </button>
     </div>
   </div>
 </aside>

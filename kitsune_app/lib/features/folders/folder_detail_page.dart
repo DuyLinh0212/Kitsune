@@ -71,8 +71,7 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                 children: [
-                  KitsunePassportHeader(
-                    eyebrow: 'Folder detail',
+                  KitsuneHeroCard(
                     title: '${_vocabs.length} thẻ trong bộ học này.',
                     subtitle:
                         'Xem nhanh toàn bộ từ đang nằm trong thư mục để dọn lại, ôn lại hoặc chuyển sang SRS.',
@@ -87,9 +86,8 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
                       child: Center(
                         child: Text(
                           '${_vocabs.length}',
-                          style: const TextStyle(
+                          style: AppTheme.numeralStyle(
                             fontSize: 28,
-                            fontWeight: FontWeight.w800,
                             color: KitsuneColors.secondary,
                           ),
                         ),
@@ -121,7 +119,7 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
                                 child: Center(
                                   child: Text(
                                     vocab.word,
-                                    style: const TextStyle(
+                                    style: AppTheme.japaneseStyle(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w800,
                                       color: KitsuneColors.primary,

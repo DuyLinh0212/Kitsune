@@ -5,6 +5,8 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { filter } from 'rxjs';
 
+import { ThemeService } from '../../../core/services/theme.service';
+
 export interface NavItem {
   id: number;
   label: string;
@@ -23,6 +25,7 @@ export interface NavItem {
 export class SidebarComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly userStatsService = inject(UserStatsService);
+  public readonly themeService = inject(ThemeService);
 
   readonly collapsed = input.required<boolean>();
   readonly navClick = output<void>();

@@ -10,10 +10,7 @@
 
   <!-- LOADING -->
   @if (isLoading()) {
-  <div class="vocab-loading">
-    <div class="loading-spinner"></div>
-    <p>Đang tải...</p>
-  </div>
+  <app-loading-fox message="Đang tải..." />
   }
 
   <!-- MAIN DETAIL CARD -->
@@ -22,7 +19,19 @@
     <!-- WORD HEADER -->
     <div class="vocab-word-header">
       <div class="vocab-word-main">
-        <h1 class="vocab-word">{{ v.word }}</h1>
+        <div class="vocab-word-row">
+          <h1 class="vocab-word">{{ v.word }}</h1>
+          @if (ttsService.isSupported) {
+            <button
+              type="button"
+              class="btn-speak"
+              [class.btn-speak--active]="ttsService.isSpeaking(v.word)"
+              (click)="speakWord()"
+              aria-label="Phát âm"
+              title="Phát âm"
+            >🔊</button>
+          }
+        </div>
         <p class="vocab-reading">{{ v.pronunciation || '' }}</p>
       </div>
       <span class="vocab-folder-badge">{{ v.folderName || 'Từ vựng' }}</span>
@@ -80,6 +89,11 @@
         </button>
       </div>
       }
+    </div>
+
+    <!-- COMMENTS -->
+    <div class="vocab-section">
+      <app-comment-section [vocabularyId]="v.id"></app-comment-section>
     </div>
   </div>
   }

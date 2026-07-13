@@ -6,44 +6,58 @@
     </div>
   }
 
-  <nav class="breadcrumb" aria-label="Breadcrumb">
-    <a [routerLink]="['/folders']" class="breadcrumb__link">Folder</a>
-    <span class="breadcrumb__sep">/</span>
-    <span class="breadcrumb__current">{{ folder()?.name ?? 'Đang tải...' }}</span>
+  <nav class="folder-topbar" aria-label="Breadcrumb">
+    <div class="folder-switcher">
+      <button
+        type="button"
+        class="folder-switcher__trigger"
+        (click)="toggleFolderSwitcher()"
+      >
+        <span class="folder-switcher__icon">📁</span>
+        <span class="folder-switcher__name">{{ folder()?.name ?? 'Đang tải...' }}</span>
+        <span class="folder-switcher__chevron" [class.folder-switcher__chevron--open]="showFolderSwitcher()">⌄</span>
+      </button>
+
+      @if (showFolderSwitcher()) {
+        <div class="folder-switcher__panel">
+          @for (f of allFolders(); track f.id) {
+            <button
+              type="button"
+              class="folder-switcher__item"
+              [class.folder-switcher__item--active]="f.id === folder()?.id"
+              (click)="switchFolder(f.id)"
+            >
+              <span class="folder-switcher__item-name">{{ f.name }}</span>
+              <span class="folder-switcher__item-count">{{ f.vocabCount }} từ</span>
+            </button>
+          } @empty {
+            <div class="folder-switcher__empty">Chưa có thư mục nào khác.</div>
+          }
+        </div>
+        <div class="popover-backdrop" (click)="showFolderSwitcher.set(false)"></div>
+      }
+    </div>
+
+    <a [routerLink]="['/folders']" class="folder-topbar__back">← Tất cả thư mục</a>
   </nav>
 
-  <section class="hero-sheet">
-    <div class="hero-sheet__copy">
-      <span class="hero-sheet__eyebrow">Study dossier</span>
+  <section class="hero-compact">
+    <div class="hero-compact__main">
       <h1>{{ folder()?.name ?? 'Folder đang mở' }}</h1>
       <p>
         {{ folder()?.description || 'Bộ thẻ này được sắp xếp để đọc nhanh, tra cứu nhanh và chuyển ngay sang màn chi tiết khi cần.' }}
       </p>
-      <div class="hero-sheet__stats">
-        <div class="hero-stat">
-          <strong>{{ vocabCount }}</strong>
-          <span>Từ vựng</span>
-        </div>
-        <div class="hero-stat">
-          <strong>{{ kanjiCount }}</strong>
-          <span>kanji</span>
-        </div>
-        <div class="hero-stat">
-          <strong>{{ totalKanjiMentions }}</strong>
-          <span>lần xuất hiện</span>
-        </div>
-      </div>
     </div>
 
-    <div class="hero-sheet__meta">
-      <a [routerLink]="['/folders']" class="hero-link">Quay lại danh sách</a>
+    <div class="hero-compact__side">
+      <div class="hero-compact__stats">
+        <span><strong>{{ vocabCount }}</strong>Từ vựng</span>
+        <span><strong>{{ kanjiCount }}</strong>Kanji</span>
+        <span><strong>{{ totalKanjiMentions }}</strong>Lượt dùng</span>
+      </div>
       <span class="hero-badge" [class.hero-badge--public]="folder()?.isPublic" [class.hero-badge--private]="!folder()?.isPublic">
         {{ folder()?.isPublic ? 'Công khai' : 'Riêng tư' }}
       </span>
-      <div class="hero-note">
-        <strong>Tương tác mới</strong>
-        <span>Double click để mở trang chi tiết. Hover hơn 1 giây để xem preview.</span>
-      </div>
     </div>
   </section>
 
@@ -60,6 +74,54 @@
         <button type="button" class="search-box__clear" (click)="onSearchInput('')">Xóa</button>
       }
     </label>
+
+    @if (availableRadicals().length > 0) {
+      <div class="radical-filter-wrapper">
+        <button 
+          type="button" 
+          class="folder-radical-bar" 
+          [class.folder-radical-bar--active]="selectedRadicalFilter()"
+          (click)="toggleRadicalPopover()"
+        >
+          <span class="folder-radical-bar__label">Bộ thủ:</span>
+          @if (selectedRadical()) {
+            <div class="radical-chip radical-chip--active">
+              {{ selectedRadical()!.character }}
+              <span class="radical-chip__clear" (click)="clearRadicalFilter($event)">×</span>
+            </div>
+          } @else {
+            <span class="folder-radical-bar__empty">Chưa chọn</span>
+          }
+        </button>
+
+        @if (showRadicalPopover()) {
+          <div class="radical-popover">
+            <div class="radical-popover__header">
+              <input 
+                type="text" 
+                class="radical-popover__search" 
+                placeholder="Tìm bộ thủ..."
+                [ngModel]="radicalSearchQuery()"
+                (ngModelChange)="radicalSearchQuery.set($event)"
+              />
+            </div>
+            <div class="radical-popover__grid">
+              @for (radical of filteredAvailableRadicals(); track radical.id) {
+                <button 
+                  type="button" 
+                  class="radical-chip"
+                  [class.radical-chip--active]="selectedRadicalFilter() === radical.id"
+                  (click)="selectRadicalFilter(radical.id)"
+                >
+                  {{ radical.character }}
+                </button>
+              }
+            </div>
+          </div>
+          <div class="popover-backdrop" (click)="showRadicalPopover.set(false)"></div>
+        }
+      </div>
+    }
 
     <div class="workspace-toolbar__summary">
       <span>{{ filteredVocabs().length }} từ đang hiện</span>

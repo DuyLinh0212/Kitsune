@@ -1,0 +1,51 @@
+<div class="comment-section">
+  <h3 class="comment-section__title">Ý kiến đóng góp <span>({{ comments().length }})</span></h3>
+
+  <form class="comment-form" (ngSubmit)="submitComment()">
+    <textarea
+      class="comment-form__input"
+      rows="2"
+      placeholder="Chia sẻ mẹo ghi nhớ, cách dùng, hoặc góp ý của bạn..."
+      [ngModel]="newContent()"
+      (ngModelChange)="newContent.set($event)"
+      name="content"
+    ></textarea>
+    <button type="submit" class="comment-form__submit" [disabled]="!newContent().trim() || isSubmitting()">
+      {{ isSubmitting() ? 'Đang gửi...' : 'Gửi' }}
+    </button>
+  </form>
+
+  @if (errorText()) {
+    <p class="comment-section__error">{{ errorText() }}</p>
+  }
+
+  @if (isLoading()) {
+    <p class="comment-section__hint">Đang tải ý kiến...</p>
+  } @else if (comments().length === 0) {
+    <p class="comment-section__hint">Chưa có ý kiến nào. Hãy là người đầu tiên đóng góp!</p>
+  } @else {
+    <ul class="comment-list">
+      @for (comment of comments(); track comment.id) {
+        <li class="comment-item">
+          <div class="comment-item__avatar">
+            @if (comment.authorAvatarUrl) {
+              <img [src]="comment.authorAvatarUrl" [alt]="comment.authorName" />
+            } @else {
+              {{ comment.authorName.charAt(0).toUpperCase() }}
+            }
+          </div>
+          <div class="comment-item__body">
+            <div class="comment-item__header">
+              <strong>{{ comment.authorName }}</strong>
+              <span>{{ comment.createdAt | date: 'short' }}</span>
+              @if (comment.isOwn) {
+                <button type="button" class="comment-item__delete" (click)="deleteComment(comment.id)">Xóa</button>
+              }
+            </div>
+            <p class="comment-item__content">{{ comment.content }}</p>
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</div>

@@ -255,25 +255,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Search',
-                      style: Theme.of(context).textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: AppTheme.space6),
-                    Text(
-                      'Tra nhanh tu vung va kanji trong mot man hinh giong mot tu dien hoc tap.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: KitsuneColors.onSurfaceVariant,
-                            height: 1.45,
-                          ),
+                    const KitsuneHeroCard(
+                      title: 'Search',
+                      subtitle:
+                          'Tra nhanh từ vựng và kanji trong một màn hình giống một từ điển học tập.',
+                      accent: KitsuneColors.primary,
                     ),
                     const SizedBox(height: AppTheme.space16),
-                    _MaziiSearchBar(
+                    KitsuneSearchField(
                       controller: _searchController,
                       focusNode: _searchFocusNode,
                       hintText: isVocabulary
-                          ? 'Tim tu, cach doc hoac nghia...'
-                          : 'Tim kanji, am Han Viet, onyomi, kunyomi...',
+                          ? 'Tìm từ, cách đọc hoặc nghĩa...'
+                          : 'Tìm kanji, âm Hán Việt, onyomi, kunyomi...',
                       onChanged: (value) {
                         setState(() {});
                         _scheduleSearch(value);
@@ -353,7 +347,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             padding: EdgeInsets.only(bottom: 12),
             child: KitsuneSectionHeader(
               title: 'Vocabulary picks',
-              subtitle: 'Mo app la co the tra tu ngay, hoac xem nhanh vai muc de mo rong von tu.',
+              subtitle: 'Mở app là có thể tra từ ngay, hoặc xem nhanh vài mục để mở rộng vốn từ.',
               accent: KitsuneColors.primary,
             ),
           );
@@ -375,7 +369,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             padding: EdgeInsets.only(bottom: 12),
             child: KitsuneSectionHeader(
               title: 'Kanji picks',
-              subtitle: 'Tap vao bat ky chu nao de mo chi tiet, xem bo thu va net viet ngay.',
+              subtitle: 'Chạm vào bất kỳ chữ nào để mở chi tiết, xem bộ thủ và nét viết ngay.',
               accent: KitsuneColors.secondary,
             ),
           );
@@ -392,8 +386,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         padding: EdgeInsets.fromLTRB(16, 0, 16, 28),
         child: KitsuneEmptyState(
           icon: Icons.search_off_rounded,
-          title: 'Khong tim thay tu vung',
-          message: 'Thu doi cach viet, romaji hoac nghia de mo rong ket qua.',
+          title: 'Không tìm thấy từ vựng',
+          message: 'Thử đổi cách viết, romaji hoặc nghĩa để mở rộng kết quả.',
         ),
       );
     }
@@ -411,7 +405,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             child: KitsuneSectionHeader(
               title: 'Vocabulary results',
               subtitle:
-                  '${_vocabularyResults.length} muc da nap. Cuon xuong de tai them neu con ket qua.',
+                  '${_vocabularyResults.length} mục đã nạp. Cuộn xuống để tải thêm nếu còn kết quả.',
               accent: KitsuneColors.primary,
             ),
           );
@@ -437,8 +431,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         padding: EdgeInsets.fromLTRB(16, 0, 16, 28),
         child: KitsuneEmptyState(
           icon: Icons.search_off_rounded,
-          title: 'Khong tim thay kanji',
-          message: 'Thu lai bang chu kanji, nghia, am Han Viet hoac cach doc.',
+          title: 'Không tìm thấy kanji',
+          message: 'Thử lại bằng chữ kanji, nghĩa, âm Hán Việt hoặc cách đọc.',
         ),
       );
     }
@@ -456,7 +450,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             child: KitsuneSectionHeader(
               title: 'Kanji results',
               subtitle:
-                  '${_kanjiResults.length} muc da nap. Cuon xuong de tai them neu con ket qua.',
+                  '${_kanjiResults.length} mục đã nạp. Cuộn xuống để tải thêm nếu còn kết quả.',
               accent: KitsuneColors.secondary,
             ),
           );
@@ -494,7 +488,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     children: [
                       Text(
                         vocab.word,
-                        style: const TextStyle(
+                        style: AppTheme.japaneseStyle(
                           fontSize: 27,
                           fontWeight: FontWeight.w800,
                           color: KitsuneColors.onSurface,
@@ -608,7 +602,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               child: Center(
                 child: Text(
                   kanji.character,
-                  style: TextStyle(
+                  style: AppTheme.japaneseStyle(
                     fontSize: 34,
                     fontWeight: FontWeight.w800,
                     color: accent,
@@ -691,72 +685,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 }
 
-class _MaziiSearchBar extends StatelessWidget {
-  const _MaziiSearchBar({
-    required this.controller,
-    required this.focusNode,
-    required this.hintText,
-    required this.onChanged,
-    required this.onSubmitted,
-    required this.onClear,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final String hintText;
-  final ValueChanged<String> onChanged;
-  final ValueChanged<String> onSubmitted;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: KitsuneColors.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(color: KitsuneColors.surfaceBorder),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x10152238),
-            blurRadius: 18,
-            offset: Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const SizedBox(width: 14),
-          const Icon(Icons.search_rounded, color: KitsuneColors.primary),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              onChanged: onChanged,
-              onSubmitted: onSubmitted,
-              decoration: InputDecoration(
-                hintText: hintText,
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                fillColor: Colors.transparent,
-                filled: false,
-                contentPadding: const EdgeInsets.symmetric(vertical: 16),
-              ),
-            ),
-          ),
-          if (controller.text.isNotEmpty)
-            IconButton(
-              onPressed: onClear,
-              icon: const Icon(Icons.close_rounded),
-            )
-          else
-            const SizedBox(width: 12),
-        ],
-      ),
-    );
-  }
-}
 
 class _CategoryPill extends StatelessWidget {
   const _CategoryPill({
@@ -876,7 +804,7 @@ class _LoadMoreFooter extends StatelessWidget {
       padding: const EdgeInsets.only(top: 4, bottom: 20),
       child: OutlinedButton(
         onPressed: onTap,
-        child: const Text('Tai them'),
+        child: const Text('Tải thêm'),
       ),
     );
   }

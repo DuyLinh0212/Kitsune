@@ -33,6 +33,8 @@
     "@supabase/supabase-js": "^2.108.2",
     "express": "^5.1.0",
     "hanzi-writer": "^3.7.3",
+    "lottie-web": "^5.13.0",
+    "ngx-lottie": "^20.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },

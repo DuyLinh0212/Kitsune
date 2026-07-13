@@ -20,8 +20,7 @@ class QuizListPage extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
               children: [
-                const KitsunePassportHeader(
-                  eyebrow: 'Community quiz',
+                const KitsuneHeroCard(
                   title: 'Khám phá những bộ đề người khác đang chia sẻ.',
                   subtitle:
                       'Chọn nhanh một quiz để kiểm tra vốn từ, tốc độ nhớ và cảm giác học hiện tại.',

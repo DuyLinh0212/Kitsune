@@ -77,8 +77,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      KitsunePassportHeader(
-                        eyebrow: 'Welcome back',
+                      KitsuneHeroCard(
                         title: 'Đăng nhập để tiếp tục hành trình học.',
                         subtitle:
                             'Kitsune giữ sẵn từ vựng, kanji, quiz và lịch ôn tập của bạn ở cùng một nơi.',
@@ -101,11 +100,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
-                              'Passport check',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: AppTheme.space16),
                             TextFormField(
                               controller: _loginController,
                               decoration: const InputDecoration(
@@ -169,7 +163,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                       height: 20,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.2,
-                                        color: Colors.white,
+                                        color: KitsuneColors.onPrimary,
                                       ),
                                     )
                                   : const Text('Đăng nhập'),

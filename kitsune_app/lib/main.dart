@@ -4,6 +4,7 @@ import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/features/auth/forgot_password_page.dart';
 import 'package:kitsune_app/features/auth/login_page.dart';
 import 'package:kitsune_app/features/auth/register_page.dart';
@@ -51,7 +52,7 @@ class _AppErrorCard extends StatelessWidget {
             const Icon(Icons.error_outline_rounded, color: KitsuneColors.error),
             const SizedBox(height: 8),
             Text(
-              'Co loi khi hien thi phan nay.',
+              'Có lỗi khi hiển thị phần này.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: KitsuneColors.error,
                     fontWeight: FontWeight.w700,
@@ -171,49 +172,22 @@ class SplashScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 116,
-                  height: 116,
-                  decoration: BoxDecoration(
-                    color: KitsuneColors.surface,
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: KitsuneColors.surfaceBorder),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x140F172A),
-                        blurRadius: 26,
-                        offset: Offset(0, 18),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.space20),
+                const KitsuneLoadingFox(size: 140),
+                const SizedBox(height: AppTheme.space8),
                 Text(
                   'Kitsune',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         color: KitsuneColors.primary,
+                        fontFamily: AppTheme.displayFontFamily,
                       ),
                 ),
                 const SizedBox(height: AppTheme.space8),
                 Text(
-                  'Study passport for your next Japanese win.',
+                  'Học tiếng Nhật mỗi ngày.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: KitsuneColors.onSurfaceVariant,
                       ),
                   textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.space24),
-                const SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(strokeWidth: 3),
                 ),
               ],
             ),
@@ -230,6 +204,41 @@ class MainScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<MainScreen> createState() => _MainScreenState();
 }
+
+class _NavItem {
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+}
+
+const _navItems = [
+  _NavItem(
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home_rounded,
+    label: 'Trang chủ',
+  ),
+  _NavItem(
+    icon: Icons.search_rounded,
+    selectedIcon: Icons.manage_search_rounded,
+    label: 'Tìm kiếm',
+  ),
+  _NavItem(
+    icon: Icons.repeat_rounded,
+    selectedIcon: Icons.auto_awesome_motion_rounded,
+    label: 'Ôn tập',
+  ),
+  _NavItem(
+    icon: Icons.person_outline_rounded,
+    selectedIcon: Icons.person_rounded,
+    label: 'Cá nhân',
+  ),
+];
 
 class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0;
@@ -249,35 +258,60 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(26),
-            child: NavigationBar(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: (index) {
-                setState(() => _currentIndex = index);
-              },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.search_rounded),
-                  selectedIcon: Icon(Icons.manage_search_rounded),
-                  label: 'Search',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.repeat_rounded),
-                  selectedIcon: Icon(Icons.auto_awesome_motion_rounded),
-                  label: 'SRS',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline_rounded),
-                  selectedIcon: Icon(Icons.person_rounded),
-                  label: 'Profile',
+          child: Container(
+            height: 68,
+            decoration: BoxDecoration(
+              color: KitsuneColors.surface,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: KitsuneColors.surfaceBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x1A2B2018),
+                  blurRadius: 20,
+                  offset: Offset(0, 10),
                 ),
               ],
+            ),
+            child: Row(
+              children: List.generate(_navItems.length, (index) {
+                final item = _navItems[index];
+                final isSelected = index == _currentIndex;
+                final tint =
+                    isSelected ? KitsuneColors.primary : KitsuneColors.onSurfaceMuted;
+
+                return Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(26),
+                    onTap: () => setState(() => _currentIndex = index),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isSelected ? item.selectedIcon : item.icon,
+                          color: tint,
+                          size: 22,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: tint,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        SizedBox(
+                          height: 6,
+                          child: isSelected
+                              ? const KitsuneTailMark(size: 14)
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
           ),
         ),

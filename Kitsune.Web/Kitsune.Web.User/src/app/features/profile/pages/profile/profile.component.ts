@@ -7,6 +7,8 @@ import { from, forkJoin } from 'rxjs';
 import { AuthService } from '../../../../core/services/auth.service';
 import { UserProfile } from '../../../../core/models/auth.model';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { SrsService, SrsStatsOverview } from '../../../../core/services/srs.service';
+import { UserStatsService } from '../../../../core/services/user-stats.service';
 
 type Tab = 'info' | 'avatar' | 'folders' | 'srs' | 'settings';
 
@@ -26,6 +28,8 @@ interface ProfileStats {
 export class ProfileComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly srsService = inject(SrsService);
+  readonly userStatsService = inject(UserStatsService);
 
   readonly userProfile = signal<UserProfile | null>(null);
   readonly stats = signal<ProfileStats>({ vocabCount: 0, kanjiCount: 0, quizCount: 0 });
@@ -34,6 +38,24 @@ export class ProfileComponent implements OnInit {
   readonly isSaving = signal(false);
   readonly isLoadingStats = signal(true);
   readonly toast = signal<{ message: string; type: 'success' | 'error' } | null>(null);
+
+  readonly srsStats = signal<SrsStatsOverview | null>(null);
+  readonly isLoadingSrsStats = signal(false);
+  readonly maxBoxCount = computed(() => {
+    const stats = this.srsStats();
+    if (!stats) return 1;
+    return Math.max(1, ...stats.boxLevels.map((b) => b.count));
+  });
+  readonly maxTrendTotal = computed(() => {
+    const stats = this.srsStats();
+    if (!stats) return 1;
+    return Math.max(1, ...stats.accuracyTrend.map((p) => p.total));
+  });
+  readonly totalSrsCards = computed(() => {
+    const stats = this.srsStats();
+    if (!stats) return 0;
+    return stats.boxLevels.reduce((sum, b) => sum + b.count, 0);
+  });
 
   // Avatar upload
   readonly avatarPreview = signal<string | null>(null);
@@ -65,7 +87,7 @@ export class ProfileComponent implements OnInit {
     { id: 'info', label: 'Thông tin', icon: '👤' },
     { id: 'avatar', label: 'Ảnh đại diện', icon: '🖼️' },
     { id: 'folders', label: 'Thư mục', icon: '📁' },
-    { id: 'srs', label: 'SRS', icon: '📊' },
+    { id: 'srs', label: 'Thống kê', icon: '📊' },
     { id: 'settings', label: 'Cài đặt', icon: '⚙️' },
   ];
 
@@ -83,6 +105,31 @@ export class ProfileComponent implements OnInit {
 
   setTab(tab: Tab): void {
     this.activeTab.set(tab);
+    if (tab === 'srs' && !this.srsStats() && !this.isLoadingSrsStats()) {
+      this.loadSrsStats();
+    }
+  }
+
+  private loadSrsStats(): void {
+    this.isLoadingSrsStats.set(true);
+    this.srsService.getStatsOverview().subscribe({
+      next: (overview) => {
+        this.srsStats.set(overview);
+        this.isLoadingSrsStats.set(false);
+      },
+      error: () => {
+        this.isLoadingSrsStats.set(false);
+      },
+    });
+  }
+
+  barHeight(count: number, max: number): number {
+    return Math.max(4, Math.round((count / max) * 100));
+  }
+
+  formatShortDate(dateStr: string): string {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
   }
 
   // ── Avatar Upload ──────────────────────────────────────────────────────
@@ -233,10 +280,6 @@ export class ProfileComponent implements OnInit {
 
   goToFolders(): void {
     this.router.navigate(['/folders']);
-  }
-
-  goToSrs(): void {
-    this.router.navigate(['/srs']);
   }
 
   // ── Helpers ────────────────────────────────────────────────────────────

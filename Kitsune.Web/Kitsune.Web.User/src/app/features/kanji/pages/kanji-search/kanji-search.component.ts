@@ -8,11 +8,12 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { KanjiUserService, KanjiDetailDto } from '../../../../core/services/kanji-user.service';
 import { FolderService, FolderDto } from '../../../../core/services/folder.service';
 import { KanjiStrokeWriterComponent } from '../../components/kanji-stroke-writer/kanji-stroke-writer.component';
+import { CommentSectionComponent } from '../../../../shared/components/comment-section/comment-section.component';
 
 @Component({
   selector: 'app-kanji-search',
   standalone: true,
-  imports: [CommonModule, FormsModule, KanjiStrokeWriterComponent],
+  imports: [CommonModule, FormsModule, KanjiStrokeWriterComponent, CommentSectionComponent],
   templateUrl: './kanji-search.component.html',
   styleUrl: './kanji-search.component.css',
 })
@@ -26,6 +27,13 @@ export class KanjiSearchComponent implements OnInit {
   readonly searchQuery = signal('');
   readonly kanjis = signal<KanjiDetailDto[]>([]);
   readonly selectedKanji = signal<KanjiDetailDto | null>(null);
+  
+  // Radicals
+  readonly radicals = signal<{ id: number; character: string; name: string }[]>([]);
+  readonly selectedRadicalId = signal<number | null>(null);
+  readonly showRadicalPopover = signal(false);
+  readonly radicalSearchQuery = signal('');
+
   readonly isSearching = signal(false);
   readonly isLoadingDetail = signal(false);
   readonly isRandomMode = signal(true);
@@ -40,7 +48,23 @@ export class KanjiSearchComponent implements OnInit {
 
   readonly toast = signal<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Computed values for template
+  get filteredRadicals() {
+    const q = this.radicalSearchQuery().trim().toLowerCase();
+    if (!q) return this.radicals();
+    return this.radicals().filter(r => 
+      r.character.includes(q) || r.name.toLowerCase().includes(q)
+    );
+  }
+
+  get selectedRadical() {
+    const id = this.selectedRadicalId();
+    if (!id) return null;
+    return this.radicals().find(r => r.id === id) || null;
+  }
+
   ngOnInit(): void {
+    this.loadRadicals();
     this.loadRandom();
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const character = params.get('character')?.trim() ?? '';
@@ -77,6 +101,13 @@ export class KanjiSearchComponent implements OnInit {
           this.loadRandom();
         }
       });
+  }
+
+  private loadRadicals(): void {
+    this.kanjiService.getAllRadicals().subscribe({
+      next: (data) => this.radicals.set(data),
+      error: () => this.showToast('error', 'Không thể tải danh sách bộ thủ'),
+    });
   }
 
   private loadRandom(): void {
@@ -116,12 +147,52 @@ export class KanjiSearchComponent implements OnInit {
 
   onSearchEnter(): void {
     const q = this.searchQuery().trim();
-    if (q) this.doSearch(q);
+    if (q || this.selectedRadicalId()) this.doSearch(q);
+  }
+
+  selectRadical(radicalId: number): void {
+    if (this.selectedRadicalId() === radicalId) {
+      this.selectedRadicalId.set(null); // Toggle off
+    } else {
+      this.selectedRadicalId.set(radicalId);
+    }
+    this.showRadicalPopover.set(false);
+    
+    const q = this.searchQuery().trim();
+    if (q || this.selectedRadicalId()) {
+      this.isRandomMode.set(false);
+      this.doSearch(q);
+    } else {
+      this.isRandomMode.set(true);
+      this.loadRandom();
+    }
+  }
+
+  toggleRadicalPopover(): void {
+    this.showRadicalPopover.update(v => !v);
+    if (this.showRadicalPopover()) {
+      this.radicalSearchQuery.set('');
+    }
+  }
+
+  clearRadicalFilter(event: Event): void {
+    event.stopPropagation();
+    this.selectedRadicalId.set(null);
+    this.showRadicalPopover.set(false);
+    
+    const q = this.searchQuery().trim();
+    if (q) {
+      this.doSearch(q);
+    } else {
+      this.isRandomMode.set(true);
+      this.loadRandom();
+    }
   }
 
   private doSearch(q: string): void {
     this.isSearching.set(true);
-    this.kanjiService.search(q, 40).subscribe({
+    const radicalId = this.selectedRadicalId() ?? undefined;
+    this.kanjiService.search(q, 40, radicalId).subscribe({
       next: (results) => {
         this.kanjis.set(results);
         this.isSearching.set(false);

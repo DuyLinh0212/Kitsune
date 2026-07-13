@@ -91,8 +91,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            KitsunePassportHeader(
-              eyebrow: 'Profile',
+            KitsuneHeroCard(
               title: user.displayName,
               subtitle:
                   '@${user.username} • giữ nhịp học của bạn đồng bộ trên mọi màn từ vựng, kanji và quiz.',
@@ -134,20 +133,23 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           decoration: BoxDecoration(
                             color: KitsuneColors.primary,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                            border: Border.all(
+                              color: KitsuneColors.onPrimary,
+                              width: 2,
+                            ),
                           ),
                           child: _isUploadingAvatar
                               ? const Padding(
                                   padding: EdgeInsets.all(5),
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.white,
+                                    color: KitsuneColors.onPrimary,
                                   ),
                                 )
                               : const Icon(
                                   Icons.camera_alt_rounded,
                                   size: 14,
-                                  color: Colors.white,
+                                  color: KitsuneColors.onPrimary,
                                 ),
                         ),
                       ),

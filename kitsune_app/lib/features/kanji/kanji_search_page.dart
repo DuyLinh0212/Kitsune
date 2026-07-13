@@ -93,8 +93,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
                 children: [
-                  const KitsunePassportHeader(
-                    eyebrow: 'Kanji studio',
+                  const KitsuneHeroCard(
                     title: 'Xem net, nghia va bo thu trong cung mot nhip doc.',
                     subtitle:
                         'Tap trung vao mot ky tu tai mot thoi diem de hieu cach no duoc tao thanh va duoc dung ra sao.',
@@ -211,7 +210,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
                   child: Center(
                     child: Text(
                       kanji.character,
-                      style: TextStyle(
+                      style: AppTheme.japaneseStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
                         color: accent,
@@ -282,7 +281,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
             children: [
               Text(
                 kanji.character,
-                style: const TextStyle(
+                style: AppTheme.japaneseStyle(
                   fontSize: 88,
                   fontWeight: FontWeight.w800,
                   color: KitsuneColors.onSurface,
@@ -357,9 +356,10 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
                   child: Center(
                     child: Text(
                       kanji.radical!.radicalCharacter,
-                      style: const TextStyle(
+                      style: AppTheme.japaneseStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
+                        color: KitsuneColors.onSurface,
                       ),
                     ),
                   ),

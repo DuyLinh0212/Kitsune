@@ -197,15 +197,92 @@
     </div>
   }
 
-  <!-- ── SRS TAB ── -->
+  <!-- ── SRS / STATISTICS TAB ── -->
   @if (activeTab() === 'srs') {
     <div class="tab-panel">
-      <div class="placeholder-card">
-        <div class="placeholder-icon">📊</div>
-        <h3>Tiến độ SRS</h3>
-        <p>Xem biểu đồ tiến độ ôn tập của bạn</p>
-        <button class="btn-save" (click)="goToSrs()">Xem chi tiết</button>
-      </div>
+      @if (isLoadingSrsStats()) {
+        <div class="info-card">
+          <div class="stat-value-skeleton" style="width: 100%; height: 120px;"></div>
+        </div>
+      } @else if (srsStats(); as s) {
+        <div class="srs-stats-grid">
+          <!-- Overview numbers -->
+          <div class="info-card srs-overview-card">
+            <h2 class="panel-title">Tổng quan</h2>
+            <div class="srs-overview-row">
+              <div class="srs-overview-item">
+                <span class="srs-overview-value">{{ userStatsService.stats().streak }}</span>
+                <span class="srs-overview-label">🔥 Ngày liên tiếp</span>
+              </div>
+              <div class="srs-overview-item">
+                <span class="srs-overview-value">{{ s.totalReviews }}</span>
+                <span class="srs-overview-label">Lượt ôn tập</span>
+              </div>
+              <div class="srs-overview-item">
+                <span class="srs-overview-value">{{ s.accuracyRate }}%</span>
+                <span class="srs-overview-label">Tỷ lệ đúng</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Box level distribution -->
+          <div class="info-card">
+            <h2 class="panel-title">Phân bố mức độ (Box Level)</h2>
+            @if (totalSrsCards() === 0) {
+              <p class="srs-empty-hint">Chưa có thẻ SRS nào. Hãy thêm từ vựng/kanji vào thư mục và bắt đầu ôn tập.</p>
+            }
+            <div class="box-level-chart">
+              @for (box of s.boxLevels; track box.boxLevel) {
+                <div class="box-level-col">
+                  <div class="box-level-bar-wrap">
+                    <div class="box-level-bar" [style.height.%]="barHeight(box.count, maxBoxCount())">
+                      @if (box.count > 0) { <span class="box-level-count">{{ box.count }}</span> }
+                    </div>
+                  </div>
+                  <span class="box-level-label">{{ box.boxLevel }}</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Most wrong -->
+          <div class="info-card">
+            <h2 class="panel-title">Hay sai nhất</h2>
+            @if (s.mostWrong.length === 0) {
+              <p class="srs-empty-hint">Chưa có dữ liệu — bạn chưa trả lời sai lần nào gần đây. Tuyệt vời!</p>
+            } @else {
+              <ul class="most-wrong-list">
+                @for (item of s.mostWrong; track item.cardId) {
+                  <li class="most-wrong-item">
+                    <span class="most-wrong-word">{{ item.word }}</span>
+                    <span class="most-wrong-meaning">{{ item.meaning }}</span>
+                    <span class="most-wrong-count">{{ item.wrongCount }} lần sai</span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+
+          <!-- Accuracy trend -->
+          <div class="info-card">
+            <h2 class="panel-title">Xu hướng độ chính xác (14 ngày gần nhất)</h2>
+            @if (s.accuracyTrend.length === 0) {
+              <p class="srs-empty-hint">Chưa có dữ liệu ôn tập gần đây.</p>
+            } @else {
+              <div class="trend-chart">
+                @for (point of s.accuracyTrend; track point.date) {
+                  <div class="trend-col" [title]="point.correct + '/' + point.total + ' đúng — ' + formatShortDate(point.date)">
+                    <div class="trend-bar-wrap">
+                      <div class="trend-bar" [style.height.%]="barHeight(point.total, maxTrendTotal())"></div>
+                    </div>
+                    <span class="trend-label">{{ formatShortDate(point.date) }}</span>
+                  </div>
+                }
+              </div>
+            }
+          </div>
+        </div>
+      }
     </div>
   }
 

@@ -140,8 +140,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            KitsunePassportHeader(
-              eyebrow: 'Quiz builder',
+            KitsuneHeroCard(
               title: 'Dựng một bộ quiz vừa sức và đúng mục tiêu học.',
               subtitle:
                   'Chọn nội dung, chọn chế độ hỏi và đóng gói thành một quiz có thể chơi lại nhiều lần.',
@@ -156,9 +155,8 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                 child: Center(
                   child: Text(
                     '${_selectedVocabIds.length + _selectedKanjiIds.length}',
-                    style: const TextStyle(
+                    style: AppTheme.numeralStyle(
                       fontSize: 28,
-                      fontWeight: FontWeight.w800,
                       color: KitsuneColors.primary,
                     ),
                   ),
@@ -191,8 +189,8 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                         children: [
                           Text(
                             '${index + 1}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
+                            style: AppTheme.numeralStyle(
+                              fontSize: 16,
                               color: isDone || isActive
                                   ? KitsuneColors.primary
                                   : KitsuneColors.onSurfaceVariant,

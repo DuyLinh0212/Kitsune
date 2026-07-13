@@ -1,0 +1,16 @@
+/* F:\NgDuyLinh\Personal_Project\Kitsune_Total\KitsunePlatform\Kitsune.Web\Kitsune.Web.User\src\app\shared\components\loading-fox\loading-fox.component.css */
+.loading-fox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+}
+
+.loading-fox__message {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--ink-secondary, #7a6a58);
+}

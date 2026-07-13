@@ -8,6 +8,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { UserStatsService } from '../../../../core/services/user-stats.service';
 import { UserProfile } from '../../../../core/models/auth.model';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 // ── Interfaces ──────────────────────────────────────────────────────────────
 interface FolderItem {
@@ -43,7 +44,7 @@ interface SearchResult {
 @Component({
   selector: 'app-home-page',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent],
   templateUrl: './home.component.html',
   styleUrl: './home.component.css'
 })

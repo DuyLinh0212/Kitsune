@@ -17,6 +17,7 @@ String kitsuneInitials(String name) {
       .toUpperCase();
 }
 
+/// Flat cream→paper wash. No floating decoration — the content is the design.
 class KitsuneBackdrop extends StatelessWidget {
   const KitsuneBackdrop({
     super.key,
@@ -29,66 +30,45 @@ class KitsuneBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return DecoratedBox(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            Color(0xFFFDF3EC),
-            Color(0xFFF7FAFF),
             KitsuneColors.background,
+            Color(0xFFF9F1E3),
           ],
-          stops: [0, 0.3, 0.75],
+          stops: [0, 1],
         ),
       ),
-      child: Stack(
-        children: [
-          Positioned(
-            top: -40,
-            right: -24,
-            child: _AmbientOrb(
-              size: 180,
-              color: KitsuneColors.primarySurface,
-            ),
-          ),
-          Positioned(
-            top: 96,
-            left: -36,
-            child: _AmbientOrb(
-              size: 128,
-              color: KitsuneColors.secondarySurface,
-            ),
-          ),
-          Positioned.fill(
-            child: Padding(
-              padding: padding ?? EdgeInsets.zero,
-              child: child,
-            ),
-          ),
-        ],
+      child: Padding(
+        padding: padding ?? EdgeInsets.zero,
+        child: child,
       ),
     );
   }
 }
 
-class KitsunePassportHeader extends StatelessWidget {
-  const KitsunePassportHeader({
+/// Page hero: title + subtitle + optional trailing action. No eyebrow label —
+/// the [KitsuneTailMark] beside the title carries the brand mark instead.
+class KitsuneHeroCard extends StatelessWidget {
+  const KitsuneHeroCard({
     super.key,
-    required this.eyebrow,
     required this.title,
     required this.subtitle,
     this.trailing,
     this.accent = KitsuneColors.primary,
     this.margin,
+    this.titleStyle,
   });
 
-  final String eyebrow;
   final String title;
   final String subtitle;
   final Widget? trailing;
   final Color accent;
   final EdgeInsetsGeometry? margin;
+  final TextStyle? titleStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -103,9 +83,9 @@ class KitsunePassportHeader extends StatelessWidget {
         border: Border.all(color: KitsuneColors.surfaceBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x140F172A),
-            blurRadius: 28,
-            offset: Offset(0, 14),
+            color: Color(0x1A2B2018),
+            blurRadius: 24,
+            offset: Offset(0, 12),
           ),
         ],
       ),
@@ -116,11 +96,12 @@ class KitsunePassportHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _PassportStrip(label: eyebrow, accent: accent),
-                const SizedBox(height: AppTheme.space16),
+                KitsuneTailMark(color: accent),
+                const SizedBox(height: AppTheme.space10),
                 Text(
                   title,
-                  style: textTheme.headlineMedium?.copyWith(height: 1.08),
+                  style: titleStyle ??
+                      textTheme.headlineMedium?.copyWith(height: 1.12),
                 ),
                 const SizedBox(height: AppTheme.space8),
                 Text(
@@ -171,7 +152,7 @@ class KitsuneSurface extends StatelessWidget {
         border: Border.all(color: KitsuneColors.surfaceBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x0F152238),
+            color: Color(0x142B2018),
             blurRadius: 18,
             offset: Offset(0, 8),
           ),
@@ -198,6 +179,8 @@ class KitsuneSurface extends StatelessWidget {
   }
 }
 
+/// Section title with the [KitsuneTailMark] accent in place of an eyebrow
+/// label, an optional informative subtitle, and an optional trailing action.
 class KitsuneSectionHeader extends StatelessWidget {
   const KitsuneSectionHeader({
     super.key,
@@ -205,7 +188,7 @@ class KitsuneSectionHeader extends StatelessWidget {
     this.subtitle,
     this.actionLabel,
     this.onAction,
-    this.accent = KitsuneColors.stamp,
+    this.accent = KitsuneColors.primary,
   });
 
   final String title;
@@ -225,9 +208,18 @@ class KitsuneSectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _PassportStrip(label: title, accent: accent),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  KitsuneTailMark(color: accent),
+                  const SizedBox(width: AppTheme.space8),
+                  Flexible(
+                    child: Text(title, style: textTheme.titleLarge),
+                  ),
+                ],
+              ),
               if (subtitle != null) ...[
-                const SizedBox(height: AppTheme.space8),
+                const SizedBox(height: AppTheme.space6),
                 Text(
                   subtitle!,
                   style: textTheme.bodySmall?.copyWith(
@@ -384,14 +376,7 @@ class KitsuneMetricPill extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(
-                value,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: color,
-                ),
-              ),
+              Text(value, style: AppTheme.numeralStyle(fontSize: 13, color: color)),
               Text(
                 label,
                 style: const TextStyle(
@@ -430,11 +415,7 @@ class KitsuneStatTile extends StatelessWidget {
         children: [
           Text(
             value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
+            style: AppTheme.numeralStyle(fontSize: 22, color: color),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppTheme.space4),
@@ -499,64 +480,78 @@ class KitsuneActionBadge extends StatelessWidget {
   }
 }
 
-class _PassportStrip extends StatelessWidget {
-  const _PassportStrip({
-    required this.label,
-    required this.accent,
+/// The Kitsune signature: a small tapered fox-tail flick. Used beside every
+/// hero/section title and as the active bottom-nav indicator — nowhere else.
+class KitsuneTailMark extends StatelessWidget {
+  const KitsuneTailMark({
+    super.key,
+    this.color = KitsuneColors.primary,
+    this.size = 16,
   });
 
-  final String label;
-  final Color accent;
+  final Color color;
+  final double size;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.space10,
-        vertical: AppTheme.space6,
-      ),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.13),
-        borderRadius: BorderRadius.circular(AppTheme.radiusFull),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          color: accent,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 1.1,
-        ),
-      ),
+    return SizedBox(
+      width: size,
+      height: size * 0.78,
+      child: CustomPaint(painter: _TailMarkPainter(color: color)),
     );
   }
 }
 
-class _AmbientOrb extends StatelessWidget {
-  const _AmbientOrb({
-    required this.size,
-    required this.color,
-  });
+class _TailMarkPainter extends CustomPainter {
+  _TailMarkPainter({required this.color});
 
-  final double size;
   final Color color;
 
   @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [
-              color.withValues(alpha: 0.55),
-              color.withValues(alpha: 0),
-            ],
-          ),
-        ),
-      ),
-    );
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    final path = Path()
+      ..moveTo(size.width * 0.05, size.height * 0.94)
+      ..cubicTo(
+        size.width * 0.00,
+        size.height * 0.55,
+        size.width * 0.20,
+        size.height * 0.04,
+        size.width * 0.62,
+        size.height * 0.02,
+      )
+      ..cubicTo(
+        size.width * 1.00,
+        size.height * 0.00,
+        size.width * 1.02,
+        size.height * 0.32,
+        size.width * 0.84,
+        size.height * 0.40,
+      )
+      ..cubicTo(
+        size.width * 0.62,
+        size.height * 0.50,
+        size.width * 0.38,
+        size.height * 0.46,
+        size.width * 0.26,
+        size.height * 0.70,
+      )
+      ..cubicTo(
+        size.width * 0.20,
+        size.height * 0.83,
+        size.width * 0.18,
+        size.height * 0.94,
+        size.width * 0.05,
+        size.height * 0.94,
+      )
+      ..close();
+
+    canvas.drawPath(path, paint);
   }
+
+  @override
+  bool shouldRepaint(covariant _TailMarkPainter oldDelegate) => oldDelegate.color != color;
 }

@@ -1,48 +1,76 @@
-<div class="kanji-page">
+<div class="folder-detail-page">
   @if (toast()) {
   <div class="toast" [class.toast--error]="toast()!.type === 'error'">
-    <span class="toast-icon">{{ toast()!.type === 'success' ? '✓' : '!' }}</span>
-    {{ toast()!.message }}
+    <span class="toast__icon">{{ toast()!.type === 'success' ? '✓' : '!' }}</span>
+    <span>{{ toast()!.message }}</span>
   </div>
   }
-  <div class="search-bar" [class.search-bar--active]="searchQuery()">
-    <svg class="search-bar__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-    <input type="text" class="search-bar__input" placeholder="Ví dụ: 水, Thủy, nước..." [ngModel]="searchQuery()"
-      (ngModelChange)="onSearchInput($event)" (keyup.enter)="onSearchEnter()" autocomplete="off" autocorrect="off"
-      spellcheck="false" />
-    @if (isSearching()) {
-    <div class="search-bar__spinner"></div>
-    } @else if (searchQuery()) {
-    <button type="button" class="search-bar__clear" (click)="onSearchInput('')" title="Xóa tìm kiếm">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
-      </svg>
-    </button>
-    }
-    <button type="button" class="search-bar__btn" (click)="onSearchEnter()">Tìm</button>
-  </div>
 
-  @if (!isSearching() && kanjis().length === 0 && searchQuery()) {
+
+
+  <section class="workspace-toolbar">
+    <label class="search-box">
+      <span class="search-box__icon">Tìm</span>
+      <input type="text" [ngModel]="searchQuery()" (ngModelChange)="onSearchInput($event)"
+        (keyup.enter)="onSearchEnter()" placeholder="Nhập tiếng Việt, Onyomi, bộ thủ..." autocomplete="off"
+        autocorrect="off" spellcheck="false" />
+      @if (searchQuery()) {
+      <button type="button" class="search-bar__clear" (click)="onSearchInput('')" title="Xóa">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+      }
+      <button type="button" class="search-bar__btn" (click)="onSearchEnter()">Tra</button>
+    </label>
+
+    <div class="radical-filter-wrapper">
+      <button type="button" class="folder-radical-bar" [class.folder-radical-bar--active]="selectedRadicalId()"
+        (click)="toggleRadicalPopover()">
+        <span class="folder-radical-bar__label">Bộ thủ:</span>
+        @if (selectedRadical) {
+        <div class="radical-chip radical-chip--active">
+          {{ selectedRadical.character }}
+          <span class="radical-chip__clear" (click)="clearRadicalFilter($event)">×</span>
+        </div>
+        } @else {
+        <span class="folder-radical-bar__empty">Chưa chọn</span>
+        }
+      </button>
+
+      @if (showRadicalPopover()) {
+      <div class="radical-popover">
+        <div class="radical-popover__header">
+          <input type="text" class="radical-popover__search" placeholder="Tìm bộ thủ..."
+            [ngModel]="radicalSearchQuery()" (ngModelChange)="radicalSearchQuery.set($event)" />
+        </div>
+        <div class="radical-popover__grid">
+          @for (radical of filteredRadicals; track radical.id) {
+          <button type="button" class="radical-chip" [class.radical-chip--active]="selectedRadicalId() === radical.id"
+            (click)="selectRadical(radical.id)" [title]="radical.name">
+            {{ radical.character }}
+          </button>
+          }
+        </div>
+      </div>
+      <div class="popover-backdrop" (click)="showRadicalPopover.set(false)"></div>
+      }
+    </div>
+  </section>
+
+  @if (isSearching() && kanjis().length === 0) {
+  <section class="workspace-loading">
+    <div class="loading-card"></div>
+    <div class="loading-card loading-card--wide"></div>
+  </section>
+  } @else if (!isSearching() && kanjis().length === 0 && (searchQuery() || selectedRadicalId())) {
   <div class="empty-state">
     <div class="empty-state__icon">漢</div>
     <h3>Không tìm thấy Kanji phù hợp</h3>
     <p>Thử nhập một chữ Kanji, âm Hán Việt hoặc nghĩa ngắn hơn.</p>
   </div>
-  }
-
-  @if (isSearching() && kanjis().length === 0) {
-  <div class="empty-state">
-    <div class="loading-ring loading-ring--lg"></div>
-    <p>Đang tải danh sách Kanji...</p>
-  </div>
-  }
-
-  @if (kanjis().length > 0) {
+  } @else if (kanjis().length > 0) {
   <div class="kanji-workspace">
     <aside class="list-panel">
       <div class="list-panel__header">
@@ -153,6 +181,10 @@
           </div>
         </section>
       </div>
+
+      <section class="detail-block comments-block">
+        <app-comment-section [kanjiId]="k.id"></app-comment-section>
+      </section>
       } @else {
       <div class="detail-placeholder">
         <div class="detail-placeholder__icon">←</div>

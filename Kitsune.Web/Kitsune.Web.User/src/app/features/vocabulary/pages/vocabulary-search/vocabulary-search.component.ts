@@ -8,11 +8,13 @@ import { ActivatedRoute } from '@angular/router';
 import { VocabularyService, VocabularyDto } from '../../../../core/services/vocabulary.service';
 import { FolderService, FolderDto } from '../../../../core/services/folder.service';
 import { KanjiUserService, KanjiDetailDto } from '../../../../core/services/kanji-user.service';
+import { TtsService } from '../../../../core/services/tts.service';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 @Component({
   selector: 'app-vocabulary-search',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent],
   templateUrl: './vocabulary-search.component.html',
   styleUrl: './vocabulary-search.component.css',
 })
@@ -20,6 +22,7 @@ export class VocabularySearchComponent implements OnInit {
   private readonly vocabularyService = inject(VocabularyService);
   private readonly folderService = inject(FolderService);
   private readonly kanjiService = inject(KanjiUserService);
+  readonly ttsService = inject(TtsService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly searchSubject = new Subject<string>();
@@ -201,6 +204,10 @@ export class VocabularySearchComponent implements OnInit {
         });
       },
     });
+  }
+
+  speakWord(vocab: VocabularyDto): void {
+    this.ttsService.speak(vocab.word);
   }
 
   // --- Bookmark (Yêu thích) ---

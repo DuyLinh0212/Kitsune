@@ -24,6 +24,8 @@ export interface KanjiComponentDto {
   character: string;
   amHanViet: string;
   order: number;
+  radicalId?: number;
+  radicalCharacter?: string;
 }
 
 export interface PagedResult<T> {
@@ -64,7 +66,7 @@ const VOCAB_SELECT = `
   Id, FolderId, LanguageId, Word, Pronunciation, Meaning, SpecificData, CreatedAt,
   VocabularyFolder:FolderId(FolderName),
   Languages:LanguageId(LanguageCode, LanguageName),
-  KanjiComponents:KanjiComponents(KanjiId, Kanji:KanjiId(Id, Character, AmHanViet), "Order")
+  KanjiComponents:KanjiComponents(KanjiId, Kanji:KanjiId(Id, Character, AmHanViet, Radical:RadicalId(Id, RadicalCharacter)), "Order")
 `;
 
 @Injectable({ providedIn: 'root' })
@@ -339,7 +341,12 @@ export class VocabularyService {
     const lang = r['Languages'] as { LanguageCode: string; LanguageName: string } | null;
     const comps = r['KanjiComponents'] as Array<{
       Order: number;
-      Kanji: { Id: number; Character: string; AmHanViet: string };
+      Kanji: { 
+        Id: number; 
+        Character: string; 
+        AmHanViet: string;
+        Radical?: { Id: number; RadicalCharacter: string } | null;
+      };
     }> | null;
 
     return {
@@ -361,6 +368,8 @@ export class VocabularyService {
           character: c.Kanji.Character,
           amHanViet: c.Kanji.AmHanViet,
           order: c.Order,
+          radicalId: c.Kanji.Radical?.Id,
+          radicalCharacter: c.Kanji.Radical?.RadicalCharacter,
         })),
       isPinned: false,
     };

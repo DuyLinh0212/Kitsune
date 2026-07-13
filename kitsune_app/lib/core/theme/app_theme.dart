@@ -1,9 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'colors.dart';
 
 class AppTheme {
-  static const String fontFamily = 'Noto Sans JP';
-  static const String utilityFontFamily = 'Noto Sans JP';
+  /// Body copy — Vietnamese UI text, buttons, inputs. Full diacritic coverage.
+  static final String fontFamily = GoogleFonts.notoSans().fontFamily!;
+
+  /// Numerals, wordmark, nav chrome — used sparingly via [numeralStyle].
+  static final String displayFontFamily = GoogleFonts.manrope().fontFamily!;
+
+  /// Japanese script — apply only to widgets rendering real kanji/kana.
+  static final String japaneseFontFamily = GoogleFonts.notoSansJp().fontFamily!;
+
+  /// Confident geometric numerals: streaks, XP, percentages, countdowns.
+  static TextStyle numeralStyle({
+    required double fontSize,
+    FontWeight fontWeight = FontWeight.w800,
+    Color? color,
+    double? letterSpacing,
+  }) {
+    return GoogleFonts.manrope(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      letterSpacing: letterSpacing,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+  }
+
+  /// Japanese script text: vocabulary words, kanji big-character, furigana.
+  static TextStyle japaneseStyle({
+    required double fontSize,
+    FontWeight fontWeight = FontWeight.w600,
+    Color? color,
+    double? height,
+  }) {
+    return GoogleFonts.notoSansJp(
+      fontSize: fontSize,
+      fontWeight: fontWeight,
+      color: color,
+      height: height,
+    );
+  }
 
   static const double space2 = 2;
   static const double space4 = 4;
@@ -55,7 +93,7 @@ class AppTheme {
       canvasColor: KitsuneColors.background,
       splashColor: KitsuneColors.primarySurface,
       highlightColor: Colors.transparent,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
         foregroundColor: KitsuneColors.onSurface,
         elevation: 0,
@@ -70,36 +108,36 @@ class AppTheme {
           fontFamily: fontFamily,
           letterSpacing: -0.3,
         ),
-        iconTheme: IconThemeData(
+        iconTheme: const IconThemeData(
           color: KitsuneColors.onSurface,
           size: 22,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: KitsuneColors.background,
+        backgroundColor: KitsuneColors.surface,
         indicatorColor: KitsuneColors.primarySurface,
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return const IconThemeData(color: KitsuneColors.primary, size: 22);
           }
           return const IconThemeData(
-            color: KitsuneColors.onSurfaceVariant,
+            color: KitsuneColors.onSurfaceMuted,
             size: 22,
           );
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const TextStyle(
+            return TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: KitsuneColors.primary,
               fontFamily: fontFamily,
             );
           }
-          return const TextStyle(
+          return TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w500,
-            color: KitsuneColors.onSurfaceVariant,
+            color: KitsuneColors.onSurfaceMuted,
             fontFamily: fontFamily,
           );
         }),
@@ -133,7 +171,7 @@ class AppTheme {
             borderRadius: BorderRadius.circular(radiusMd),
           ),
           elevation: 0,
-          textStyle: const TextStyle(
+          textStyle: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w700,
             fontFamily: fontFamily,
@@ -153,7 +191,7 @@ class AppTheme {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
-          textStyle: const TextStyle(
+          textStyle: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w600,
             fontFamily: fontFamily,
@@ -164,7 +202,7 @@ class AppTheme {
         style: TextButton.styleFrom(
           foregroundColor: KitsuneColors.primary,
           padding: const EdgeInsets.symmetric(horizontal: space8, vertical: space4),
-          textStyle: const TextStyle(
+          textStyle: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             fontFamily: fontFamily,
@@ -198,17 +236,17 @@ class AppTheme {
           borderRadius: BorderRadius.circular(radiusMd),
           borderSide: const BorderSide(color: KitsuneColors.error, width: 2),
         ),
-        hintStyle: const TextStyle(
+        hintStyle: TextStyle(
           color: KitsuneColors.onSurfaceMuted,
           fontSize: 14,
           fontFamily: fontFamily,
         ),
-        labelStyle: const TextStyle(
+        labelStyle: TextStyle(
           color: KitsuneColors.onSurfaceVariant,
           fontSize: 14,
           fontFamily: fontFamily,
         ),
-        floatingLabelStyle: const TextStyle(
+        floatingLabelStyle: TextStyle(
           color: KitsuneColors.primary,
           fontSize: 12,
           fontWeight: FontWeight.w600,
@@ -216,13 +254,13 @@ class AppTheme {
         ),
         prefixIconColor: KitsuneColors.onSurfaceVariant,
         suffixIconColor: KitsuneColors.onSurfaceVariant,
-        errorStyle: const TextStyle(
+        errorStyle: TextStyle(
           color: KitsuneColors.error,
           fontSize: 12,
           fontFamily: fontFamily,
         ),
       ),
-      textTheme: const TextTheme(
+      textTheme: TextTheme(
         displaySmall: TextStyle(
           fontSize: 38,
           fontWeight: FontWeight.w800,
@@ -316,7 +354,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: KitsuneColors.surfaceVariant,
         selectedColor: KitsuneColors.primarySurface,
-        labelStyle: const TextStyle(
+        labelStyle: TextStyle(
           fontSize: 13,
           fontFamily: fontFamily,
           color: KitsuneColors.onSurface,
@@ -335,7 +373,7 @@ class AppTheme {
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: KitsuneColors.onSurface,
-        contentTextStyle: const TextStyle(
+        contentTextStyle: TextStyle(
           color: Colors.white,
           fontSize: 14,
           fontFamily: fontFamily,

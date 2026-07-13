@@ -8,16 +8,19 @@
 
 <div class="page-container">
   <!-- Header -->
-  <div class="page-header">
-    <div class="header-left">
+  <header class="dossier-header">
+    <div class="dossier-header__left">
+      <span class="section-kicker">Study Repository</span>
       <h1 class="page-title">Thư Mục Của Tôi</h1>
-      <p class="page-subtitle">Quản lý và tổ chức từ vựng của bạn</p>
+      <p class="page-subtitle">Quản lý và tổ chức các nhóm từ vựng của bạn theo chủ đề.</p>
     </div>
-    <button class="btn-primary" (click)="openCreateModal()">
-      <span class="btn-icon">＋</span>
-      Tạo thư mục
-    </button>
-  </div>
+    <div class="dossier-header__actions">
+      <button class="primary-action" (click)="openCreateModal()">
+        <span class="btn-icon">＋</span>
+        Tạo hồ sơ mới
+      </button>
+    </div>
+  </header>
 
   <!-- Loading state -->
   @if (isLoading()) {
@@ -40,56 +43,43 @@
     </div>
   }
 
-  <!-- Folder grid -->
+  <!-- Folder List -->
   @if (!isLoading() && folders().length > 0) {
-    <div class="folder-grid">
-      @for (folder of folders(); track folder.id) {
-        <div class="folder-card">
-          <div class="card-top">
-            <div class="folder-icon">📁</div>
+    <div class="dossier-list">
+      @for (folder of folders(); track folder.id; let i = $index) {
+        <div class="dossier-row" [style.animation-delay]="i * 0.05 + 's'">
+          <div class="dossier-row__index">{{ (i + 1).toString().padStart(2, '0') }}</div>
+          
+          <div class="dossier-row__main">
+            <h3 class="dossier-row__name">
+              <a [routerLink]="['/folders', folder.id]">{{ folder.name }}</a>
+            </h3>
+            <p class="dossier-row__desc" [class.is-empty]="!folder.description">{{ folder.description || 'Không có mô tả' }}</p>
+          </div>
+
+          <div class="dossier-row__meta">
+            <span class="ink-badge">{{ folder.vocabCount }} từ vựng</span>
+            <span class="ink-badge" [class.ink-badge--public]="folder.isPublic">
+              {{ folder.isPublic ? 'Công khai' : 'Riêng tư' }}
+            </span>
+          </div>
+
+          <div class="dossier-row__actions">
             <div class="menu-wrapper">
-              <button class="menu-btn" (click)="toggleMenu(folder.id)" title="Tùy chọn">
-                ⋮
-              </button>
+              <button class="menu-btn" (click)="toggleMenu(folder.id)" title="Tùy chọn">⋮</button>
               @if (openMenuId() === folder.id) {
                 <div class="dropdown-menu" (mouseleave)="closeMenu()">
-                  <button class="dropdown-item" (click)="openRenameModal(folder)">
-                    ✏️ Đổi tên
-                  </button>
-                  <button class="dropdown-item dropdown-item-danger" (click)="deleteFolder(folder.id)">
-                    🗑️ Xóa
-                  </button>
+                  <button class="dropdown-item" (click)="openRenameModal(folder)">Đổi tên</button>
+                  <button class="dropdown-item dropdown-item-danger" (click)="deleteFolder(folder.id)">Xóa</button>
                 </div>
               }
             </div>
-          </div>
-
-          <div class="card-body">
-            <h3 class="folder-name">{{ folder.name }}</h3>
-            @if (folder.description) {
-              <p class="folder-desc">{{ folder.description }}</p>
-            } @else {
-              <p class="folder-desc folder-desc-empty">Chưa có mô tả</p>
-            }
-          </div>
-
-          <div class="card-footer">
-            <div class="vocab-count">
-              <span class="vocab-icon">📝</span>
-              <span>{{ folder.vocabCount }} từ vựng</span>
-            </div>
-            <div class="card-badges">
-              @if (folder.isPublic) {
-                <span class="badge badge-public">Công khai</span>
-              } @else {
-                <span class="badge badge-private">Riêng tư</span>
-              }
-            </div>
-          </div>
-
-          <div class="card-actions">
-            <a [routerLink]="['/folders', folder.id]" class="btn-view">
-              Xem từ vựng →
+            <a [routerLink]="['/folders', folder.id]" class="dossier-link">
+              Mở
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+                <polyline points="12 5 19 12 12 19"></polyline>
+              </svg>
             </a>
           </div>
         </div>

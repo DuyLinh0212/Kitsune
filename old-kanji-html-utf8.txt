@@ -1,0 +1,214 @@
+﻿<div class="kanji-page">
+  @if (toast()) {
+  <div class="toast" [class.toast--error]="toast()!.type === 'error'">
+    <span class="toast-icon">{{ toast()!.type === 'success' ? 'âœ“' : '!' }}</span>
+    {{ toast()!.message }}
+  </div>
+  }
+  <div class="search-bar" [class.search-bar--active]="searchQuery()">
+    <svg class="search-bar__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      stroke-width="2">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+    <input type="text" class="search-bar__input" placeholder="VĂ­ dá»¥: æ°´, Thá»§y, nÆ°á»›c..." [ngModel]="searchQuery()"
+      (ngModelChange)="onSearchInput($event)" (keyup.enter)="onSearchEnter()" autocomplete="off" autocorrect="off"
+      spellcheck="false" />
+    @if (isSearching()) {
+    <div class="search-bar__spinner"></div>
+    } @else if (searchQuery()) {
+    <button type="button" class="search-bar__clear" (click)="onSearchInput('')" title="XĂ³a tĂ¬m kiáº¿m">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <line x1="18" y1="6" x2="6" y2="18" />
+        <line x1="6" y1="6" x2="18" y2="18" />
+      </svg>
+    </button>
+    }
+    <button type="button" class="search-bar__btn" (click)="onSearchEnter()">TĂ¬m</button>
+  </div>
+
+  @if (!isSearching() && kanjis().length === 0 && searchQuery()) {
+  <div class="empty-state">
+    <div class="empty-state__icon">æ¼¢</div>
+    <h3>KhĂ´ng tĂ¬m tháº¥y Kanji phĂ¹ há»£p</h3>
+    <p>Thá»­ nháº­p má»™t chá»¯ Kanji, Ă¢m HĂ¡n Viá»‡t hoáº·c nghÄ©a ngáº¯n hÆ¡n.</p>
+  </div>
+  }
+
+  @if (isSearching() && kanjis().length === 0) {
+  <div class="empty-state">
+    <div class="loading-ring loading-ring--lg"></div>
+    <p>Äang táº£i danh sĂ¡ch Kanji...</p>
+  </div>
+  }
+
+  @if (kanjis().length > 0) {
+  <div class="kanji-workspace">
+    <aside class="list-panel">
+      <div class="list-panel__header">
+        <span>{{ isRandomMode() ? 'Gá»£i Ă½ hĂ´m nay' : 'Káº¿t quáº£ tĂ¬m kiáº¿m' }}</span>
+      </div>
+
+      <div class="list-panel__body">
+        <div class="kanji-grid">
+          @for (k of kanjis(); track k.id) {
+          <button type="button" class="kanji-chip-item" [class.kanji-chip-item--active]="selectedKanji()?.id === k.id"
+            (click)="selectKanji(k)">
+            <span class="kanji-chip-item__char">{{ k.character }}</span>
+            <span class="kanji-chip-item__info">
+              <strong class="kanji-chip-item__hv">{{ k.amHanViet }}</strong>
+              <span class="kanji-chip-item__meaning">{{ k.meaning }}</span>
+            </span>
+            @if (k.jlptLevel) {
+            <span class="kanji-chip-item__jlpt" [style.background]="getJlptColor(k.jlptLevel) + '18'"
+              [style.color]="getJlptColor(k.jlptLevel)">N{{ k.jlptLevel }}</span>
+            }
+          </button>
+          }
+        </div>
+      </div>
+    </aside>
+
+    <section class="detail-panel">
+      @if (selectedKanji(); as k) {
+      <div class="detail-hero">
+        <div class="kanji-identity">
+          <div class="kanji-identity__paper">
+            <div class="kanji-identity__char">{{ k.character }}</div>
+          </div>
+
+          <div class="kanji-identity__meta">
+            <span class="kanji-identity__label">Ă‚m HĂ¡n Viá»‡t</span>
+            <h2>{{ k.amHanViet }}</h2>
+            <p>{{ k.meaning }}</p>
+
+            <div class="kanji-identity__badges">
+              <span class="ink-badge">{{ k.strokeCount }} nĂ©t</span>
+              @if (k.jlptLevel) {
+              <span class="ink-badge" [style.border-color]="getJlptColor(k.jlptLevel) + '66'"
+                [style.color]="getJlptColor(k.jlptLevel)">JLPT N{{ k.jlptLevel }}</span>
+              }
+            </div>
+          </div>
+        </div>
+        <app-kanji-stroke-writer [character]="k.character" [width]="210" [height]="210" />
+      </div>
+
+      <div class="detail-grid">
+        <section class="detail-block readings-block">
+          <div class="section-label">CĂ¡ch Ä‘á»c</div>
+          <div class="reading-row">
+            <span>Onyomi</span>
+            <strong>{{ k.onyomi || 'â€”' }}</strong>
+          </div>
+          <div class="reading-row">
+            <span>Kunyomi</span>
+            <strong>{{ k.kunyomi || 'â€”' }}</strong>
+          </div>
+        </section>
+
+        @if (k.radical) {
+        <section class="detail-block radical-block">
+          <div class="section-label">Bá»™ thá»§</div>
+          <div class="radical-box">
+            <span class="radical-box__char">{{ k.radical.radicalCharacter }}</span>
+            <div class="radical-box__info">
+              <strong class="radical-box__name">{{ k.radical.radicalName }}</strong>
+              @if (k.radical.englishName) {
+              <span class="radical-box__en">{{ k.radical.englishName }}</span>
+              }
+              @if (k.radical.description) {
+              <p class="radical-box__desc">{{ k.radical.description }}</p>
+              }
+            </div>
+          </div>
+        </section>
+        }
+
+        @if (k.mnemonic) {
+        <section class="detail-block mnemonic-block">
+          <div class="section-label">CĂ¡ch ghi nhá»›</div>
+          <p class="mnemonic-box__text">{{ k.mnemonic }}</p>
+        </section>
+        }
+
+        <section class="detail-block action-block">
+          <div class="section-label">Thao tĂ¡c</div>
+          <div class="action-group">
+            <button type="button" class="action-btn action-btn--bookmark" (click)="toggleBookmark()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path
+                  d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z" />
+              </svg>
+              YĂªu thĂ­ch
+            </button>
+            <button type="button" class="action-btn action-btn--folder" (click)="openFolderModal()">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                <line x1="12" y1="11" x2="12" y2="17" />
+                <line x1="9" y1="14" x2="15" y2="14" />
+              </svg>
+              ThĂªm vĂ o thÆ° má»¥c
+            </button>
+          </div>
+        </section>
+      </div>
+      } @else {
+      <div class="detail-placeholder">
+        <div class="detail-placeholder__icon">â†</div>
+        <p>Chá»n má»™t Kanji Ä‘á»ƒ xem chi tiáº¿t</p>
+      </div>
+      }
+    </section>
+  </div>
+  }
+</div>
+
+@if (showFolderModal()) {
+<div class="modal-overlay" (click)="closeFolderModal()">
+  <div class="folder-modal" (click)="$event.stopPropagation()">
+    <div class="folder-modal__header">
+      <h3>ThĂªm Kanji vĂ o thÆ° má»¥c</h3>
+      <button type="button" class="modal-close" (click)="closeFolderModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
+    </div>
+
+    @if (selectedKanji()) {
+    <p class="folder-modal__word">{{ selectedKanji()!.character }} â€” {{ selectedKanji()!.amHanViet }}</p>
+    }
+
+    @if (isLoadingFolders()) {
+    <div class="folder-modal__loading">Äang táº£i thÆ° má»¥c...</div>
+    } @else if (folders().length === 0) {
+    <div class="folder-modal__empty">Báº¡n chÆ°a cĂ³ thÆ° má»¥c nĂ o</div>
+    } @else {
+    <div class="folder-list">
+      @for (folder of folders(); track folder.id) {
+      <button type="button" class="folder-item" [disabled]="isAddingToFolder()"
+        (click)="addKanjiToFolder(folder.id, folder.name)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+        </svg>
+        <span>{{ folder.name }}</span>
+        @if (isAddingToFolder()) { <span class="btn-spinner btn-spinner--sm"></span> }
+      </button>
+      }
+    </div>
+    }
+
+    <div class="folder-modal__create">
+      <div class="section-label">Táº¡o thÆ° má»¥c má»›i</div>
+      <div class="folder-create-row">
+        <input type="text" class="folder-create-input" placeholder="TĂªn thÆ° má»¥c..." [ngModel]="newFolderName()"
+          (ngModelChange)="newFolderName.set($event)" (keyup.enter)="createFolder()" />
+        <button type="button" class="folder-create-btn" (click)="createFolder()"
+          [disabled]="!newFolderName().trim()">Táº¡o</button>
+      </div>
+    </div>
+  </div>
+</div>
+}
