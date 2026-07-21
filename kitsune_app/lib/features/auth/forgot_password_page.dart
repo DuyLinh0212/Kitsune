@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class ForgotPasswordPage extends ConsumerStatefulWidget {
@@ -120,10 +121,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            color: KitsuneColors.onPrimary,
-                          ),
+                          child: KitsuneLoadingFox(size: 28),
                         )
                       : const Text('Gửi email đặt lại mật khẩu'),
                 ),

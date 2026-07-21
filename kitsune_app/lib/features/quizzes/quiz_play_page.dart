@@ -6,6 +6,7 @@ import 'package:kitsune_app/core/models/quiz.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class QuizPlayPage extends ConsumerStatefulWidget {
@@ -150,7 +151,9 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
 
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: KitsuneBackdrop(
+          child: KitsuneLoadingFox(message: 'Đang chuẩn bị quiz...'),
+        ),
       );
     }
 

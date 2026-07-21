@@ -1,0 +1,6 @@
+Type,QuestionText,PassageText,OptionA,OptionB,OptionC,OptionD,CorrectAnswer,Explanation
+KANJI_READING,Chọn cách đọc đúng của từ 「新聞」,,しんぶん,しんもん,あたらしぶん,しんぷん,しんぶん,「新聞」đọc là しんぶん
+VOCAB_MEANING,「便利」có nghĩa là gì?,,Tiện lợi,Bất tiện,Nguy hiểm,Đơn giản,Tiện lợi,「便利」nghĩa là tiện lợi
+GRAMMAR_FILL,日本語が上手になる（　）、毎日練習しています。,,ように,ために,のに,そうに,ように,「〜ように」dùng cho mục đích
+SENTENCE_ORDER,Sắp xếp các thành phần thành câu đúng.,,わたしは,まいあさ,コーヒーを,のみます,わたしは まいあさ コーヒーを のみます,Trật tự đúng: chủ ngữ - thời gian - tân ngữ - động từ
+READING_SHORT,Theo đoạn văn tác giả thích mùa nào?,わたしは秋がいちばん好きです。暑くもなく寒くもなくて、散歩にちょうどいいからです。,Mùa xuân,Mùa hạ,Mùa thu,Mùa đông,Mùa thu,Đoạn văn nói 「秋がいちばん好き」

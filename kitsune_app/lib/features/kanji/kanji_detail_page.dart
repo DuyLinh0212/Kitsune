@@ -6,6 +6,7 @@ import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/features/kanji/widgets/kanji_stroke_writer.dart';
 import 'package:kitsune_app/providers/folder_provider.dart';
 import 'package:kitsune_app/providers/kanji_provider.dart';
@@ -246,7 +247,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                 ],
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const KitsuneLoadingFox(message: 'Đang tải Kanji...'),
             error: (error, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -414,7 +415,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: KitsuneLoadingFox(size: 28),
                         )
                       : const Icon(Icons.folder_copy_rounded),
                   label: const Text('Add to deck'),
@@ -514,11 +515,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.2),
-                    ),
+                    child: KitsuneLoadingFox(size: 40),
                   ),
                 );
               }
@@ -790,7 +787,7 @@ class _KanjiFolderPickerSheet extends StatelessWidget {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: folders.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (_, index) {
                       final folder = folders[index];
                       return KitsuneSurface(

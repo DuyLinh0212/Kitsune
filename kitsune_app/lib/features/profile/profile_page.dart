@@ -5,6 +5,7 @@ import 'package:kitsune_app/core/models/user.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/dashboard_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -139,13 +140,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                             ),
                           ),
                           child: _isUploadingAvatar
-                              ? const Padding(
-                                  padding: EdgeInsets.all(5),
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: KitsuneColors.onPrimary,
-                                  ),
-                                )
+                              ? const KitsuneLoadingFox(size: 28)
                               : const Icon(
                                   Icons.camera_alt_rounded,
                                   size: 14,
@@ -193,13 +188,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ),
                 ],
               ),
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: CircularProgressIndicator(),
-                ),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: KitsuneLoadingFox(message: 'Đang tải thống kê...', size: 72),
               ),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
             ),
             const SizedBox(height: AppTheme.space20),
             KitsuneSectionHeader(

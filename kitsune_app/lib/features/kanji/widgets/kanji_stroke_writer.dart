@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:xml/xml.dart';
 
@@ -219,10 +220,8 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
           Positioned.fill(
             child: _isLoading
                 ? Center(
-                    child: SizedBox(
-                      width: widget.compact ? 18 : 24,
-                      height: widget.compact ? 18 : 24,
-                      child: const CircularProgressIndicator(strokeWidth: 2.2),
+                    child: KitsuneLoadingFox(
+                      size: widget.compact ? 32 : 52,
                     ),
                   )
                 : _strokes.isNotEmpty

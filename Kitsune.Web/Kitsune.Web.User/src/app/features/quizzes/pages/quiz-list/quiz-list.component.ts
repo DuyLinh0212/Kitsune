@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 export interface QuizDto {
   id: number;
@@ -23,7 +24,7 @@ interface ToastMessage {
 @Component({
   selector: 'app-quiz-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, LoadingFoxComponent],
   templateUrl: './quiz-list.component.html',
   styleUrls: ['./quiz-list.component.css'],
 })

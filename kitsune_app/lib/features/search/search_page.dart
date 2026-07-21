@@ -7,6 +7,7 @@ import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 enum SearchCategory {
@@ -312,7 +313,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   child: _isLoading
                       ? const Center(
                           key: ValueKey('loading'),
-                          child: CircularProgressIndicator(),
+                          child: KitsuneLoadingFox(message: 'Đang tìm kiếm...', size: 88),
                         )
                       : _isShowingSearchState
                           ? KeyedSubtree(
@@ -792,7 +793,7 @@ class _LoadMoreFooter extends StatelessWidget {
     if (isLoading) {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 20),
-        child: Center(child: CircularProgressIndicator()),
+        child: KitsuneLoadingFox(message: 'Đang tải thêm...', size: 72),
       );
     }
 

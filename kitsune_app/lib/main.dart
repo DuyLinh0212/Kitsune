@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kitsune_app/core/models/exam.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
@@ -8,9 +9,13 @@ import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/features/auth/forgot_password_page.dart';
 import 'package:kitsune_app/features/auth/login_page.dart';
 import 'package:kitsune_app/features/auth/register_page.dart';
+import 'package:kitsune_app/features/exams/exam_list_page.dart';
+import 'package:kitsune_app/features/exams/exam_play_page.dart';
+import 'package:kitsune_app/features/exams/exam_result_page.dart';
 import 'package:kitsune_app/features/folders/folder_detail_page.dart';
 import 'package:kitsune_app/features/folders/folder_list_page.dart';
 import 'package:kitsune_app/features/home/home_page.dart';
+import 'package:kitsune_app/features/grammar/grammar_page.dart';
 import 'package:kitsune_app/features/kanji/kanji_detail_page.dart';
 import 'package:kitsune_app/features/leaderboard/leaderboard_page.dart';
 import 'package:kitsune_app/features/profile/profile_page.dart';
@@ -90,7 +95,7 @@ class KitsuneApp extends ConsumerWidget {
       home: authState.when(
         data: (user) => user != null ? const MainScreen() : const LoginPage(),
         loading: () => const SplashScreen(),
-        error: (_, __) => const LoginPage(),
+        error: (_, _) => const LoginPage(),
       ),
       onGenerateRoute: (settings) {
         late final Widget page;
@@ -111,6 +116,12 @@ class KitsuneApp extends ConsumerWidget {
             break;
           case '/srs':
             page = const SrsReviewPage();
+            break;
+          case '/grammar':
+            page = const GrammarPage();
+            break;
+          case '/exams':
+            page = const ExamListPage();
             break;
           case '/folders':
             page = const FolderListPage();
@@ -144,6 +155,15 @@ class KitsuneApp extends ConsumerWidget {
                 settings.name!.startsWith('/kanji/')) {
               final id = int.tryParse(settings.name!.split('/').last) ?? 0;
               page = KanjiDetailPage(kanjiId: id);
+            } else if (settings.name != null &&
+                settings.name!.startsWith('/exams/')) {
+              final parts = settings.name!.split('/');
+              final id = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
+              if (parts.length > 4 && parts[3] == 'result' && settings.arguments is ExamAttemptResult) {
+                page = ExamResultPage(examId: id, result: settings.arguments! as ExamAttemptResult);
+              } else {
+                page = ExamPlayPage(examId: id);
+              }
             } else if (settings.name != null &&
                 settings.name!.startsWith('/quizzes/')) {
               final id = int.tryParse(settings.name!.split('/').last) ?? 0;

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/quiz_provider.dart';
 
 class QuizListPage extends ConsumerWidget {
@@ -91,7 +92,7 @@ class QuizListPage extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const KitsuneLoadingFox(message: 'Đang tải quiz...'),
           error: (error, _) => Center(child: Text('Lỗi: $error')),
         ),
       ),

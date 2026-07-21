@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -68,7 +69,7 @@ function pickRandom<T>(arr: T[], count: number): T[] {
 @Component({
   selector: 'app-quiz-play',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent],
   templateUrl: './quiz-play.component.html',
   styleUrls: ['./quiz-play.component.css'],
   host: { style: 'display: block' },

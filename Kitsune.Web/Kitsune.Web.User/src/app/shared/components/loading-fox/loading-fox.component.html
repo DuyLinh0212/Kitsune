@@ -1,5 +1,5 @@
 <!-- F:\NgDuyLinh\Personal_Project\Kitsune_Total\KitsunePlatform\Kitsune.Web\Kitsune.Web.User\src\app\shared\components\loading-fox\loading-fox.component.html -->
-<div class="loading-fox">
+<div class="loading-fox" [class.loading-fox--compact]="size() <= 56 && !message()">
   <ng-lottie [options]="options" [width]="size() + 'px'" [height]="size() + 'px'" />
   @if (message()) {
     <p class="loading-fox__message">{{ message() }}</p>

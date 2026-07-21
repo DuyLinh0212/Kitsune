@@ -14,11 +14,12 @@ import {
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 @Component({
   selector: 'app-kanji-stroke-writer',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LoadingFoxComponent],
   templateUrl: './kanji-stroke-writer.component.html',
   styleUrl: './kanji-stroke-writer.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

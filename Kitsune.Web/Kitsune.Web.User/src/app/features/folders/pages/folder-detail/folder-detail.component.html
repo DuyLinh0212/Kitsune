@@ -131,9 +131,7 @@
 
   @if (isLoading()) {
     <section class="workspace-loading">
-      <div class="loading-card"></div>
-      <div class="loading-card loading-card--wide"></div>
-      <div class="loading-card"></div>
+      <app-loading-fox message="Đang tải thư mục học..." />
     </section>
   } @else {
     <section class="study-workspace">
@@ -330,7 +328,7 @@
             </div>
 
             @if (selectedKanjiLoading()) {
-              <div class="inline-loading">Đang tải chi tiết kanji...</div>
+              <div class="inline-loading"><app-loading-fox message="Đang tải chi tiết Kanji..." [size]="56" /></div>
             } @else if (selectedKanjiDetail(); as detail) {
               <div class="inspector-section">
                 <span class="inspector-section__label">Thông tin nhanh</span>
@@ -435,7 +433,7 @@
           </div>
 
           @if (hoverKanjiLoading()) {
-            <div class="inline-loading">Đang tải stroke và thông tin...</div>
+            <div class="inline-loading"><app-loading-fox message="Đang tải nét viết..." [size]="56" /></div>
           } @else if (hoverKanjiDetail(); as detail) {
             <div class="preview-facts">
               <span>{{ detail.meaning }}</span>

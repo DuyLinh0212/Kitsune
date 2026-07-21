@@ -454,7 +454,7 @@
                     (click)="submitQuizAnswer()"
                   >
                     @if (isSubmitting()) {
-                      <div class="btn-spinner"></div>
+                      <app-loading-fox [size]="24" />
                     } @else {
                       Xác nhận đáp án
                     }

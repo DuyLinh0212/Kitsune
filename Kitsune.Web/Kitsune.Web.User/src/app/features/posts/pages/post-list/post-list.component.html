@@ -28,8 +28,7 @@
   <!-- LOADING -->
   @if (isLoading()) {
     <div class="loading-container">
-      <div class="spinner"></div>
-      <p>Đang tải bài viết...</p>
+      <app-loading-fox message="Đang tải bài viết..." />
     </div>
   }
 
@@ -139,8 +138,7 @@
                 <button type="button" class="remove-image-btn" (click)="removeUploadedImage()" title="Xóa ảnh">✕</button>
                 @if (isUploadingImage()) {
                   <div class="upload-overlay">
-                    <div class="upload-spinner"></div>
-                    <span>Đang tải lên...</span>
+                    <app-loading-fox message="Đang tải ảnh..." [size]="48" />
                   </div>
                 }
               </div>

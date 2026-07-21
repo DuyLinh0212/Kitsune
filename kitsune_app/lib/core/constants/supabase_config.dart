@@ -16,6 +16,9 @@ class SupabaseConfig {
   static const String quizMetaSelect =
       'Id, Title, Description, TimeLimitInSeconds, CreatedAt, Creator:CreatorId(FullName, Username)';
 
+  static const String grammarSelect =
+      'Id,Title,Meaning,Structure,JlptLevel,Explanation,GrammarExamples(Id,JapaneseText,Reading,MeaningVi,OrderIndex)';
+
   static const String srsCardSelect =
       'Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate';
 

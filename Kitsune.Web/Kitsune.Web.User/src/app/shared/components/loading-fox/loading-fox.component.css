@@ -14,3 +14,11 @@
   font-weight: 500;
   color: var(--ink-secondary, #7a6a58);
 }
+
+.loading-fox--compact {
+  display: inline-flex;
+  padding: 0;
+  gap: 0;
+  line-height: 0;
+  vertical-align: middle;
+}

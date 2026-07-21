@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FolderService, FolderDto } from '../../../../core/services/folder.service';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 interface ToastMessage {
   text: string;
@@ -13,7 +14,7 @@ interface ToastMessage {
 @Component({
   selector: 'app-folder-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, LoadingFoxComponent],
   templateUrl: './folder-list.component.html',
   styleUrls: ['./folder-list.component.css'],
 })

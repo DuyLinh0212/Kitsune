@@ -214,7 +214,7 @@
     }
 
     @if (isLoadingFolders()) {
-    <div class="folder-modal__loading">Đang tải thư mục...</div>
+    <div class="folder-modal__loading"><app-loading-fox message="Đang tải thư mục..." [size]="56" /></div>
     } @else if (folders().length === 0) {
     <div class="folder-modal__empty">Bạn chưa có thư mục nào</div>
     } @else {
@@ -226,7 +226,7 @@
           <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
         </svg>
         <span>{{ folder.name }}</span>
-        @if (isAddingToFolder()) { <span class="btn-spinner btn-spinner--sm"></span> }
+        @if (isAddingToFolder()) { <app-loading-fox [size]="24" /> }
       </button>
       }
     </div>

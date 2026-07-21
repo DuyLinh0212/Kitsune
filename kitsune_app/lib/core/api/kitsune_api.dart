@@ -7,7 +7,9 @@ import 'package:dio/dio.dart' show Options;
 import 'package:kitsune_app/core/constants/app_constants.dart';
 import 'package:kitsune_app/core/constants/supabase_config.dart';
 import 'package:kitsune_app/core/models/dashboard.dart';
+import 'package:kitsune_app/core/models/exam.dart';
 import 'package:kitsune_app/core/models/folder.dart';
+import 'package:kitsune_app/core/models/grammar.dart';
 import 'package:kitsune_app/core/models/kanji.dart';
 import 'package:kitsune_app/core/models/quiz.dart';
 import 'package:kitsune_app/core/models/srs.dart';
@@ -1187,6 +1189,94 @@ class KitsuneApi {
     return candidates.take(3).toList();
   }
 
+  // ── Exams ─────────────────────────────────────────────────────────────────
+
+  Future<List<ExamSummary>> listPublicExams({String query = '', int? jlptLevel}) async {
+    final parameters = <String, dynamic>{
+      'select': 'Id,Title,Description,JlptLevel,TimeLimitInSeconds,ExamQuestions(Id)',
+      'IsPublic': 'eq.true',
+      'IsDeleted': 'eq.false',
+      'order': 'CreatedAt.desc',
+    };
+    if (jlptLevel != null) parameters['JlptLevel'] = 'eq.$jlptLevel';
+    if (query.trim().isNotEmpty) parameters['Title'] = 'ilike.%${query.trim().replaceAll(',', ' ')}%';
+    final response = await client.dio.get(client.table('Exams'), queryParameters: parameters);
+    return (response.data as List<dynamic>)
+        .map((row) => ExamSummary.fromJson(Map<String, dynamic>.from(row as Map)))
+        .toList();
+  }
+
+  Future<ExamDetail> getExamForPlay(int examId) async {
+    final response = await client.dio.get(
+      client.table('Exams'),
+      queryParameters: {
+        'select': 'Id,Title,Description,JlptLevel,TimeLimitInSeconds,ExamQuestions(Id,QuestionType,QuestionText,PassageText,OptionsJson,CorrectAnswer,Explanation,OrderIndex)',
+        'Id': 'eq.$examId',
+        'IsDeleted': 'eq.false',
+      },
+    );
+    final rows = response.data as List<dynamic>;
+    if (rows.isEmpty) throw Exception('Không tìm thấy đề kiểm tra.');
+    return ExamDetail.fromJson(Map<String, dynamic>.from(rows.first as Map));
+  }
+
+  Future<ExamAttemptResult> saveExamAttempt({
+    required ExamDetail exam,
+    required Map<int, String> answers,
+    required int timeSpentInSeconds,
+  }) async {
+    final userId = await getCurrentUserId();
+    final evaluated = exam.questions.map((question) {
+      final selected = answers[question.id];
+      return <String, dynamic>{
+        'QuestionId': question.id,
+        'SelectedAnswer': selected,
+        'IsCorrect': selected == question.correctAnswer,
+      };
+    }).toList();
+    final correctCount = evaluated.where((answer) => answer['IsCorrect'] == true).length;
+    final totalCount = exam.questions.length;
+    final accuracy = totalCount == 0 ? 0.0 : correctCount * 100 / totalCount;
+    final attemptResponse = await client.dio.post(client.table('ExamAttempts'), data: {
+      'ExamId': exam.id,
+      'UserId': userId,
+      'AccuracyPercentage': accuracy,
+      'TimeSpentInSeconds': timeSpentInSeconds,
+      'CorrectAnswersCount': correctCount,
+      'TotalQuestionsCount': totalCount,
+    });
+    final attemptId = (attemptResponse.data as Map<String, dynamic>)['Id'] as int;
+    if (evaluated.isNotEmpty) {
+      await client.dio.post(
+        client.table('ExamAttemptAnswers'),
+        data: evaluated.map((answer) => {'AttemptId': attemptId, ...answer}).toList(),
+      );
+    }
+    return ExamAttemptResult(id: attemptId, correctCount: correctCount, totalCount: totalCount, accuracy: accuracy);
+  }
+
+  // ── Grammar ────────────────────────────────────────────────────────────────
+
+  // ── Grammar ────────────────────────────────────────────────────────────────
+
+  Future<List<GrammarPoint>> searchGrammar({String query = '', int? jlptLevel}) async {
+    final parameters = <String, dynamic>{
+      'select': SupabaseConfig.grammarSelect,
+      'IsDeleted': 'eq.false',
+      'order': 'CreatedAt.desc',
+      'limit': '100',
+    };
+    if (jlptLevel != null) parameters['JlptLevel'] = 'eq.$jlptLevel';
+    if (query.trim().isNotEmpty) {
+      final escaped = query.trim().replaceAll(',', ' ');
+      parameters['or'] = '(Title.ilike.%$escaped%,Meaning.ilike.%$escaped%,Structure.ilike.%$escaped%)';
+    }
+    final response = await client.dio.get(client.table('GrammarPoints'), queryParameters: parameters);
+    return (response.data as List<dynamic>)
+        .map((row) => GrammarPoint.fromJson(Map<String, dynamic>.from(row as Map)))
+        .toList();
+  }
+
   // ── Dashboard / Stats ────────────────────────────────────────────────────────
 
   Future<UserStats> loadUserStats(int userId) async {
@@ -1375,48 +1465,50 @@ class KitsuneApi {
 
   Future<int> _fetchStreak(int userId) async {
     try {
-      final response = await client.dio.get(
-        client.table('QuizAttempts'),
-        queryParameters: {
-          'select': 'CreatedAt',
-          'UserId': 'eq.$userId',
-          'order': 'CreatedAt.desc',
-        },
-      );
-      final data = response.data as List<dynamic>;
-      if (data.isEmpty) return 0;
+      final responses = await Future.wait([
+        client.dio.get(
+          client.table('QuizAttempts'),
+          queryParameters: {'select': 'CreatedAt', 'UserId': 'eq.$userId'},
+        ),
+        client.dio.get(
+          client.table('ExamAttempts'),
+          queryParameters: {'select': 'CreatedAt', 'UserId': 'eq.$userId'},
+        ),
+        client.dio.get(
+          client.table('SRSCards'),
+          queryParameters: {'select': 'Id', 'UserId': 'eq.$userId'},
+        ),
+      ]);
+      final quizRows = responses[0].data as List<dynamic>;
+      final examRows = responses[1].data as List<dynamic>;
+      final cardRows = responses[2].data as List<dynamic>;
+      final cardIds = cardRows.map((row) => (row as Map<String, dynamic>)['Id']).join(',');
+      final reviewRows = cardIds.isEmpty
+          ? <dynamic>[]
+          : (await client.dio.get(
+              client.table('SRSReviewLogs'),
+              queryParameters: {'select': 'ReviewedAt', 'CardId': 'in.($cardIds)'},
+            ))
+              .data as List<dynamic>;
 
       final dates = <String>{};
-      for (final row in data) {
-        final date = DateTime.parse((row as Map<String, dynamic>)['CreatedAt'] as String);
-        dates.add(_formatDate(date));
+      for (final row in [...quizRows, ...examRows]) {
+        dates.add(_formatDate(DateTime.parse((row as Map<String, dynamic>)['CreatedAt'] as String).toLocal()));
+      }
+      for (final row in reviewRows) {
+        dates.add(_formatDate(DateTime.parse((row as Map<String, dynamic>)['ReviewedAt'] as String).toLocal()));
       }
 
-      final prefs = await SharedPreferences.getInstance();
-      final storageKey = '${AppConstants.activeDatesPrefix}$userId';
-      final stored = prefs.getStringList(storageKey) ?? [];
-      final todayStr = _formatDate(DateTime.now());
-      if (!stored.contains(todayStr)) {
-        stored.add(todayStr);
-        await prefs.setStringList(storageKey, stored);
-      }
-      for (final d in stored) {
-        dates.add(d);
-      }
+      var cursor = DateTime.now();
+      if (!dates.contains(_formatDate(cursor))) cursor = cursor.subtract(const Duration(days: 1));
+      if (!dates.contains(_formatDate(cursor))) return 0;
 
-      int count = 0;
-      final today = DateTime.now();
-      for (int i = 0; i < 365; i++) {
-        final d = today.subtract(Duration(days: i));
-        final key = _formatDate(d);
-        if (i == 0 && !dates.contains(key)) continue;
-        if (dates.contains(key)) {
-          count++;
-        } else {
-          break;
-        }
+      var streak = 0;
+      while (dates.contains(_formatDate(cursor))) {
+        streak++;
+        cursor = cursor.subtract(const Duration(days: 1));
       }
-      return count;
+      return streak;
     } catch (_) {
       return 0;
     }

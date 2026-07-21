@@ -1,0 +1,74 @@
+<div class="exam-page">
+  <header class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Đề kiểm tra</h1>
+      <p class="page-subtitle">Luyện thi JLPT với các đề do cộng đồng chia sẻ</p>
+    </div>
+    <div class="header-actions">
+      <a routerLink="/exams/mine" class="btn-ghost">Đề của tôi</a>
+      <a routerLink="/exams/create" class="btn-primary">+ Tạo đề</a>
+    </div>
+  </header>
+
+  <div class="search-bar-wrapper">
+    <span class="search-icon">🔍</span>
+    <input
+      type="search"
+      class="search-input"
+      placeholder="Tìm đề theo tên..."
+      [ngModel]="searchQuery()"
+      (ngModelChange)="onSearchInput($event)"
+    />
+  </div>
+
+  <div class="level-filter">
+    <button type="button" class="level-chip" [class.level-chip--active]="jlptLevel() === null" (click)="onSelectLevel(null)">Tất cả</button>
+    @for (lv of jlptLevels; track lv) {
+      <button type="button" class="level-chip" [class.level-chip--active]="jlptLevel() === lv" (click)="onSelectLevel(lv)">N{{ lv }}</button>
+    }
+  </div>
+
+  @if (errorMsg()) {
+    <div class="alert-error">{{ errorMsg() }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="loading-container">
+      <app-loading-fox message="Đang tải đề kiểm tra..." />
+    </div>
+  } @else if (exams().length === 0) {
+    <div class="empty-state">
+      <span class="empty-illustration">📝</span>
+      <h2 class="empty-title">Chưa có đề nào</h2>
+      <p class="empty-desc">Hãy là người đầu tiên tạo và chia sẻ một đề kiểm tra cho cộng đồng.</p>
+      <a routerLink="/exams/create" class="btn-primary">Tạo đề đầu tiên</a>
+    </div>
+  } @else {
+    <p class="results-count">Tìm thấy <strong>{{ exams().length }}</strong> đề công khai</p>
+    <div class="exam-grid">
+      @for (e of exams(); track e.id) {
+        <article class="exam-card">
+          <div class="card-header">
+            <span class="level-badge">{{ jlptLabel(e.jlptLevel) }}</span>
+            <span class="q-count">{{ e.questionCount }} câu</span>
+          </div>
+          <div class="card-body">
+            <h3 class="exam-title">{{ e.title }}</h3>
+            @if (e.description) {
+              <p class="exam-desc">{{ e.description }}</p>
+            } @else {
+              <p class="exam-desc exam-desc--empty">Không có mô tả</p>
+            }
+          </div>
+          <div class="card-footer">
+            <div class="footer-meta">
+              <span class="exam-creator">👤 {{ e.creatorName }}</span>
+              <span class="exam-time">⏱ {{ timeLabel(e.timeLimitInSeconds) }}</span>
+            </div>
+            <a [routerLink]="['/exams', e.id]" class="btn-start">Làm bài →</a>
+          </div>
+        </article>
+      }
+    </div>
+  }
+</div>

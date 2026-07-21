@@ -27,6 +27,16 @@ export const routes: Routes = [
       // Kanji
       { path: 'kanji', loadComponent: () => import('./features/kanji/pages/kanji-search/kanji-search.component').then((m) => m.KanjiSearchComponent) },
 
+      // Grammar (Ngữ pháp)
+      { path: 'grammar', loadComponent: () => import('./features/grammar/pages/grammar-search/grammar-search.component').then((m) => m.GrammarSearchComponent) },
+
+      // Exams (Đề kiểm tra) — hoàn toàn tách biệt với Quiz và SRS
+      { path: 'exams', loadComponent: () => import('./features/exams/pages/exam-list/exam-list.component').then((m) => m.ExamListComponent) },
+      { path: 'exams/mine', loadComponent: () => import('./features/exams/pages/my-exams/my-exams.component').then((m) => m.MyExamsComponent) },
+      { path: 'exams/create', loadComponent: () => import('./features/exams/pages/exam-create/exam-create.component').then((m) => m.ExamCreateComponent) },
+      { path: 'exams/:id', loadComponent: () => import('./features/exams/pages/exam-play/exam-play.component').then((m) => m.ExamPlayComponent) },
+      { path: 'exams/:id/result/:attemptId', loadComponent: () => import('./features/exams/pages/exam-result/exam-result.component').then((m) => m.ExamResultComponent) },
+
       // Folders
       { path: 'folders', loadComponent: () => import('./features/folders/pages/folder-list/folder-list.component').then((m) => m.FolderListComponent) },
       { path: 'folders/:id', loadComponent: () => import('./features/folders/pages/folder-detail/folder-detail.component').then((m) => m.FolderDetailComponent) },

@@ -76,7 +76,7 @@
     <div class="vocab-section">
       <h3>Thư mục</h3>
       @if (isLoadingFolders()) {
-      <span class="loading-text">Đang tải...</span>
+      <app-loading-fox message="Đang tải thư mục..." [size]="48" />
       } @else {
       <div class="folder-chips">
         @for (folder of folders(); track folder.id) {

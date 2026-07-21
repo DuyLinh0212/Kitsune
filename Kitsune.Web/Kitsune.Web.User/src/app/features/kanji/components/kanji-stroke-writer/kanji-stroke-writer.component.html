@@ -31,8 +31,7 @@
 
     @if (isLoading()) {
       <div class="stroke-stage__status">
-        <div class="stroke-stage__spinner"></div>
-        <p>Đang dựng nét viết...</p>
+        <app-loading-fox message="Đang dựng nét viết..." [size]="64" />
       </div>
     }
 

@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { forkJoin } from 'rxjs';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 import { FolderDto, FolderService } from '../../../../core/services/folder.service';
 import { KanjiDetailDto, KanjiUserService } from '../../../../core/services/kanji-user.service';
 import { PagedResult, VocabularyDto, VocabularyService } from '../../../../core/services/vocabulary.service';
@@ -42,7 +43,7 @@ type HoverPreviewState =
 @Component({
   selector: 'app-folder-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, KanjiStrokeWriterComponent],
+  imports: [CommonModule, FormsModule, RouterLink, KanjiStrokeWriterComponent, LoadingFoxComponent],
   templateUrl: './folder-detail.component.html',
   styleUrl: './folder-detail.component.css',
 })

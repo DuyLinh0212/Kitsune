@@ -178,7 +178,7 @@
           <button class="action-btn action-btn--bookmark" [class.action-btn--bookmarked]="isBookmarked()"
             [disabled]="isTogglingBookmark()" (click)="toggleBookmark()">
             @if (isTogglingBookmark()) {
-            <span class="btn-spinner"></span>
+            <app-loading-fox [size]="24" />
             } @else {
             <svg width="14" height="14" viewBox="0 0 24 24" [attr.fill]="isBookmarked() ? 'currentColor' : 'none'"
               stroke="currentColor" stroke-width="2">
@@ -334,7 +334,7 @@
     }
 
     @if (isLoadingFolders()) {
-    <div class="folder-modal__loading">Đang tải thư mục...</div>
+    <div class="folder-modal__loading"><app-loading-fox message="Đang tải thư mục..." [size]="56" /></div>
     } @else if (folders().length === 0) {
     <div class="folder-modal__empty">Bạn chưa có thư mục nào</div>
     } @else {
@@ -346,7 +346,7 @@
         </svg>
         <span>{{ folder.name }}</span>
         @if (isAddingToFolder()) {
-        <span class="btn-spinner btn-spinner--sm"></span>
+        <app-loading-fox [size]="24" />
         }
       </button>
       }

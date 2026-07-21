@@ -9,11 +9,12 @@ import { KanjiUserService, KanjiDetailDto } from '../../../../core/services/kanj
 import { FolderService, FolderDto } from '../../../../core/services/folder.service';
 import { KanjiStrokeWriterComponent } from '../../components/kanji-stroke-writer/kanji-stroke-writer.component';
 import { CommentSectionComponent } from '../../../../shared/components/comment-section/comment-section.component';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 @Component({
   selector: 'app-kanji-search',
   standalone: true,
-  imports: [CommonModule, FormsModule, KanjiStrokeWriterComponent, CommentSectionComponent],
+  imports: [CommonModule, FormsModule, KanjiStrokeWriterComponent, CommentSectionComponent, LoadingFoxComponent],
   templateUrl: './kanji-search.component.html',
   styleUrl: './kanji-search.component.css',
 })

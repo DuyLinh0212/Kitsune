@@ -77,6 +77,26 @@ class _HomePageState extends ConsumerState<HomePage> {
                         setState(() {});
                       },
                     ),
+                    const SizedBox(height: AppTheme.space16),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => Navigator.pushNamed(context, '/grammar'),
+                            icon: const Icon(Icons.menu_book_outlined),
+                            label: const Text('Học ngữ pháp'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => Navigator.pushNamed(context, '/exams'),
+                            icon: const Icon(Icons.assignment_rounded),
+                            label: const Text('Làm đề kiểm tra'),
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: AppTheme.space24),
                     const KitsuneSectionHeader(
                       title: 'Nhịp học tuần này',
@@ -297,7 +317,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
+            separatorBuilder: (_, _) => const SizedBox(width: 12),
             itemBuilder: (_, index) {
               final folder = items[index];
               final color =

@@ -4,6 +4,7 @@ import 'package:kitsune_app/core/models/user.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -191,10 +192,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.2,
-                                        color: KitsuneColors.onPrimary,
-                                      ),
+                                      child: KitsuneLoadingFox(size: 28),
                                     )
                                   : const Text('Tạo tài khoản'),
                             ),

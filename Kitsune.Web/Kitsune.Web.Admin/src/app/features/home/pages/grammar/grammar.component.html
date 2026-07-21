@@ -1,0 +1,322 @@
+<div class="grammar-shell">
+  <!-- ══ TOPBAR ══════════════════════════════════════════════════════════ -->
+  <header class="topbar">
+    <div class="topbar__heading">
+      <a routerLink="/home" class="back-link" aria-label="Về trang chủ">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>
+      </a>
+      <div>
+        <h1>Quản lý Ngữ pháp</h1>
+        <p>Tạo, chỉnh sửa và quản lý kho ngữ pháp cùng ví dụ</p>
+      </div>
+    </div>
+    <div class="topbar__actions">
+      <button class="profile-chip" type="button">
+        <img src="/favicon.ico" alt="avatar" />
+        <span class="profile-chip__info">
+          <strong>{{ displayName() }}</strong>
+          <span>{{ roleLabel() }}</span>
+        </span>
+      </button>
+    </div>
+  </header>
+
+  <main class="grammar-main">
+    <!-- ══ TOOLBAR ══════════════════════════════════════════════════════ -->
+    <section class="toolbar">
+      <div class="toolbar__filters">
+        <label class="search-box">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+          <input
+            type="search"
+            placeholder="Tìm theo mẫu ngữ pháp hoặc nghĩa..."
+            [value]="search()"
+            (input)="onSearchChange($any($event.target).value)"
+          />
+        </label>
+
+        <select class="select" [value]="jlptFilter() ?? ''" (change)="onJlptFilterChange($any($event.target).value)">
+          <option value="">Tất cả cấp độ</option>
+          @for (lv of jlptLevels; track lv) {
+            <option [value]="lv">N{{ lv }}</option>
+          }
+        </select>
+
+        <button
+          type="button"
+          class="chip-toggle"
+          [class.chip-toggle--on]="showDeleted()"
+          (click)="toggleShowDeleted()"
+        >
+          Hiện mục đã xóa
+        </button>
+      </div>
+
+      <div class="toolbar__actions">
+        <a class="btn btn--ghost" href="/templates/grammar-template.csv" download>
+          <svg viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M5 21h14" /></svg>
+          Tải mẫu
+        </a>
+        <button type="button" class="btn btn--ghost" (click)="openImportModal()">
+          <svg viewBox="0 0 24 24"><path d="M12 21V9m0 0 4 4m-4-4-4 4M5 3h14" /></svg>
+          Import Excel
+        </button>
+        <button type="button" class="btn btn--primary" (click)="openCreateModal()">
+          <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+          Thêm ngữ pháp
+        </button>
+      </div>
+    </section>
+
+    @if (listError()) {
+      <div class="alert alert--error">{{ listError() }}</div>
+    }
+
+    <!-- ══ TABLE ════════════════════════════════════════════════════════ -->
+    <section class="panel">
+      @if (loading()) {
+        <div class="state">Đang tải danh sách ngữ pháp...</div>
+      } @else if ((result()?.items?.length ?? 0) === 0) {
+        <div class="state">
+          <strong>Chưa có ngữ pháp nào.</strong>
+          <span>Nhấn "Thêm ngữ pháp" để tạo mục đầu tiên.</span>
+        </div>
+      } @else {
+        <div class="table">
+          <div class="table__head">
+            <span>Mẫu ngữ pháp</span>
+            <span>Nghĩa</span>
+            <span class="col-center">Cấp độ</span>
+            <span class="col-center">Ví dụ</span>
+            <span class="col-right">Thao tác</span>
+          </div>
+
+          @for (g of result()!.items; track g.id) {
+            <div class="table__row" [class.table__row--deleted]="g.isDeleted">
+              <span class="cell-title">
+                <strong>{{ g.title }}</strong>
+                @if (g.structure) { <em>{{ g.structure }}</em> }
+                @if (g.isDeleted) { <span class="tag tag--deleted">Đã xóa</span> }
+              </span>
+              <span class="cell-meaning">{{ g.meaning }}</span>
+              <span class="col-center">
+                <span class="tag tag--level" [attr.data-level]="g.jlptLevel">{{ jlptLabel(g.jlptLevel) }}</span>
+              </span>
+              <span class="col-center">{{ g.examples.length }}</span>
+              <span class="col-right cell-actions">
+                @if (g.isDeleted) {
+                  <button type="button" class="btn-icon btn-icon--green" (click)="restore(g.id)" title="Khôi phục">
+                    <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
+                  </button>
+                } @else {
+                  <button type="button" class="btn-icon" (click)="openEditModal(g)" title="Sửa">
+                    <svg viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                  </button>
+                  <button type="button" class="btn-icon btn-icon--red" (click)="confirmDelete(g.id)" title="Xóa mềm">
+                    <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
+                  </button>
+                }
+              </span>
+            </div>
+          }
+        </div>
+
+        @if (totalPages() > 1) {
+          <div class="pagination">
+            <button type="button" class="page-btn" [disabled]="page() === 1" (click)="goToPage(page() - 1)">‹</button>
+            @for (p of pageNumbers; track p) {
+              <button type="button" class="page-btn" [class.page-btn--active]="p === page()" (click)="goToPage(p)">{{ p }}</button>
+            }
+            <button type="button" class="page-btn" [disabled]="page() === totalPages()" (click)="goToPage(page() + 1)">›</button>
+          </div>
+        }
+      }
+    </section>
+  </main>
+
+  <!-- ══ MODAL: create/edit ═══════════════════════════════════════════════ -->
+  @if (modalVisible()) {
+    <div class="modal-backdrop" (click)="closeModal()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <header class="modal__header">
+          <h2>{{ modalMode() === 'create' ? 'Thêm ngữ pháp mới' : 'Chỉnh sửa ngữ pháp' }}</h2>
+          <button type="button" class="btn-icon" (click)="closeModal()" aria-label="Đóng">
+            <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        </header>
+
+        <form [formGroup]="grammarForm" (ngSubmit)="submitForm()" class="modal__body">
+          <div class="field-grid">
+            <label class="field">
+              <span>Mẫu ngữ pháp <b>*</b></span>
+              <input type="text" formControlName="title" placeholder="Ví dụ: 〜ので" />
+            </label>
+            <label class="field field--narrow">
+              <span>Cấp độ JLPT</span>
+              <select formControlName="jlptLevel">
+                <option [ngValue]="null">— Không —</option>
+                @for (lv of jlptLevels; track lv) {
+                  <option [ngValue]="lv">N{{ lv }}</option>
+                }
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Nghĩa <b>*</b></span>
+            <input type="text" formControlName="meaning" placeholder="Nghĩa tiếng Việt" />
+          </label>
+
+          <label class="field">
+            <span>Cấu trúc</span>
+            <input type="text" formControlName="structure" placeholder="Ví dụ: V(thể thường) + ので" />
+          </label>
+
+          <label class="field">
+            <span>Giải thích</span>
+            <textarea formControlName="explanation" rows="3" placeholder="Giải thích cách dùng, sắc thái..."></textarea>
+          </label>
+
+          <!-- ── Examples ──────────────────────────────────────────────── -->
+          <div class="examples">
+            <div class="examples__head">
+              <h3>Ví dụ</h3>
+              <button type="button" class="btn btn--ghost btn--sm" (click)="addExample()">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                Thêm ví dụ
+              </button>
+            </div>
+
+            <div formArrayName="examples" class="examples__list">
+              @for (ctrl of examples.controls; track $index; let i = $index) {
+                <div class="example-card" [formGroupName]="i">
+                  <div class="example-card__num">{{ i + 1 }}</div>
+                  <div class="example-card__fields">
+                    <input type="text" formControlName="japaneseText" placeholder="Câu tiếng Nhật *" class="example-jp" />
+                    <div class="example-row">
+                      <input type="text" formControlName="reading" placeholder="Cách đọc / furigana" />
+                      <input type="text" formControlName="meaningVi" placeholder="Nghĩa ví dụ" />
+                    </div>
+                  </div>
+                  <button type="button" class="btn-icon btn-icon--red" (click)="removeExample(i)" title="Xóa ví dụ" [disabled]="examples.length <= 1">
+                    <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                  </button>
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (modalError()) {
+            <div class="alert alert--error">{{ modalError() }}</div>
+          }
+
+          <footer class="modal__footer">
+            <button type="button" class="btn btn--ghost" (click)="closeModal()">Hủy</button>
+            <button type="submit" class="btn btn--primary" [disabled]="modalSaving()">
+              {{ modalSaving() ? 'Đang lưu...' : (modalMode() === 'create' ? 'Tạo ngữ pháp' : 'Lưu thay đổi') }}
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ══ Import modal ═══════════════════════════════════════════════════ -->
+  @if (importModalVisible()) {
+    <div class="modal-backdrop" (click)="closeImportModal()">
+      <div class="modal modal--import" (click)="$event.stopPropagation()">
+        <header class="modal__header">
+          <div>
+            <h2>Import ngữ pháp</h2>
+            <p>Chọn tệp Excel hoặc CSV theo mẫu để xem trước trước khi lưu.</p>
+          </div>
+          <button type="button" class="btn-icon" (click)="closeImportModal()" aria-label="Đóng">
+            <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        </header>
+
+        <div class="modal__body">
+          <div class="import-guide">
+            <strong>Quy ước tệp</strong>
+            <span>Mỗi dòng là một ví dụ. Lặp lại Title, Meaning, Structure, JlptLevel và Explanation cho các ví dụ cùng một mẫu ngữ pháp.</span>
+          </div>
+
+          <label class="file-picker">
+            <input type="file" accept=".xlsx,.xls,.csv" (change)="onImportFileChange($event)" />
+            <svg viewBox="0 0 24 24"><path d="M12 21V9m0 0 4 4m-4-4-4 4M5 3h14" /></svg>
+            <span>{{ importFile()?.name ?? 'Chọn tệp Excel hoặc CSV' }}</span>
+          </label>
+
+          <div class="import-actions">
+            <a class="text-link" href="/templates/grammar-template.csv" download>Tải tệp mẫu</a>
+            <button type="button" class="btn btn--ghost" (click)="parseImportFile()" [disabled]="!importFile() || importParsing() || importing()">
+              {{ importParsing() ? 'Đang phân tích...' : 'Xem trước dữ liệu' }}
+            </button>
+          </div>
+
+          @if (importError()) {
+            <div class="alert alert--error">{{ importError() }}</div>
+          }
+
+          @if (importResult(); as importResult) {
+            <div class="import-summary">
+              Tìm thấy <strong>{{ importResult.grammarCount }}</strong> ngữ pháp và <strong>{{ importResult.exampleCount }}</strong> ví dụ.
+            </div>
+
+            @if (importResult.errors.length > 0) {
+              <div class="import-errors">
+                <strong>Hãy sửa {{ importResult.errors.length }} lỗi trước khi nhập:</strong>
+                <ul>
+                  @for (error of importResult.errors; track $index) {
+                    <li>{{ error.row ? 'Dòng ' + error.row + ': ' : '' }}{{ error.message }}</li>
+                  }
+                </ul>
+              </div>
+            } @else if (importResult.items.length > 0) {
+              <div class="import-preview">
+                <div class="import-preview__head"><strong>Xem trước</strong><span>Hiển thị tối đa 5 mục đầu tiên</span></div>
+                @for (item of importResult.items.slice(0, 5); track item.startRow) {
+                  <div class="import-preview__item">
+                    <strong>{{ item.dto.title }}</strong>
+                    <span>{{ item.dto.meaning }} · {{ jlptLabel(item.dto.jlptLevel ?? null) }} · {{ item.dto.examples.length }} ví dụ</span>
+                  </div>
+                }
+              </div>
+            } @else {
+              <div class="alert alert--error">Không tìm thấy ngữ pháp hợp lệ để nhập.</div>
+            }
+          }
+
+          @if (importSummary()) {
+            <div class="alert alert--success">{{ importSummary() }}</div>
+          }
+
+          <footer class="modal__footer">
+            <button type="button" class="btn btn--ghost" (click)="closeImportModal()" [disabled]="importing()">Đóng</button>
+            <button type="button" class="btn btn--primary" (click)="importGrammar()" [disabled]="!importResult() || importResult()!.errors.length > 0 || importResult()!.items.length === 0 || importing()">
+              {{ importing() ? 'Đang nhập...' : 'Nhập dữ liệu' }}
+            </button>
+          </footer>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ══ Delete confirm ═══════════════════════════════════════════════════ -->
+  @if (deleteConfirmId() !== null) {
+    <div class="modal-backdrop" (click)="cancelDelete()">
+      <div class="modal modal--sm" (click)="$event.stopPropagation()">
+        <header class="modal__header">
+          <h2>Xác nhận xóa</h2>
+        </header>
+        <div class="modal__body">
+          <p class="confirm-text">Ngữ pháp sẽ được ẩn khỏi người dùng (xóa mềm). Bạn có thể khôi phục lại sau. Tiếp tục?</p>
+          <footer class="modal__footer">
+            <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Hủy</button>
+            <button type="button" class="btn btn--danger" (click)="executeSoftDelete(deleteConfirmId()!)">Xóa mềm</button>
+          </footer>
+        </div>
+      </div>
+    </div>
+  }
+</div>

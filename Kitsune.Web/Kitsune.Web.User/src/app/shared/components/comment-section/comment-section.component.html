@@ -20,7 +20,7 @@
   }
 
   @if (isLoading()) {
-    <p class="comment-section__hint">Đang tải ý kiến...</p>
+    <div class="comment-section__hint"><app-loading-fox message="Đang tải ý kiến..." [size]="56" /></div>
   } @else if (comments().length === 0) {
     <p class="comment-section__hint">Chưa có ý kiến nào. Hãy là người đầu tiên đóng góp!</p>
   } @else {

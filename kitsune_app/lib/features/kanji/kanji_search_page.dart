@@ -6,6 +6,7 @@ import 'package:kitsune_app/core/models/kanji.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/features/kanji/widgets/kanji_stroke_writer.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -121,7 +122,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
             ),
             Expanded(
               child: _isSearching
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const KitsuneLoadingFox(message: 'Đang tìm Kanji...', size: 96)
                   : _results.isEmpty
                       ? const Padding(
                           padding: EdgeInsets.all(16),

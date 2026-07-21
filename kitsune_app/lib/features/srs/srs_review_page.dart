@@ -1029,7 +1029,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: KitsuneLoadingFox(size: 28),
                       )
                     : const Icon(Icons.check_rounded),
                 label: const Text('Đã nhớ'),
@@ -1375,7 +1375,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
               ? const SizedBox(
                   width: 20,
                   height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  child: KitsuneLoadingFox(size: 28),
                 )
               : const Text('Xác nhận đáp án'),
         ),

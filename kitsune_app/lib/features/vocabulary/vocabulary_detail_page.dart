@@ -401,7 +401,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: KitsuneLoadingFox(size: 28),
                                   )
                                 : const Icon(Icons.auto_awesome_motion_rounded),
                             label: Text((_isInSrs ?? false) ? 'Da vao SRS' : 'Them vao SRS'),
@@ -419,7 +419,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: KitsuneLoadingFox(size: 28),
                                   )
                                 : Icon(
                                     (_isBookmarked ?? false)
@@ -437,7 +437,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                                 ? const SizedBox(
                                     width: 16,
                                     height: 16,
-                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                    child: KitsuneLoadingFox(size: 28),
                                   )
                                 : const Icon(Icons.folder_copy_rounded),
                             label: const Text('Them vao thu muc'),

@@ -25,8 +25,7 @@
   <!-- Loading state -->
   @if (isLoading()) {
     <div class="loading-container">
-      <div class="spinner"></div>
-      <p class="loading-text">Đang tải thư mục...</p>
+      <app-loading-fox message="Đang tải thư mục..." />
     </div>
   }
 
@@ -135,7 +134,7 @@
         <button class="btn-secondary" (click)="closeCreateModal()">Hủy</button>
         <button class="btn-primary" (click)="createFolder()" [disabled]="isCreating()">
           @if (isCreating()) {
-            <span class="btn-spinner"></span> Đang tạo...
+            <app-loading-fox [size]="24" /> Đang tạo...
           } @else {
             Tạo thư mục
           }
@@ -181,7 +180,7 @@
         <button class="btn-secondary" (click)="closeRenameModal()">Hủy</button>
         <button class="btn-primary" (click)="saveRename()" [disabled]="isRenaming()">
           @if (isRenaming()) {
-            <span class="btn-spinner"></span> Đang lưu...
+            <app-loading-fox [size]="24" /> Đang lưu...
           } @else {
             Lưu thay đổi
           }

@@ -28,7 +28,9 @@ dist/
 out/
 .angular/
 .vercel/
-
+SCHEMA.md
+PRODUCT.md
+KITSUNE_ANDROID_SPEC.md
 # =========================
 # Flutter / Dart
 # =========================

@@ -166,8 +166,7 @@
             }
             @if (isUploadingAvatar()) {
               <div class="avatar-upload-overlay">
-                <div class="spinner-sm"></div>
-                <span>Đang tải...</span>
+                <app-loading-fox message="Đang tải ảnh..." [size]="56" />
               </div>
             }
           </div>

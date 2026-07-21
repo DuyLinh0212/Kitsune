@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 const MODE_LABELS: Record<string, string> = {
   MEAN_FROM_WORD: 'Đoán nghĩa',
@@ -34,7 +35,7 @@ interface ToastMessage {
 @Component({
   selector: 'app-my-quizzes',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterModule],
+  imports: [CommonModule, FormsModule, RouterModule, LoadingFoxComponent],
   templateUrl: './my-quizzes.component.html',
   styleUrls: ['./my-quizzes.component.css'],
 })

@@ -3,11 +3,12 @@ import { Component, DestroyRef, OnChanges, OnInit, SimpleChanges, inject, input,
 import { FormsModule } from '@angular/forms';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { CommentDto, CommentService } from '../../../core/services/comment.service';
+import { LoadingFoxComponent } from '../loading-fox/loading-fox.component';
 
 @Component({
   selector: 'app-comment-section',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent],
   templateUrl: './comment-section.component.html',
   styleUrl: './comment-section.component.css',
 })

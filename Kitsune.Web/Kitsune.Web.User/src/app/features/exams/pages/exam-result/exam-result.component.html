@@ -1,0 +1,86 @@
+<div class="result-page">
+  @if (isLoading()) {
+    <div class="loading-container">
+      <app-loading-fox message="Đang tải kết quả..." />
+    </div>
+  } @else if (errorMsg()) {
+    <div class="error-box">
+      <span class="error-emoji">⚠️</span>
+      <p>{{ errorMsg() }}</p>
+      <a routerLink="/exams" class="btn-primary">Về danh sách đề</a>
+    </div>
+  } @else if (attempt(); as a) {
+    <!-- ── Score summary ──────────────────────────────────────────────── -->
+    <section class="score-card" [ngClass]="scoreClass()">
+      <div class="score-ring">
+        <span class="score-value">{{ a.accuracyPercentage }}%</span>
+        <span class="score-label">Chính xác</span>
+      </div>
+      <div class="score-detail">
+        <h1 class="score-heading">Hoàn thành!</h1>
+        <p class="score-msg">{{ scoreMessage() }}</p>
+        <div class="score-stats">
+          <div class="stat"><strong>{{ a.correctAnswersCount }}/{{ a.totalQuestionsCount }}</strong><span>Câu đúng</span></div>
+          <div class="stat"><strong>{{ wrongCount() }}</strong><span>Câu sai</span></div>
+          <div class="stat"><strong>{{ formatTime(a.timeSpentInSeconds) }}</strong><span>Thời gian</span></div>
+        </div>
+      </div>
+    </section>
+
+    <div class="actions-bar">
+      <div class="actions-left">
+        <a [routerLink]="['/exams', examId()]" class="btn-primary">Làm lại</a>
+        <a routerLink="/exams" class="btn-ghost">Đề khác</a>
+      </div>
+      <button type="button" class="toggle-wrong" [class.toggle-wrong--on]="showOnlyWrong()" (click)="toggleOnlyWrong()">
+        {{ showOnlyWrong() ? 'Hiện tất cả' : 'Chỉ xem câu sai (' + wrongCount() + ')' }}
+      </button>
+    </div>
+
+    <!-- ── Review ─────────────────────────────────────────────────────── -->
+    <h2 class="review-title">Xem lại chi tiết</h2>
+    @if (visibleItems().length === 0) {
+      <div class="all-correct">🎉 Tuyệt vời! Không có câu nào sai.</div>
+    } @else {
+      <div class="review-list">
+        @for (item of visibleItems(); track item.question.id; let i = $index) {
+          <article class="review-item" [class.review-item--wrong]="!item.isCorrect" [class.review-item--correct]="item.isCorrect">
+            <div class="review-item__head">
+              <span class="review-num">Câu {{ i + 1 }}</span>
+              <span class="review-type">{{ typeLabels[item.question.questionType] }}</span>
+              <span class="review-badge" [class.badge--ok]="item.isCorrect" [class.badge--no]="!item.isCorrect">
+                {{ item.isCorrect ? '✓ Đúng' : '✕ Sai' }}
+              </span>
+            </div>
+
+            @if (item.question.passageText) {
+              <p class="review-passage">{{ item.question.passageText }}</p>
+            }
+            @if (item.question.questionText) {
+              <p class="review-question">{{ item.question.questionText }}</p>
+            }
+
+            <div class="answer-rows">
+              <div class="answer-row answer-row--yours" [class.answer-row--wrong]="!item.isCorrect">
+                <span class="answer-tag">Bạn chọn</span>
+                <span class="answer-val">{{ displayAnswer(item.question, item.selectedAnswer) }}</span>
+              </div>
+              @if (!item.isCorrect) {
+                <div class="answer-row answer-row--correct">
+                  <span class="answer-tag">Đáp án đúng</span>
+                  <span class="answer-val">{{ item.question.correctAnswer }}</span>
+                </div>
+              }
+            </div>
+
+            @if (item.question.explanation) {
+              <div class="review-explain">
+                <strong>Giải thích:</strong> {{ item.question.explanation }}
+              </div>
+            }
+          </article>
+        }
+      </div>
+    }
+  }
+</div>

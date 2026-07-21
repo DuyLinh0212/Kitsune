@@ -1,0 +1,129 @@
+<div class="grammar-page">
+  <!-- ── Header ─────────────────────────────────────────────────────── -->
+  <header class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Ngữ pháp</h1>
+      <p class="page-subtitle">Tra cứu mẫu ngữ pháp tiếng Nhật kèm cấu trúc và ví dụ</p>
+    </div>
+  </header>
+
+  <!-- ── Search ─────────────────────────────────────────────────────── -->
+  <div class="search-bar-wrapper">
+    <span class="search-icon">🔍</span>
+    <input
+      type="search"
+      class="search-input"
+      placeholder="Nhập mẫu ngữ pháp hoặc nghĩa (vd: 〜ので, tại vì...)"
+      [ngModel]="searchQuery()"
+      (ngModelChange)="onSearchInput($event)"
+    />
+    @if (searchQuery()) {
+      <button type="button" class="search-clear" (click)="onSearchInput('')" aria-label="Xóa">✕</button>
+    }
+  </div>
+
+  <!-- ── JLPT filter ────────────────────────────────────────────────── -->
+  <div class="level-filter">
+    <button
+      type="button"
+      class="level-chip"
+      [class.level-chip--active]="jlptLevel() === null"
+      (click)="onSelectLevel(null)"
+    >
+      Tất cả
+    </button>
+    @for (lv of jlptLevels; track lv) {
+      <button
+        type="button"
+        class="level-chip"
+        [class.level-chip--active]="jlptLevel() === lv"
+        [style.--chip]="jlptColor(lv)"
+        (click)="onSelectLevel(lv)"
+      >
+        N{{ lv }}
+      </button>
+    }
+  </div>
+
+  @if (errorMsg()) {
+    <div class="alert-error">{{ errorMsg() }}</div>
+  }
+
+  <!-- ── Layout: list + detail ──────────────────────────────────────── -->
+  <div class="grammar-layout">
+    <!-- List -->
+    <aside class="grammar-list">
+      @if (isSearching()) {
+        <div class="list-state"><app-loading-fox message="Đang tải ngữ pháp..." [size]="96" /></div>
+      } @else if (results().length === 0) {
+        <div class="list-state">
+          <span class="empty-emoji">📭</span>
+          <p>Không tìm thấy ngữ pháp phù hợp.</p>
+        </div>
+      } @else {
+        <p class="results-count">Tìm thấy <strong>{{ results().length }}</strong> mẫu ngữ pháp</p>
+        @for (g of results(); track g.id) {
+          <button
+            type="button"
+            class="grammar-item"
+            [class.grammar-item--active]="selected()?.id === g.id"
+            (click)="select(g)"
+          >
+            <span class="grammar-item__title">{{ g.title }}</span>
+            <span class="grammar-item__meaning">{{ g.meaning }}</span>
+            <span class="grammar-item__level" [style.background]="jlptColor(g.jlptLevel)">{{ jlptLabel(g.jlptLevel) }}</span>
+          </button>
+        }
+      }
+    </aside>
+
+    <!-- Detail -->
+    <section class="grammar-detail">
+      @if (selected(); as g) {
+        <div class="detail-head">
+          <div>
+            <h2 class="detail-title">{{ g.title }}</h2>
+            <p class="detail-meaning">{{ g.meaning }}</p>
+          </div>
+          <span class="detail-level" [style.background]="jlptColor(g.jlptLevel)">{{ jlptLabel(g.jlptLevel) }}</span>
+        </div>
+
+        @if (g.structure) {
+          <div class="detail-block">
+            <h3 class="detail-block__title">Cấu trúc</h3>
+            <p class="detail-structure">{{ g.structure }}</p>
+          </div>
+        }
+
+        @if (g.explanation) {
+          <div class="detail-block">
+            <h3 class="detail-block__title">Giải thích</h3>
+            <p class="detail-explanation">{{ g.explanation }}</p>
+          </div>
+        }
+
+        <div class="detail-block">
+          <h3 class="detail-block__title">Ví dụ ({{ g.examples.length }})</h3>
+          @if (g.examples.length === 0) {
+            <p class="no-examples">Chưa có ví dụ cho mẫu ngữ pháp này.</p>
+          } @else {
+            <ul class="example-list">
+              @for (ex of g.examples; track ex.id) {
+                <li class="example">
+                  <p class="example__jp">{{ ex.japaneseText }}</p>
+                  @if (ex.reading) { <p class="example__reading">{{ ex.reading }}</p> }
+                  @if (ex.meaningVi) { <p class="example__vi">{{ ex.meaningVi }}</p> }
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      } @else {
+        <div class="detail-empty">
+          <span class="empty-emoji">📖</span>
+          <p>Chọn một mẫu ngữ pháp để xem chi tiết.</p>
+        </div>
+      }
+    </section>
+  </div>
+</div>

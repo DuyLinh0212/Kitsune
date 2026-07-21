@@ -4,6 +4,7 @@ import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class FolderDetailPage extends ConsumerStatefulWidget {
@@ -67,7 +68,7 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
       appBar: AppBar(title: const Text('Chi tiết thư mục')),
       body: KitsuneBackdrop(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const KitsuneLoadingFox(message: 'Đang tải thư mục...')
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                 children: [

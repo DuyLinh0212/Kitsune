@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink, Router } from '@angular/router';
 import { from } from 'rxjs';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 interface PostDto {
   id: string;
@@ -27,7 +28,7 @@ interface QuizPickerItem {
 @Component({
   selector: 'app-post-list',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, LoadingFoxComponent],
   templateUrl: './post-list.component.html',
   styleUrl: './post-list.component.css',
 })

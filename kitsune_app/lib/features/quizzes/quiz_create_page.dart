@@ -5,6 +5,7 @@ import 'package:kitsune_app/core/models/quiz.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/quiz_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -324,7 +325,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
               ),
               const SizedBox(height: 16),
               if (_isSearching)
-                const Center(child: CircularProgressIndicator())
+                const KitsuneLoadingFox(message: 'Đang tìm từ vựng...', size: 72)
               else if (_searchResults.isEmpty)
                 Text(
                   'Chưa có kết quả. Hãy gõ một từ khóa để bắt đầu thêm nội dung vào quiz.',
