@@ -31,8 +31,13 @@ import 'package:kitsune_app/providers/providers.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final supabaseClient = SupabaseClient();
-  await supabaseClient.init();
+  try {
+    final supabaseClient = SupabaseClient();
+    await supabaseClient.init();
+  } catch (e, stackTrace) {
+    debugPrint('Error initializing SupabaseClient: \$e');
+    debugPrint(stackTrace.toString());
+  }
 
   ErrorWidget.builder = (details) => _AppErrorCard(details: details);
 
