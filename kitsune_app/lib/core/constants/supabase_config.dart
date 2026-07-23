@@ -1,8 +1,8 @@
 // kitsune_app/lib/core/constants/supabase_config.dart
 
 class SupabaseConfig {
-  static const String url = 'https://wzwwopifwhijewbmyywz.supabase.co';
-  static const String anonKey = 'sb_publishable_ZaSAPkaTIBw_P9S18KmGDg_OmpJVQjB';
+  static const String url = String.fromEnvironment('SUPABASE_URL', defaultValue: 'SUPABASE_URL_PLACEHOLDER');
+  static const String anonKey = String.fromEnvironment('SUPABASE_ANON_KEY', defaultValue: 'SUPABASE_KEY_PLACEHOLDER');
 
   static const String vocabSelect =
       'Id,FolderId,LanguageId,Word,Pronunciation,Meaning,SpecificData,CreatedAt,VocabularyFolder:FolderId(FolderName),Languages:LanguageId(LanguageCode,LanguageName),KanjiComponents:KanjiComponents(KanjiId,Kanji:KanjiId(Id,Character,AmHanViet),"Order")';

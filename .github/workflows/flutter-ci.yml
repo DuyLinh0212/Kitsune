@@ -1,0 +1,52 @@
+name: Flutter Mobile CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'kitsune_app/**'
+      - '.github/workflows/flutter-ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'kitsune_app/**'
+
+jobs:
+  build-and-test:
+    name: Build and Test Flutter App
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./kitsune_app
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.19.0' # Update to your exact Flutter version if needed
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      # Uncomment if you have unit tests
+      # - name: Run tests
+      #   run: flutter test
+
+      - name: Build APK
+        run: flutter build apk --release --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL || 'SUPABASE_URL_PLACEHOLDER' }} --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY || 'SUPABASE_KEY_PLACEHOLDER' }}
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release
+          path: kitsune_app/build/app/outputs/flutter-apk/app-release.apk

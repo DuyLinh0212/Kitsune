@@ -1,0 +1,65 @@
+name: Angular Web CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'Kitsune.Web/**'
+      - '.github/workflows/web-ci.yml'
+  pull_request:
+    branches: [ "main" ]
+    paths:
+      - 'Kitsune.Web/**'
+
+jobs:
+  build-web-user:
+    name: Build Kitsune.Web.User
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./Kitsune.Web/Kitsune.Web.User
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        cache-dependency-path: ./Kitsune.Web/Kitsune.Web.User/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci || npm install
+
+    - name: Build Web User
+      run: npm run build
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'SUPABASE_URL_PLACEHOLDER' }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'SUPABASE_KEY_PLACEHOLDER' }}
+
+  build-web-admin:
+    name: Build Kitsune.Web.Admin
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./Kitsune.Web/Kitsune.Web.Admin
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js 20.x
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20.x
+        cache: 'npm'
+        cache-dependency-path: ./Kitsune.Web/Kitsune.Web.Admin/package-lock.json
+
+    - name: Install dependencies
+      run: npm ci || npm install
+
+    - name: Build Web Admin
+      run: npm run build
+      env:
+        SUPABASE_URL: ${{ secrets.SUPABASE_URL || 'SUPABASE_URL_PLACEHOLDER' }}
+        SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || 'SUPABASE_KEY_PLACEHOLDER' }}
