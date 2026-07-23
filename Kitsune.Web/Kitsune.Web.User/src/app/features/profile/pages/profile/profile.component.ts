@@ -10,6 +10,7 @@ import { supabase } from '../../../../core/supabase/supabase.client';
 import { SrsService, SrsStatsOverview } from '../../../../core/services/srs.service';
 import { UserStatsService } from '../../../../core/services/user-stats.service';
 import { ThemeService } from '../../../../core/services/theme.service';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 type Tab = 'info' | 'avatar' | 'folders' | 'srs' | 'settings';
 
@@ -22,7 +23,7 @@ interface ProfileStats {
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css',
 })
