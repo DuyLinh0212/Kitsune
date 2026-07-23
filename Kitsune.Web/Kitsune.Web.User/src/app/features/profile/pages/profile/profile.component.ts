@@ -9,6 +9,7 @@ import { UserProfile } from '../../../../core/models/auth.model';
 import { supabase } from '../../../../core/supabase/supabase.client';
 import { SrsService, SrsStatsOverview } from '../../../../core/services/srs.service';
 import { UserStatsService } from '../../../../core/services/user-stats.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 type Tab = 'info' | 'avatar' | 'folders' | 'srs' | 'settings';
@@ -31,6 +32,7 @@ export class ProfileComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly srsService = inject(SrsService);
   readonly userStatsService = inject(UserStatsService);
+  readonly themeService = inject(ThemeService);
 
   readonly userProfile = signal<UserProfile | null>(null);
   readonly stats = signal<ProfileStats>({ vocabCount: 0, kanjiCount: 0, quizCount: 0 });
@@ -39,6 +41,7 @@ export class ProfileComponent implements OnInit {
   readonly isSaving = signal(false);
   readonly isLoadingStats = signal(true);
   readonly toast = signal<{ message: string; type: 'success' | 'error' } | null>(null);
+  readonly showTermsModal = signal(false);
 
   readonly srsStats = signal<SrsStatsOverview | null>(null);
   readonly isLoadingSrsStats = signal(false);

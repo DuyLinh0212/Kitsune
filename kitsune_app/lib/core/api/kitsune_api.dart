@@ -1290,36 +1290,15 @@ class KitsuneApi {
 
   Future<List<DashboardFolder>> loadDashboardFolders(int userId) async {
     try {
-      final response = await client.dio.get(
-        client.table('VocabularyFolder'),
-        queryParameters: {
-          'select': 'Id, FolderName',
-          'UserId': 'eq.$userId',
-          'order': 'CreatedAt.desc',
-          'limit': '4',
-        },
-      );
-      final data = response.data as List<dynamic>;
-      if (data.isEmpty) return [];
+      // Dùng lại getFolders() đã hoạt động đúng (có JWT, có RLS)
+      final folders = await getFolders();
+      final limited = folders.take(4).toList();
 
-      final folders = <DashboardFolder>[];
-      for (final f in data) {
-        final map = f as Map<String, dynamic>;
-        final folderId = map['Id'] as int;
-        final countResponse = await client.dio.get(
-          client.table('Vocabularies'),
-          queryParameters: {
-            'select': 'Id',
-            'FolderId': 'eq.$folderId',
-            'head': 'true',
-            'count': 'exact',
-          },
-        );
-        final countStr = countResponse.headers.value('content-range') ?? '0/0';
-        final count = int.tryParse(countStr.split('/').last) ?? 0;
-        folders.add(DashboardFolder(id: folderId, name: map['FolderName'] as String, vocabCount: count));
-      }
-      return folders;
+      return limited.map((f) => DashboardFolder(
+        id: f.id,
+        name: f.name,
+        vocabCount: f.vocabCount,
+      )).toList();
     } catch (_) {
       return [];
     }

@@ -29,6 +29,7 @@ export class RegisterComponent {
   protected readonly successMessage = signal('');
   protected readonly showPassword = signal(false);
   protected readonly showConfirmPassword = signal(false);
+  protected readonly showTermsModal = signal(false);
 
   protected readonly registerForm = this.formBuilder.nonNullable.group(
     {

@@ -119,13 +119,16 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
               child: _isSearching
                   ? const KitsuneLoadingFox(size: 90)
                   : displayItems.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
+                      ? SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
                           child: KitsuneEmptyState(
                             icon: Icons.menu_book_rounded,
-                            title: 'Bắt đầu bằng một từ khóa',
-                            message:
-                                'Bạn có thể tìm theo tiếng Nhật, cách đọc hoặc nghĩa tiếng Việt.',
+                            title: _searchController.text.trim().isEmpty
+                                ? 'Bắt đầu bằng một từ khóa'
+                                : 'Không tìm thấy từ vựng',
+                            message: _searchController.text.trim().isEmpty
+                                ? 'Bạn có thể tìm theo tiếng Nhật, cách đọc hoặc nghĩa tiếng Việt.'
+                                : 'Thử đổi cách viết, romaji hoặc nghĩa để mở rộng kết quả.',
                           ),
                         )
                       : ListView.builder(

@@ -124,13 +124,16 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
               child: _isSearching
                   ? const KitsuneLoadingFox(message: 'Đang tìm Kanji...', size: 96)
                   : _results.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
+                      ? SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
                           child: KitsuneEmptyState(
                             icon: Icons.text_fields_rounded,
-                            title: 'Tim mot kanji de bat dau',
-                            message:
-                                'Ban co the tra theo chu, nghia hoac am Han Viet de mo chi tiet ngay.',
+                            title: _searchController.text.trim().isEmpty
+                                ? 'Tim mot kanji de bat dau'
+                                : 'Không tìm thấy Kanji',
+                            message: _searchController.text.trim().isEmpty
+                                ? 'Ban co the tra theo chu, nghia hoac am Han Viet de mo chi tiet ngay.'
+                                : 'Thử lại bằng chữ kanji, nghĩa, âm Hán Việt hoặc cách đọc.',
                           ),
                         )
                       : LayoutBuilder(

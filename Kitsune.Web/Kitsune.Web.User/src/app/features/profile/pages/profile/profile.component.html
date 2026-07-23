@@ -292,6 +292,20 @@
         <h2 class="panel-title">Cài đặt tài khoản</h2>
         <div class="info-grid">
           <div class="info-row">
+            <span class="info-label">Giao diện</span>
+            <div class="info-value">
+              <button class="btn-theme-toggle" (click)="themeService.toggleTheme()">
+                {{ themeService.currentTheme() === 'dark' ? '☀️ Sáng' : '🌙 Tối' }}
+              </button>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Điều khoản dịch vụ</span>
+            <div class="info-value">
+              <a href="javascript:void(0)" class="link-terms" (click)="showTermsModal.set(true)">Xem điều khoản dịch vụ</a>
+            </div>
+          </div>
+          <div class="info-row">
             <span class="info-label">Xác thực email</span>
             <span class="info-value">
               @if (userProfile()?.isVerified) {
@@ -307,6 +321,35 @@
         <h3 class="danger-title">Khu vực nguy hiểm</h3>
         <p class="danger-desc">Các hành động dưới đây không thể hoàn tác. Hãy cân nhắc kỹ trước khi thực hiện.</p>
         <button class="btn-danger" (click)="logout()">Đăng xuất khỏi tất cả thiết bị</button>
+      </div>
+    </div>
+    </div>
+  }
+
+  <!-- Terms of Service Modal -->
+  @if (showTermsModal()) {
+    <div class="modal-overlay" (click)="showTermsModal.set(false)">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <div class="modal-header">
+          <h3>Điều khoản dịch vụ</h3>
+          <button class="btn-close" (click)="showTermsModal.set(false)">✕</button>
+        </div>
+        <div class="modal-body terms-content">
+          <h4>1. Chấp nhận điều khoản</h4>
+          <p>Bằng việc đăng ký tài khoản và sử dụng Kitsune, bạn đồng ý tuân thủ các điều khoản này.</p>
+          
+          <h4>2. Quyền riêng tư & Dữ liệu</h4>
+          <p>Chúng tôi lưu trữ thông tin cơ bản (email, tên) và tiến trình học tập của bạn để đồng bộ trên các thiết bị. Dữ liệu của bạn được bảo mật và không chia sẻ cho bên thứ ba vì mục đích quảng cáo.</p>
+          
+          <h4>3. Sử dụng hợp lý</h4>
+          <p>Bạn không được sử dụng các công cụ tự động (bot) để tạo tải giả hoặc phá hoại dịch vụ. Mọi hành vi vi phạm có thể dẫn đến việc khóa tài khoản vĩnh viễn mà không cần báo trước.</p>
+          
+          <h4>4. Quyền sở hữu nội dung</h4>
+          <p>Dữ liệu từ vựng và ngữ pháp do cộng đồng đóng góp thuộc quyền sở hữu chung. Mã nguồn và thiết kế của Kitsune thuộc quyền sở hữu của tác giả Nguyễn Duy Linh.</p>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-save" (click)="showTermsModal.set(false)">Đóng</button>
+        </div>
       </div>
     </div>
   }

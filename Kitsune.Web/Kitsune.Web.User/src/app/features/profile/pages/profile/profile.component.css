@@ -840,3 +840,111 @@
   font-size: 10.5px;
   color: var(--ink-secondary);
 }
+
+/* ===== TERMS AND THEME ===== */
+.btn-theme-toggle {
+  padding: 6px 12px;
+  background: var(--bg-surface-variant, #f3f4f6);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 8px;
+  color: var(--text-primary, #111827);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-theme-toggle:hover {
+  background: var(--bg-surface-hover, #e5e7eb);
+}
+.link-terms {
+  color: var(--primary-color, #f97316);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.link-terms:hover {
+  color: var(--primary-dark, #c2410c);
+}
+
+/* Modal Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Modal Content */
+.modal-content {
+  background: var(--bg-surface, #ffffff);
+  width: 90%;
+  max-width: 600px;
+  max-height: 85vh;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border-color, #e5e7eb);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  color: var(--text-primary, #111827);
+}
+.btn-close {
+  background: transparent;
+  border: none;
+  font-size: 1.25rem;
+  color: var(--text-secondary, #6b7280);
+  cursor: pointer;
+  padding: 4px;
+}
+.btn-close:hover {
+  color: var(--text-primary, #111827);
+}
+
+.modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  color: var(--text-secondary, #4b5563);
+  line-height: 1.6;
+}
+.terms-content h4 {
+  color: var(--text-primary, #111827);
+  margin-top: 20px;
+  margin-bottom: 8px;
+}
+.terms-content h4:first-child {
+  margin-top: 0;
+}
+.terms-content p {
+  margin-bottom: 16px;
+}
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-color, #e5e7eb);
+  display: flex;
+  justify-content: flex-end;
+}

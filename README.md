@@ -76,21 +76,39 @@ KitsunePlatform/
 
 ---
 
+## 🌐 Demo Trực tiếp (Live Demo)
+
+| Nền tảng | Link | Trạng thái |
+|---|---|---|
+| 🌍 Web App (User) | [kitsune-linh13.vercel.app](https://kitsune-linh13.vercel.app) | ✅ Live |
+| 📱 Android App | [Tải bản mới nhất tại GitHub Releases](https://github.com/DuyLinh0212/Kitsune/releases/latest) | ✅ Live |
+
+---
+
 ## 🛠 Hướng dẫn Cài đặt (Getting Started)
 
 > **Lưu ý:** Vì lý do bảo mật, toàn bộ khóa API và URL của Database đều được ẩn khỏi mã nguồn (Git). Bạn cần có file cấu hình môi trường để chạy.
 
 ### 1. Ứng dụng Mobile (Flutter)
-*   Yêu cầu: `Flutter SDK >= 3.10`
+
+> 💡 **Nếu chỉ muốn dùng thử:** Tải file `.apk` mới nhất tại **[GitHub Releases](https://github.com/DuyLinh0212/Kitsune/releases/latest)** và cài trực tiếp lên điện thoại Android.
+
+Để chạy từ mã nguồn:
+*   Yêu cầu: `Flutter SDK >= 3.0`
 *   Di chuyển vào thư mục: `cd kitsune_app`
 *   Cài đặt thư viện: `flutter pub get`
-*   Chạy ứng dụng: Để chạy ứng dụng với các biến môi trường, hãy chạy file script đã được cấu hình sẵn:
+*   Tạo file `run.bat` với nội dung (xem hướng dẫn bảo mật ở mục trên)
+*   Chạy ứng dụng:
     ```bash
     .\run.bat
     ```
 
 ### 2. Ứng dụng Web (Angular Admin/User)
-*   Yêu cầu: `Node.js >= 18`
+
+> 💡 **Nếu chỉ muốn dùng thử:** Truy cập trực tiếp tại **[kitsune-linh13.vercel.app](https://kitsune-linh13.vercel.app)**
+
+Để chạy từ mã nguồn:
+*   Yêu cầu: `Node.js >= 22`
 *   Di chuyển vào thư mục Web tương ứng (ví dụ: `cd Kitsune.Web/Kitsune.Web.User`)
 *   Cài đặt thư viện: `npm install`
 *   Tạo file `.env` ở thư mục gốc của Web app (ngang hàng với `package.json`) với định dạng:
@@ -102,11 +120,13 @@ KitsunePlatform/
 
 ---
 
+
 ## 👨‍💻 Tác giả (Author)
 
 *   **Nguyễn Duy Linh** 
 *   *Vai trò:* Full-stack Developer / Mobile Developer / System Architect
-*   *Liên hệ:* [Thêm link GitHub/LinkedIn của bạn tại đây]
+*   *Liên hệ:* [duylnguyen0212@gmail.com](mailto:duylnguyen0212@gmail.com)
+
 
 ---
 *Phát triển với ❤️ dành cho cộng đồng học tiếng Nhật.*
