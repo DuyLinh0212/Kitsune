@@ -22,10 +22,10 @@ Mục tiêu cốt lõi của Kitsune là giúp người học ghi nhớ từ v�
 
 **1. Giao diện Web**
 <img width="1920" height="896" alt="image" src="https://github.com/user-attachments/assets/ec14bdbf-e854-43f9-b03c-1d002854a847" />
-<!-- ![Web Interface](link-anh-web-cua-ban) -->
 
 **2. Giao diện Mobile App (Android)**
-<img width="1080" height="2319" alt="image" src="https://github.com/user-attachments/assets/9ecaec8f-52eb-4aae-9273-01cff96a8721" />
+
+<img width="250" height="696" alt="image" src="https://github.com/user-attachments/assets/9ecaec8f-52eb-4aae-9273-01cff96a8721" />
 
  
 
