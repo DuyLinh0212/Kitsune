@@ -95,7 +95,7 @@ class KitsuneApp extends ConsumerWidget {
       home: authState.when(
         data: (user) => user != null ? const MainScreen() : const LoginPage(),
         loading: () => const SplashScreen(),
-        error: (_, _) => const LoginPage(),
+        error: (_, __) => const LoginPage(),
       ),
       onGenerateRoute: (settings) {
         late final Widget page;

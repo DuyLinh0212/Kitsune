@@ -72,7 +72,7 @@ class _ExamListPageState extends ConsumerState<ExamListPage> {
               Expanded(
                 child: examsAsync.when(
                   loading: () => const KitsuneLoadingFox(message: 'Đang tải đề kiểm tra...'),
-                  error: (_, _) => KitsuneEmptyState(
+                  error: (_, __) => KitsuneEmptyState(
                     icon: Icons.error_outline_rounded,
                     title: 'Không thể tải đề',
                     message: 'Kiểm tra kết nối rồi thử lại.',
@@ -89,7 +89,7 @@ class _ExamListPageState extends ConsumerState<ExamListPage> {
                         )
                       : ListView.separated(
                           itemCount: exams.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: 10),
+                          separatorBuilder: (_, __) => const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final exam = exams[index];
                             return InkWell(

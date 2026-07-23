@@ -192,7 +192,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: KitsuneLoadingFox(message: 'Đang tải thống kê...', size: 72),
               ),
-              error: (_, _) => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
             ),
             const SizedBox(height: AppTheme.space20),
             KitsuneSectionHeader(

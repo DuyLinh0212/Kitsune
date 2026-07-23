@@ -181,7 +181,7 @@ class _HomePageState extends ConsumerState<HomePage> {
       loading: () => const KitsuneSurface(
         child: SizedBox(height: 160),
       ),
-      error: (_, _) => const KitsuneSurface(
+      error: (_, __) => const KitsuneSurface(
         child: SizedBox(height: 160),
       ),
     );
@@ -289,7 +289,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         );
       },
       loading: () => const KitsuneSurface(child: SizedBox(height: 140)),
-      error: (_, _) => const KitsuneSurface(child: SizedBox(height: 140)),
+      error: (_, __) => const KitsuneSurface(child: SizedBox(height: 140)),
     );
   }
 
@@ -317,7 +317,7 @@ class _HomePageState extends ConsumerState<HomePage> {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(width: 12),
+            separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (_, index) {
               final folder = items[index];
               final color =
@@ -361,7 +361,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         );
       },
       loading: () => const KitsuneSurface(child: SizedBox(height: 176)),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -454,7 +454,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         );
       },
       loading: () => const KitsuneSurface(child: SizedBox(height: 140)),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -537,7 +537,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         );
       },
       loading: () => const KitsuneSurface(child: SizedBox(height: 180)),
-      error: (_, _) => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 }

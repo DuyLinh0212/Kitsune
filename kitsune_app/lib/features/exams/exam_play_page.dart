@@ -87,7 +87,7 @@ class _ExamPlayPageState extends ConsumerState<ExamPlayPage> {
       body: KitsuneBackdrop(
         child: examAsync.when(
           loading: () => const KitsuneLoadingFox(message: 'Đang tải đề...'),
-          error: (_, _) => KitsuneEmptyState(
+          error: (_, __) => KitsuneEmptyState(
             icon: Icons.error_outline_rounded,
             title: 'Không thể tải đề',
             message: 'Đề có thể không còn công khai hoặc kết nối đang gặp lỗi.',

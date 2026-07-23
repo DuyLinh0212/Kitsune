@@ -80,7 +80,7 @@ class _GrammarPageState extends ConsumerState<GrammarPage> {
               Expanded(
                 child: grammarAsync.when(
                   loading: () => const KitsuneLoadingFox(message: 'Đang tải ngữ pháp...'),
-                  error: (_, _) => KitsuneEmptyState(
+                  error: (_, __) => KitsuneEmptyState(
                     icon: Icons.error_outline_rounded,
                     title: 'Không thể tải ngữ pháp',
                     message: 'Kiểm tra kết nối rồi thử lại.',
@@ -99,7 +99,7 @@ class _GrammarPageState extends ConsumerState<GrammarPage> {
                     }
                     return ListView.separated(
                       itemCount: items.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
                       itemBuilder: (context, index) {
                         final item = items[index];
                         return _GrammarCard(
