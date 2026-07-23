@@ -253,7 +253,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             const KitsuneSectionHeader(
               title: 'Cài đặt',
               subtitle: 'Tùy chỉnh và thông tin ứng dụng.',
-              accent: KitsuneColors.kanji,
+              accent: KitsuneColors.secondary,
             ),
             const SizedBox(height: AppTheme.space12),
             KitsuneSurface(
