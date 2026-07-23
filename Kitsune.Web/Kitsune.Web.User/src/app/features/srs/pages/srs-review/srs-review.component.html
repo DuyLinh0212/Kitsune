@@ -255,6 +255,43 @@
           </div>
         </div>
 
+        <!-- ─── SETUP QUANTITY PHASE ────────────────────────── -->
+        @if (phase() === 'setup_quantity') {
+          <div class="study-area study-area--center">
+            <div class="setup-quantity">
+              <svg class="setup-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
+                <path d="M12 12 2.1 7.1"></path>
+              </svg>
+              <h2>Hôm nay bạn muốn học bao nhiêu từ?</h2>
+              
+              <div class="limit-options">
+                <button class="btn-limit" (click)="applyLimit(10)">10 từ</button>
+                <button class="btn-limit" (click)="applyLimit(20)">20 từ</button>
+                <button class="btn-limit" (click)="applyLimit(30)">30 từ</button>
+                <button class="btn-limit" (click)="applyLimit(-1)">Tất cả</button>
+              </div>
+            </div>
+          </div>
+        }
+
+        <!-- ─── PROMPT REVIEW PHASE ─────────────────────────── -->
+        @if (phase() === 'prompt_review') {
+          <div class="study-area study-area--center">
+            <div class="prompt-review">
+              <svg class="prompt-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <h2>Bạn có {{ dueQueue().length }} từ cần ôn tập trước khi bắt đầu học từ mới. Ôn tập ngay nha?</h2>
+              
+              <button class="btn-ok" (click)="startStudyingQueues()">
+                OK
+              </button>
+            </div>
+          </div>
+        }
+
         <!-- ─── FLASHCARD PHASE ──────────────────────────── -->
         @if (phase() === 'flashcard' && currentFlashcard(); as card) {
           <div class="study-area">

@@ -15,7 +15,7 @@ import 'package:kitsune_app/providers/dashboard_provider.dart';
 import 'package:kitsune_app/providers/folder_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
-enum _StudyPhase { idle, flashcard, quiz, summary }
+enum _StudyPhase { idle, setupQuantity, promptReview, flashcard, quiz, summary }
 
 class _QuizPrompt {
   const _QuizPrompt({
@@ -63,6 +63,9 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   FolderSrsSession? _session;
   List<_DashboardFolder> _dashboardFolders = const [];
   _StudyPhase _phase = _StudyPhase.idle;
+  int? _selectedLimit;
+  List<SRSCardDto> _dueQueue = const [];
+  List<SRSCardDto> _newQueue = const [];
   List<SRSCardDto> _flashQueue = const [];
   List<SRSCardDto> _quizQueue = const [];
   _QuizPrompt? _currentQuestion;
@@ -161,8 +164,11 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   void _resetStudyState(FolderSrsSession? session) {
-    _flashQueue = [...?session?.flashcards];
-    _quizQueue = [...?session?.quizCards];
+    _flashQueue = [];
+    _quizQueue = [];
+    _dueQueue = [];
+    _newQueue = [];
+    _selectedLimit = null;
     _flashCompleted = 0;
     _answersGiven = 0;
     _mistakes = 0;
@@ -179,19 +185,62 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       return;
     }
 
-    if (_flashQueue.isNotEmpty) {
-      _phase = _StudyPhase.flashcard;
+    if (session.flashcards.isEmpty && session.quizCards.isEmpty) {
+      _phase = _StudyPhase.summary;
       return;
     }
 
-    if (_quizQueue.isNotEmpty) {
-      _phase = _StudyPhase.quiz;
-      _currentQuestion = _buildQuestion(_quizQueue.first, session.cards);
-      return;
-    }
-
-    _phase = _StudyPhase.summary;
+    _phase = _StudyPhase.setupQuantity;
   }
+
+  void _applyLimitAndStart() {
+    if (_session == null || _selectedLimit == null) return;
+    
+    final allDue = _session!.quizCards;
+    final allNew = _session!.flashcards;
+    
+    int limit = _selectedLimit!;
+    if (limit == -1) {
+      // All cards
+      limit = allDue.length + allNew.length;
+    }
+    
+    final dueCount = min(limit, allDue.length);
+    final newCount = min(limit - dueCount, allNew.length);
+    
+    _dueQueue = allDue.take(dueCount).toList();
+    _newQueue = allNew.take(newCount).toList();
+    
+    if (_dueQueue.isNotEmpty) {
+      setState(() {
+        _phase = _StudyPhase.promptReview;
+      });
+    } else {
+      _startStudyingQueues();
+    }
+  }
+  
+  void _startStudyingQueues() {
+    _quizQueue = List.from(_dueQueue);
+    _flashQueue = List.from(_newQueue);
+    
+    if (_quizQueue.isNotEmpty) {
+      setState(() {
+        _phase = _StudyPhase.quiz;
+        _currentQuestion = _buildQuestion(_quizQueue.first, _session!.cards);
+      });
+    } else if (_flashQueue.isNotEmpty) {
+      setState(() {
+        _phase = _StudyPhase.flashcard;
+      });
+    } else {
+      setState(() {
+        _phase = _StudyPhase.summary;
+      });
+    }
+  }
+
+
 
   Future<void> _openFolder(int folderId, {required bool activate}) async {
     if (_isSubmitting) {
@@ -350,16 +399,26 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   void _syncPhase() {
-    if (_flashQueue.isNotEmpty) {
-      setState(() => _phase = _StudyPhase.flashcard);
-      return;
-    }
-
     if (_quizQueue.isNotEmpty) {
       setState(() {
         _phase = _StudyPhase.quiz;
         _currentQuestion = _buildQuestion(_quizQueue.first, _session?.cards ?? _quizQueue);
       });
+      return;
+    }
+
+    if (_flashQueue.isNotEmpty) {
+      if (_phase == _StudyPhase.quiz) {
+        // Just transitioned from quiz to flashcard
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ôn tập xong. Bắt đầu học từ mới!'),
+            backgroundColor: KitsuneColors.primary,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      setState(() => _phase = _StudyPhase.flashcard);
       return;
     }
 
@@ -573,7 +632,13 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     return '$hours:$minutes:$seconds';
   }
 
-  int get _totalUnits => (_session?.flashcards.length ?? 0) + (_session?.quizCards.length ?? 0);
+  int get _totalUnits {
+    if (_selectedLimit != null && _selectedLimit != -1) {
+      final totalAvailable = (_session?.flashcards.length ?? 0) + (_session?.quizCards.length ?? 0);
+      return min(_selectedLimit!, totalAvailable);
+    }
+    return (_session?.flashcards.length ?? 0) + (_session?.quizCards.length ?? 0);
+  }
 
   int get _progressPercent {
     if (_totalUnits == 0) {
@@ -960,7 +1025,11 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
                 children: [
-                  if (_phase == _StudyPhase.flashcard && _flashQueue.isNotEmpty)
+                  if (_phase == _StudyPhase.setupQuantity)
+                    _buildSetupQuantity()
+                  else if (_phase == _StudyPhase.promptReview)
+                    _buildPromptReview()
+                  else if (_phase == _StudyPhase.flashcard && _flashQueue.isNotEmpty)
                     _buildFlashcard()
                   else if (_phase == _StudyPhase.quiz && _quizQueue.isNotEmpty)
                     _buildQuiz()
@@ -972,6 +1041,74 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSetupQuantity() {
+    final limits = [10, 20, 30, -1];
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 32),
+        const Icon(Icons.psychology_rounded, size: 64, color: KitsuneColors.primary),
+        const SizedBox(height: 24),
+        Text(
+          'Hôm nay bạn muốn học bao nhiêu từ?',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 32),
+        ...limits.map((limit) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: ElevatedButton(
+                onPressed: () {
+                  setState(() => _selectedLimit = limit);
+                  _applyLimitAndStart();
+                },
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  backgroundColor: KitsuneColors.surfaceVariant,
+                  foregroundColor: KitsuneColors.onSurfaceVariant,
+                ),
+                child: Text(
+                  limit == -1 ? 'Tất cả' : '$limit từ',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+            )),
+      ],
+    );
+  }
+
+  Widget _buildPromptReview() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 32),
+        const Icon(Icons.update_rounded, size: 64, color: KitsuneColors.secondary),
+        const SizedBox(height: 24),
+        Text(
+          'Bạn có ${_dueQueue.length} từ cần ôn tập trước khi bắt đầu học từ mới. Ôn tập ngay nha?',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 48),
+        ElevatedButton(
+          onPressed: _startStudyingQueues,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          child: const Text(
+            'OK',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1461,6 +1598,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     switch (_phase) {
       case _StudyPhase.idle:
         return 'Idle';
+      case _StudyPhase.setupQuantity:
+        return 'Setup';
+      case _StudyPhase.promptReview:
+        return 'Prompt';
       case _StudyPhase.flashcard:
         return 'Flashcard';
       case _StudyPhase.quiz:

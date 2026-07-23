@@ -33,7 +33,7 @@ interface SessionStats {
   mistakes: number;
 }
 
-type StudyPhase = 'idle' | 'flashcard' | 'quiz' | 'summary';
+type StudyPhase = 'idle' | 'setup_quantity' | 'prompt_review' | 'flashcard' | 'quiz' | 'summary';
 
 interface LevelBucket {
   level: number;
@@ -61,6 +61,11 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   readonly activeFolderId = signal<number | null>(null);
   readonly activeSession = signal<FolderSrsSession | null>(null);
   readonly phase = signal<StudyPhase>('idle');
+
+  // ─── Limit state ────────────────────────────────────────────────────────────
+  readonly selectedLimit = signal<number | null>(null);
+  readonly dueQueue = signal<SRSCardDto[]>([]);
+  readonly newQueue = signal<SRSCardDto[]>([]);
 
   // ─── Flashcard state ────────────────────────────────────────────────────────
   readonly flashQueue = signal<SRSCardDto[]>([]);
@@ -98,8 +103,13 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.phase() === 'flashcard' ? this.currentFlashcard() : this.currentQuizCard()
   );
   readonly totalStudyUnits = computed(() => {
+    const limit = this.selectedLimit();
     const session = this.activeSession();
     if (!session) return 0;
+    
+    if (limit !== null && limit !== -1) {
+      return Math.min(limit, session.flashcards.length + session.quizCards.length);
+    }
     return session.flashcards.length + session.quizCards.length;
   });
   readonly completedUnits = computed(
@@ -422,8 +432,11 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   // ─── Private ─────────────────────────────────────────────────────────────────
 
   private resetSession(session: FolderSrsSession): void {
-    this.flashQueue.set([...session.flashcards]);
-    this.quizQueue.set([...session.quizCards]);
+    this.flashQueue.set([]);
+    this.quizQueue.set([]);
+    this.dueQueue.set([]);
+    this.newQueue.set([]);
+    this.selectedLimit.set(null);
     this.stats.set({
       flashCompleted: 0,
       quizCompleted: 0,
@@ -433,29 +446,71 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.isCardFlipped.set(false);
     this.clearAnswerState();
 
-    if (session.flashcards.length > 0) {
-      this.phase.set('flashcard');
+    if (session.flashcards.length === 0 && session.quizCards.length === 0) {
+      this.phase.set('summary');
       return;
     }
 
-    if (session.quizCards.length > 0) {
+    this.phase.set('setup_quantity');
+  }
+  
+  applyLimit(limit: number): void {
+    const session = this.activeSession();
+    if (!session) return;
+    
+    this.selectedLimit.set(limit);
+    
+    const allDue = session.quizCards;
+    const allNew = session.flashcards;
+    
+    let actualLimit = limit;
+    if (actualLimit === -1) {
+      actualLimit = allDue.length + allNew.length;
+    }
+    
+    const dueCount = Math.min(actualLimit, allDue.length);
+    const newCount = Math.min(actualLimit - dueCount, allNew.length);
+    
+    this.dueQueue.set(allDue.slice(0, dueCount));
+    this.newQueue.set(allNew.slice(0, newCount));
+    
+    if (this.dueQueue().length > 0) {
+      this.phase.set('prompt_review');
+    } else {
+      this.startStudyingQueues();
+    }
+  }
+  
+  startStudyingQueues(): void {
+    this.quizQueue.set([...this.dueQueue()]);
+    this.flashQueue.set([...this.newQueue()]);
+    
+    if (this.quizQueue().length > 0) {
       this.phase.set('quiz');
       this.prepareNextQuestion();
       return;
     }
-
-    this.phase.set('summary');
-  }
-
-  private syncPhaseAfterFlash(): void {
+    
     if (this.flashQueue().length > 0) {
       this.phase.set('flashcard');
       return;
     }
+    
+    this.phase.set('summary');
+  }
 
+  private syncPhaseAfterFlash(): void {
     if (this.quizQueue().length > 0) {
       this.phase.set('quiz');
       this.prepareNextQuestion();
+      return;
+    }
+
+    if (this.flashQueue().length > 0) {
+      if (this.phase() === 'quiz') {
+        this.showToast('success', 'Ôn tập xong. Bắt đầu học từ mới!');
+      }
+      this.phase.set('flashcard');
       return;
     }
 
@@ -471,8 +526,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.clearAnswerState();
 
     if (this.quizQueue().length === 0) {
-      this.phase.set('summary');
-      void this.refreshDashboardFolders();
+      this.syncPhaseAfterFlash();
       return;
     }
 
