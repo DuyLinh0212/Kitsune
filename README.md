@@ -25,7 +25,8 @@ Mục tiêu cốt lõi của Kitsune là giúp người học ghi nhớ từ v�
 <!-- ![Web Interface](link-anh-web-cua-ban) -->
 
 **2. Giao diện Mobile App (Android)**
-*(Dán ảnh giao diện Mobile của bạn vào đây - Gợi ý: Kéo thả ảnh trực tiếp vào file này trên VS Code hoặc GitHub)*
+<img width="1080" height="2319" alt="image" src="https://github.com/user-attachments/assets/9ecaec8f-52eb-4aae-9273-01cff96a8721" />
+
  
 
 ---
