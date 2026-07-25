@@ -118,15 +118,7 @@ export class VocabularyAdminService {
       }).filter(c => c !== null);
       
       if (components.length > 0) {
-        const { data: maxData } = await supabase.from('KanjiComponents').select('Id').order('Id', { ascending: false }).limit(1).maybeSingle();
-        let nextId = ((maxData as { Id: number })?.Id ?? 0) + 1;
-        
-        const finalComponents = components.map(c => ({
-          ...c,
-          Id: nextId++
-        }));
-        
-        const { error } = await supabase.from('KanjiComponents').insert(finalComponents);
+        const { error } = await supabase.from('KanjiComponents').insert(components);
         if (error) {
           console.error('Error inserting KanjiComponents:', error);
           throw error;
