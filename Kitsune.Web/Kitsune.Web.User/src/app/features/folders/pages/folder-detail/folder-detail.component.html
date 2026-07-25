@@ -313,9 +313,14 @@
               </div>
             }
 
-            <button type="button" class="primary-action" (click)="openVocabDetail(vocab)">
-              Mở trang tra cứu từ này
-            </button>
+            <div class="inspector-actions">
+              <button type="button" class="primary-action" (click)="openVocabDetail(vocab)">
+                Mở trang tra cứu từ này
+              </button>
+              <button type="button" class="danger-action" style="margin-top: 8px; width: 100%; border: 1px solid #fecaca; background: #fff5f5; color: #b91c1c; padding: 0.5rem; border-radius: 6px; cursor: pointer; font-weight: 500;" (click)="removeVocab(vocab)">
+                Xóa khỏi thư mục
+              </button>
+            </div>
           </div>
         } @else if (selectedKanji(); as kanji) {
           <div class="inspector-card inspector-card--kanji">

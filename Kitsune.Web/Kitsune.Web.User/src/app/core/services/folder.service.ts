@@ -149,34 +149,48 @@ export class FolderService {
     return from(
       supabase
         .from('Vocabularies')
-        .insert({
-          FolderId: folderId,
-          LanguageId: languageId || 1,
-          Word: word,
-          Pronunciation: pronunciation ?? null,
-          Meaning: meaning,
-        })
         .select('Id')
-        .single()
+        .eq('FolderId', folderId)
+        .eq('Word', word)
+        .maybeSingle()
     ).pipe(
       switchMap(({ data, error }) => {
         if (error) throw error;
-        if (!data) throw new Error('Không lấy được ID từ vựng mới tạo');
+        if (data) throw new Error('Từ vựng này đã có trong thư mục!');
         
-        if (kanjiId) {
-          return from(
-            supabase.from('KanjiComponents').insert({
-              VocabularyId: data.Id,
-              KanjiId: kanjiId,
-              Order: 0
+        return from(
+          supabase
+            .from('Vocabularies')
+            .insert({
+              FolderId: folderId,
+              LanguageId: languageId || 1,
+              Word: word,
+              Pronunciation: pronunciation ?? null,
+              Meaning: meaning,
             })
-          ).pipe(
-            map(({ error: kError }) => {
-              if (kError) throw kError;
-            })
-          );
-        }
-        return of(void 0);
+            .select('Id')
+            .single()
+        ).pipe(
+          switchMap(({ data: insertData, error: insertError }) => {
+            if (insertError) throw insertError;
+            if (!insertData) throw new Error('Không lấy được ID từ vựng mới tạo');
+            
+            if (kanjiId) {
+              return from(
+                supabase.from('KanjiComponents').insert({
+                  VocabularyId: insertData.Id,
+                  KanjiId: kanjiId,
+                  Order: 0
+                })
+              ).pipe(
+                map(({ error: kError }) => {
+                  if (kError) throw kError;
+                })
+              );
+            }
+            return of(void 0);
+          })
+        );
       })
     );
   }

@@ -327,6 +327,26 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
     this.clearPreviewTimer();
   }
 
+  removeVocab(vocab: VocabularyDto): void {
+    if (!confirm(`Bạn có chắc chắn muốn xóa từ vựng "${vocab.word}" khỏi thư mục này không?`)) {
+      return;
+    }
+    
+    this.vocabularyService.delete(vocab.id).subscribe({
+      next: () => {
+        this.showToast('success', 'Đã xóa từ vựng.');
+        this.vocabularies.update(list => list.filter(v => v.id !== vocab.id));
+        this.kanjiItems.set(this.buildKanjiItems({ items: this.vocabularies() }));
+        if (this.selectedVocab()?.id === vocab.id) {
+          this.selectedVocab.set(null);
+        }
+      },
+      error: () => {
+        this.showToast('error', 'Không thể xóa từ vựng này.');
+      }
+    });
+  }
+
   isSelectedVocab(vocabId: number): boolean {
     return this.selectedVocab()?.id === vocabId;
   }
@@ -390,7 +410,7 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
     return level ? colors[level] ?? '#64748b' : '#64748b';
   }
 
-  private buildKanjiItems(result: PagedResult<VocabularyDto>): FolderKanjiItem[] {
+  private buildKanjiItems(result: { items: VocabularyDto[] }): FolderKanjiItem[] {
     const map = new Map<number, FolderKanjiItem>();
     for (const vocab of result.items) {
       for (const component of vocab.kanjiComponents) {
