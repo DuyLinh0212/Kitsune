@@ -176,13 +176,20 @@ export class FolderService {
             if (!insertData) throw new Error('Không lấy được ID từ vựng mới tạo');
             
             if (kanjiId) {
-              return from(
-                supabase.from('KanjiComponents').insert({
-                  VocabularyId: insertData.Id,
-                  KanjiId: kanjiId,
-                  Order: 0
-                })
-              ).pipe(
+              return from(supabase.from('KanjiComponents').select('Id').order('Id', { ascending: false }).limit(1).maybeSingle()).pipe(
+                switchMap(({ data: maxData, error: maxError }) => {
+                  if (maxError) throw maxError;
+                  const nextId = ((maxData as { Id: number })?.Id ?? 0) + 1;
+                  
+                  return from(
+                    supabase.from('KanjiComponents').insert({
+                      Id: nextId,
+                      VocabularyId: insertData.Id,
+                      KanjiId: kanjiId,
+                      Order: 0
+                    })
+                  );
+                }),
                 map(({ error: kError }) => {
                   if (kError) throw kError;
                 })
