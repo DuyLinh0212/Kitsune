@@ -181,7 +181,8 @@ class KitsuneApi {
       return _retryFetchProfile(email);
     }
 
-    final createdUser = UserProfile.fromJson(createResponse.data as Map<String, dynamic>);
+    final createdUser =
+        UserProfile.fromJson(createResponse.data as Map<String, dynamic>);
 
     try {
       final roleResponse = await client.dio.get(
@@ -228,7 +229,8 @@ class KitsuneApi {
     return (data[0] as Map<String, dynamic>)['Id'] as int;
   }
 
-  Future<UserProfile> updateProfile({String? fullName, String? avatarUrl}) async {
+  Future<UserProfile> updateProfile(
+      {String? fullName, String? avatarUrl}) async {
     final patch = <String, dynamic>{};
     if (fullName != null) patch['FullName'] = fullName;
     if (avatarUrl != null) patch['AvatarUrl'] = avatarUrl;
@@ -279,7 +281,9 @@ class KitsuneApi {
       },
     );
     final data = response.data as List<dynamic>;
-    return data.map((r) => FolderDto.fromJson(r as Map<String, dynamic>)).toList();
+    return data
+        .map((r) => FolderDto.fromJson(r as Map<String, dynamic>))
+        .toList();
   }
 
   Future<FolderDto> getFolderById(int id) async {
@@ -294,7 +298,8 @@ class KitsuneApi {
 
   Future<FolderDto> createFolder(CreateFolderDto dto) async {
     final userId = await getCurrentUserId();
-    final response = await client.dio.post(client.table('VocabularyFolder'), data: {
+    final response =
+        await client.dio.post(client.table('VocabularyFolder'), data: {
       'UserId': userId,
       'FolderName': dto.name,
       'Description': dto.description,
@@ -319,7 +324,8 @@ class KitsuneApi {
   }
 
   Future<void> deleteFolder(int id) async {
-    await client.dio.delete(client.table('VocabularyFolder'), queryParameters: {'Id': 'eq.$id'});
+    await client.dio.delete(client.table('VocabularyFolder'),
+        queryParameters: {'Id': 'eq.$id'});
   }
 
   Future<void> addVocabularyCopy(
@@ -379,7 +385,8 @@ class KitsuneApi {
   }
 
   Future<void> removeVocabulary(int vocabularyId) async {
-    await client.dio.delete(client.table('Vocabularies'), queryParameters: {'Id': 'eq.$vocabularyId'});
+    await client.dio.delete(client.table('Vocabularies'),
+        queryParameters: {'Id': 'eq.$vocabularyId'});
   }
 
   /// Fetches vocabularies scoped to a single folder directly (no global-search cap),
@@ -394,12 +401,15 @@ class KitsuneApi {
       },
     );
     final data = response.data as List<dynamic>;
-    return data.map((r) => VocabularyDto.fromJson(r as Map<String, dynamic>)).toList();
+    return data
+        .map((r) => VocabularyDto.fromJson(r as Map<String, dynamic>))
+        .toList();
   }
 
   // ── Vocabulary ───────────────────────────────────────────────────────────────
 
-  Future<List<VocabularyDto>> searchVocabulary(String query, {int? limit}) async {
+  Future<List<VocabularyDto>> searchVocabulary(String query,
+      {int? limit}) async {
     final normalizedQuery = _normalize(query);
     if (normalizedQuery.isEmpty) {
       return _fetchVocabByParams(
@@ -454,7 +464,8 @@ class KitsuneApi {
   }
 
   Future<List<VocabularyDto>> getRandomVocabulary({int limit = 20}) async {
-    final items = await _fetchVocabByParams(queryParameters: {'limit': '$limit'});
+    final items =
+        await _fetchVocabByParams(queryParameters: {'limit': '$limit'});
     items.shuffle();
     return items;
   }
@@ -489,7 +500,8 @@ class KitsuneApi {
     final data = response.data as List<dynamic>;
     if (data.isNotEmpty) {
       final id = (data[0] as Map<String, dynamic>)['Id'] as int;
-      await client.dio.delete(client.table('VocabularyBookmarks'), queryParameters: {'Id': 'eq.$id'});
+      await client.dio.delete(client.table('VocabularyBookmarks'),
+          queryParameters: {'Id': 'eq.$id'});
       return false;
     }
 
@@ -533,13 +545,19 @@ class KitsuneApi {
     });
   }
 
-  Future<List<VocabularyDto>> _fetchVocabByParams({required Map<String, String> queryParameters}) async {
+  Future<List<VocabularyDto>> _fetchVocabByParams(
+      {required Map<String, String> queryParameters}) async {
     final response = await client.dio.get(
       client.table('Vocabularies'),
-      queryParameters: {'select': SupabaseConfig.vocabSelect, ...queryParameters},
+      queryParameters: {
+        'select': SupabaseConfig.vocabSelect,
+        ...queryParameters
+      },
     );
     final data = response.data as List<dynamic>;
-    return data.map((r) => VocabularyDto.fromJson(r as Map<String, dynamic>)).toList();
+    return data
+        .map((r) => VocabularyDto.fromJson(r as Map<String, dynamic>))
+        .toList();
   }
 
   int _scoreVocab(VocabularyDto item, String query) {
@@ -637,28 +655,44 @@ class KitsuneApi {
   Future<List<KanjiDetailDto>> getRandomKanji({int limit = 40}) async {
     final response = await client.dio.get(
       client.table('Kanji'),
-      queryParameters: {'select': SupabaseConfig.kanjiSelect, 'limit': '$limit'},
+      queryParameters: {
+        'select': SupabaseConfig.kanjiSelect,
+        'limit': '$limit'
+      },
     );
     final data = (response.data as List<dynamic>)..shuffle();
-    return data.map((r) => KanjiDetailDto.fromJson(r as Map<String, dynamic>)).toList();
+    return data
+        .map((r) => KanjiDetailDto.fromJson(r as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<KanjiDetailDto>> getFirstKanji({int limit = 40}) async {
     final response = await client.dio.get(
       client.table('Kanji'),
-      queryParameters: {'select': SupabaseConfig.kanjiSelect, 'limit': '$limit'},
+      queryParameters: {
+        'select': SupabaseConfig.kanjiSelect,
+        'limit': '$limit'
+      },
     );
     final data = response.data as List<dynamic>;
-    return data.map((r) => KanjiDetailDto.fromJson(r as Map<String, dynamic>)).toList();
+    return data
+        .map((r) => KanjiDetailDto.fromJson(r as Map<String, dynamic>))
+        .toList();
   }
 
-  Future<List<KanjiDetailDto>> _fetchKanjiByParams({required Map<String, String> queryParameters}) async {
+  Future<List<KanjiDetailDto>> _fetchKanjiByParams(
+      {required Map<String, String> queryParameters}) async {
     final response = await client.dio.get(
       client.table('Kanji'),
-      queryParameters: {'select': SupabaseConfig.kanjiSelect, ...queryParameters},
+      queryParameters: {
+        'select': SupabaseConfig.kanjiSelect,
+        ...queryParameters
+      },
     );
     final data = response.data as List<dynamic>;
-    return data.map((r) => KanjiDetailDto.fromJson(r as Map<String, dynamic>)).toList();
+    return data
+        .map((r) => KanjiDetailDto.fromJson(r as Map<String, dynamic>))
+        .toList();
   }
 
   int _scoreKanji(KanjiDetailDto item, String query) {
@@ -708,6 +742,20 @@ class KitsuneApi {
     }
   }
 
+  Future<int?> getDailySrsGoal() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(
+        '${AppConstants.dailySrsGoalPrefix}${_formatDate(DateTime.now())}');
+  }
+
+  Future<void> setDailySrsGoal(int goal) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(
+      '${AppConstants.dailySrsGoalPrefix}${_formatDate(DateTime.now())}',
+      goal.clamp(1, 10000),
+    );
+  }
+
   Future<FolderSrsSession?> getFolderSession({int? folderId}) async {
     final resolvedId = folderId ?? await getActiveFolderId();
     if (resolvedId == null) return null;
@@ -716,8 +764,11 @@ class KitsuneApi {
     if (email == null) return null;
 
     final userId = await getCurrentUserId();
-    final context = await _loadSrsContext(resolvedId, userId);
-    await _ensureSrsCards(context);
+    var context = await _loadSrsContext(resolvedId, userId);
+    final insertedCards = await _ensureSrsCards(context);
+    if (insertedCards) {
+      context = await _loadSrsContext(resolvedId, userId);
+    }
     final overview = _buildSrsOverview(context);
     final cards = _mapSrsCards(context);
     final flashcards = cards.where((c) => c.boxLevel == 0).toList();
@@ -727,7 +778,7 @@ class KitsuneApi {
       folderId: resolvedId,
       folderName: context.folderName,
       overview: overview,
-      cards: [...flashcards, ...quizCards],
+      cards: cards,
       flashcards: flashcards,
       quizCards: quizCards,
     );
@@ -749,16 +800,9 @@ class KitsuneApi {
   }
 
   Future<FolderSrsSession> activateFolder(int folderId) async {
-    final currentId = await getActiveFolderId();
-    if (currentId != null && currentId != folderId) {
-      final canSwitch = await canSwitchFolder(currentId);
-      if (!canSwitch) {
-        throw Exception('Thư mục hiện tại chưa học xong. Hãy hoàn tất các thẻ mới trước khi đổi thư mục.');
-      }
-    }
-
     final session = await getFolderSession(folderId: folderId);
-    if (session == null) throw Exception('Không thể khởi tạo SRS cho thư mục này');
+    if (session == null)
+      throw Exception('Không thể khởi tạo SRS cho thư mục này');
     await setActiveFolderId(folderId);
     return session;
   }
@@ -789,7 +833,8 @@ class KitsuneApi {
         'order': 'CreatedAt.asc',
       },
     );
-    final vocabs = (vocabRes.data as List<dynamic>).cast<Map<String, dynamic>>();
+    final vocabs =
+        (vocabRes.data as List<dynamic>).cast<Map<String, dynamic>>();
 
     final cardRes = await client.dio.get(
       client.table('SRSCards'),
@@ -812,8 +857,16 @@ class KitsuneApi {
           'order': 'Order.asc',
         },
       );
-      kanjiComponents = (kcRes.data as List<dynamic>).cast<Map<String, dynamic>>();
+      kanjiComponents =
+          (kcRes.data as List<dynamic>).cast<Map<String, dynamic>>();
     }
+
+    final kanjiIds = _uniqueKanji(kanjiComponents)
+        .map((kanji) => kanji['Id'] as int)
+        .toList();
+    final kanjiExamples = await _loadKanjiExamples(kanjiIds);
+    final userCardIds = cards.map((card) => card['Id'] as int).toList();
+    final todayNewLearned = await _loadTodayNewLearned(userCardIds);
 
     return _SrsContext(
       folderId: folderId,
@@ -821,14 +874,78 @@ class KitsuneApi {
       userId: userId,
       vocabs: vocabs,
       kanjiComponents: kanjiComponents,
+      kanjiExamples: kanjiExamples,
+      todayNewLearned: todayNewLearned,
       cards: cards,
     );
   }
 
-  Future<void> _ensureSrsCards(_SrsContext context) async {
+  Future<Map<int, List<SrsVocabularyExample>>> _loadKanjiExamples(
+      List<int> kanjiIds) async {
+    final result = <int, List<SrsVocabularyExample>>{};
+    if (kanjiIds.isEmpty) return result;
+
+    final response = await client.dio.get(
+      client.table('KanjiComponents'),
+      queryParameters: {
+        'select':
+            'KanjiId,VocabularyId,Vocabulary:VocabularyId(Id,Word,Pronunciation,Meaning,FolderId)',
+        'KanjiId': 'in.(${kanjiIds.join(',')})',
+        'order': 'VocabularyId.asc',
+      },
+    );
+
+    for (final raw in response.data as List<dynamic>) {
+      final row = raw as Map<String, dynamic>;
+      final kanjiId = row['KanjiId'] as int;
+      final vocabulary = row['Vocabulary'] as Map<String, dynamic>?;
+      if (vocabulary == null) continue;
+      final current = result.putIfAbsent(kanjiId, () => []);
+      final word = vocabulary['Word'] as String? ?? '';
+      if (current.length >= 3 || current.any((item) => item.word == word))
+        continue;
+      current.add(SrsVocabularyExample(
+        word: word,
+        pronunciation: vocabulary['Pronunciation'] as String?,
+        meaning: vocabulary['Meaning'] as String? ?? '',
+      ));
+    }
+    return result;
+  }
+
+  Future<int> _loadTodayNewLearned(List<int> cardIds) async {
+    final localIds = await _getLocalNewCardIds();
+    if (cardIds.isEmpty) return localIds.length;
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day).toUtc();
+    final end = start.add(const Duration(days: 1));
+
+    try {
+      final response = await client.dio.get(
+        client.table('SRSReviewLogs'),
+        queryParameters: {
+          'select': 'CardId',
+          'CardId': 'in.(${cardIds.join(',')})',
+          'OldBoxLevel': 'eq.0',
+          'ReviewedAt': 'gte.${start.toIso8601String()}',
+          'and': '(ReviewedAt.lt.${end.toIso8601String()})',
+        },
+      );
+      final databaseCount = (response.data as List<dynamic>)
+          .map((row) => (row as Map<String, dynamic>)['CardId'] as int)
+          .toSet()
+          .length;
+      return max(databaseCount, localIds.length);
+    } catch (_) {
+      return localIds.length;
+    }
+  }
+
+  Future<bool> _ensureSrsCards(_SrsContext context) async {
     final existingKeys = <String>{};
     for (final card in context.cards) {
-      existingKeys.add(SrsEngine.encodeKey(card['VocabularyId'] as int?, card['KanjiId'] as int?));
+      existingKeys.add(SrsEngine.encodeKey(
+          card['VocabularyId'] as int?, card['KanjiId'] as int?));
     }
 
     final now = DateTime.now().toIso8601String();
@@ -867,8 +984,9 @@ class KitsuneApi {
       existingKeys.add(key);
     }
 
-    if (inserts.isEmpty) return;
+    if (inserts.isEmpty) return false;
     await client.dio.post(client.table('SRSCards'), data: inserts);
+    return true;
   }
 
   FolderSrsOverview _buildSrsOverview(_SrsContext context) {
@@ -878,7 +996,9 @@ class KitsuneApi {
     final dueCards = cards.where((c) => c.boxLevel > 0 && c.isDue).length;
     final masteredCards = cards.where((c) => c.boxLevel >= 7).length;
 
-    final future = cards.where((c) => !c.isDue && c.nextReviewDate.isNotEmpty).toList()
+    final future = cards
+        .where((c) => !c.isDue && c.nextReviewDate.isNotEmpty)
+        .toList()
       ..sort((a, b) => a.nextReviewDate.compareTo(b.nextReviewDate));
 
     return FolderSrsOverview(
@@ -889,8 +1009,9 @@ class KitsuneApi {
       dueCards: dueCards,
       learnedCards: total - newCards,
       masteredCards: masteredCards,
+      todayNewLearned: context.todayNewLearned,
       nextDueAt: future.isNotEmpty ? future.first.nextReviewDate : null,
-      canSwitchFolder: newCards == 0,
+      canSwitchFolder: true,
     );
   }
 
@@ -910,8 +1031,11 @@ class KitsuneApi {
       final vocab = vId != null ? vocabMap[vId] : null;
       final kanji = kId != null ? kanjiMap[kId] : null;
       final boxLevel = SrsEngine.normalizeLevel(row['BoxLevel'] as int?);
-      final nextReviewDate = (row['NextReviewDate'] as String?) ?? DateTime.now().toIso8601String();
-      final isDue = DateTime.parse(nextReviewDate).millisecondsSinceEpoch <= nowMs || boxLevel == 0;
+      final nextReviewDate = (row['NextReviewDate'] as String?) ??
+          DateTime.now().toIso8601String();
+      final isDue =
+          DateTime.parse(nextReviewDate).millisecondsSinceEpoch <= nowMs ||
+              boxLevel == 0;
 
       if (vocab == null && kanji == null) continue;
 
@@ -924,11 +1048,15 @@ class KitsuneApi {
         kanjiId: kId,
         word: vocab?['Word'] as String? ?? kanji?['Character'] as String? ?? '',
         pronunciation: vocab?['Pronunciation'] as String?,
-        meaning: vocab?['Meaning'] as String? ?? kanji?['Meaning'] as String? ?? '',
+        meaning:
+            vocab?['Meaning'] as String? ?? kanji?['Meaning'] as String? ?? '',
         character: kanji?['Character'] as String?,
         amHanViet: kanji?['AmHanViet'] as String?,
         onyomi: kanji?['Onyomi'] as String?,
         kunyomi: kanji?['Kunyomi'] as String?,
+        examples: kId != null
+            ? (context.kanjiExamples[kId] ?? const <SrsVocabularyExample>[])
+            : const <SrsVocabularyExample>[],
         strokeCount: kanji?['StrokeCount'] as int?,
         boxLevel: boxLevel,
         nextReviewDate: nextReviewDate,
@@ -940,15 +1068,20 @@ class KitsuneApi {
     result.sort((a, b) {
       final aLevelBias = a.boxLevel == 0 ? 0 : 1000 + a.boxLevel * 100;
       final bLevelBias = b.boxLevel == 0 ? 0 : 1000 + b.boxLevel * 100;
-      final aDueBias = (DateTime.tryParse(a.nextReviewDate)?.millisecondsSinceEpoch ?? 0) ~/ 1000000;
-      final bDueBias = (DateTime.tryParse(b.nextReviewDate)?.millisecondsSinceEpoch ?? 0) ~/ 1000000;
+      final aDueBias =
+          (DateTime.tryParse(a.nextReviewDate)?.millisecondsSinceEpoch ?? 0) ~/
+              1000000;
+      final bDueBias =
+          (DateTime.tryParse(b.nextReviewDate)?.millisecondsSinceEpoch ?? 0) ~/
+              1000000;
       return (aLevelBias + aDueBias).compareTo(bLevelBias + bDueBias);
     });
 
     return result;
   }
 
-  Future<void> _updateSrsCardProgress(int cardId, {required bool correct, required bool isFlashcard}) async {
+  Future<void> _updateSrsCardProgress(int cardId,
+      {required bool correct, required bool isFlashcard}) async {
     final userId = await getCurrentUserId();
 
     final cardRes = await client.dio.get(
@@ -964,7 +1097,8 @@ class KitsuneApi {
     final row = cardData[0] as Map<String, dynamic>;
 
     final currentLevel = SrsEngine.normalizeLevel(row['BoxLevel'] as int?);
-    final nextLevel = isFlashcard ? 1 : SrsEngine.resolveNextLevel(currentLevel, correct);
+    final nextLevel =
+        isFlashcard ? 1 : SrsEngine.resolveNextLevel(currentLevel, correct);
     final nextReviewDate = SrsEngine.computeNextReviewDate(nextLevel);
 
     final patch = <String, dynamic>{
@@ -973,6 +1107,7 @@ class KitsuneApi {
       'IntervalDays': SrsEngine.intervalDays(nextLevel),
       'Repetitions': SrsEngine.resolveReps(currentLevel, nextLevel, correct),
       'NextReviewDate': nextReviewDate,
+      'LastReviewedAt': DateTime.now().toUtc().toIso8601String(),
     };
 
     await client.dio.patch(
@@ -980,9 +1115,49 @@ class KitsuneApi {
       data: patch,
       queryParameters: {'Id': 'eq.$cardId'},
     );
+
+    try {
+      await client.dio.post(
+        client.table('SRSReviewLogs'),
+        data: {
+          'CardId': cardId,
+          'Rating': isFlashcard || correct ? 3 : 1,
+          'OldBoxLevel': currentLevel,
+          'NewBoxLevel': nextLevel,
+          'OldEaseFactor': (row['EaseFactor'] as num?)?.toDouble() ?? 2.5,
+          'NewEaseFactor': 2.5,
+          'ReviewedAt': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+    } catch (_) {
+      // Card scheduling remains usable when review-log RLS is not deployed yet.
+    }
+    if (isFlashcard) {
+      await _recordLocalNewCard(cardId);
+    }
   }
 
-  List<Map<String, dynamic>> _uniqueKanji(List<Map<String, dynamic>> components) {
+  Future<void> _recordLocalNewCard(int cardId) async {
+    final prefs = await SharedPreferences.getInstance();
+    final key =
+        '${AppConstants.dailySrsLearnedPrefix}${_formatDate(DateTime.now())}';
+    final values = (prefs.getStringList(key) ?? const <String>[]).toSet();
+    values.add(cardId.toString());
+    await prefs.setStringList(key, values.toList());
+  }
+
+  Future<Set<int>> _getLocalNewCardIds() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key =
+        '${AppConstants.dailySrsLearnedPrefix}${_formatDate(DateTime.now())}';
+    return (prefs.getStringList(key) ?? const <String>[])
+        .map(int.tryParse)
+        .whereType<int>()
+        .toSet();
+  }
+
+  List<Map<String, dynamic>> _uniqueKanji(
+      List<Map<String, dynamic>> components) {
     final map = <int, Map<String, dynamic>>{};
     for (final comp in components) {
       final kanji = comp['Kanji'] as Map<String, dynamic>?;
@@ -1005,7 +1180,9 @@ class KitsuneApi {
       },
     );
     final data = response.data as List<dynamic>;
-    return data.map((r) => QuizMeta.fromJson(r as Map<String, dynamic>)).toList();
+    return data
+        .map((r) => QuizMeta.fromJson(r as Map<String, dynamic>))
+        .toList();
   }
 
   Future<List<QuizMeta>> getMyQuizzes() async {
@@ -1019,7 +1196,9 @@ class KitsuneApi {
       },
     );
     final data = response.data as List<dynamic>;
-    return data.map((r) => QuizMeta.fromJson(r as Map<String, dynamic>)).toList();
+    return data
+        .map((r) => QuizMeta.fromJson(r as Map<String, dynamic>))
+        .toList();
   }
 
   Future<QuizMeta> createQuiz({
@@ -1067,17 +1246,26 @@ class KitsuneApi {
     final rng = Random();
     final questions = <QuizQuestion>[];
     final allModes = quiz.description.modes;
-    final vocabModes = allModes.where((m) => QuizMode.vocabModes.any((vm) => vm.code == m)).toList();
-    final kanjiModes = allModes.where((m) => QuizMode.kanjiModes.any((km) => km.code == m)).toList();
+    final vocabModes = allModes
+        .where((m) => QuizMode.vocabModes.any((vm) => vm.code == m))
+        .toList();
+    final kanjiModes = allModes
+        .where((m) => QuizMode.kanjiModes.any((km) => km.code == m))
+        .toList();
 
     List<VocabularyDto> vocabs = [];
     if (quiz.description.vocabIds.isNotEmpty) {
       final idsStr = quiz.description.vocabIds.join(',');
       final vocabRes = await client.dio.get(
         client.table('Vocabularies'),
-        queryParameters: {'select': 'Id, Word, Pronunciation, Meaning', 'Id': 'in.($idsStr)'},
+        queryParameters: {
+          'select': 'Id, Word, Pronunciation, Meaning',
+          'Id': 'in.($idsStr)'
+        },
       );
-      vocabs = (vocabRes.data as List<dynamic>).map((r) => VocabularyDto.fromJson(r as Map<String, dynamic>)).toList();
+      vocabs = (vocabRes.data as List<dynamic>)
+          .map((r) => VocabularyDto.fromJson(r as Map<String, dynamic>))
+          .toList();
     }
 
     List<KanjiDetailDto> kanjis = [];
@@ -1085,9 +1273,14 @@ class KitsuneApi {
       final idsStr = quiz.description.kanjiIds.join(',');
       final kanjiRes = await client.dio.get(
         client.table('Kanji'),
-        queryParameters: {'select': 'Id, Character, AmHanViet, Meaning, Onyomi, Kunyomi', 'Id': 'in.($idsStr)'},
+        queryParameters: {
+          'select': 'Id, Character, AmHanViet, Meaning, Onyomi, Kunyomi',
+          'Id': 'in.($idsStr)'
+        },
       );
-      kanjis = (kanjiRes.data as List<dynamic>).map((r) => KanjiDetailDto.fromJson(r as Map<String, dynamic>)).toList();
+      kanjis = (kanjiRes.data as List<dynamic>)
+          .map((r) => KanjiDetailDto.fromJson(r as Map<String, dynamic>))
+          .toList();
     }
 
     List<String> wrongPool = [];
@@ -1108,7 +1301,8 @@ class KitsuneApi {
       if (vocabModes.isEmpty) continue;
       final mode = vocabModes[rng.nextInt(vocabModes.length)];
       if (mode == 'MEAN_FROM_WORD') {
-        final wrongs = _generateWrongOptions(vocab.meaning, wrongPool, vocabs.map((v) => v.meaning).toList(), rng);
+        final wrongs = _generateWrongOptions(vocab.meaning, wrongPool,
+            vocabs.map((v) => v.meaning).toList(), rng);
         questions.add(QuizQuestion(
           id: vocab.id,
           questionText: 'Nghĩa của "${vocab.word}" là gì?',
@@ -1117,7 +1311,8 @@ class KitsuneApi {
           type: QuestionType.mcq,
         ));
       } else if (mode == 'WORD_FROM_MEAN') {
-        final wrongs = _generateWrongOptions(vocab.word, wrongPool, vocabs.map((v) => v.word).toList(), rng);
+        final wrongs = _generateWrongOptions(
+            vocab.word, wrongPool, vocabs.map((v) => v.word).toList(), rng);
         questions.add(QuizQuestion(
           id: vocab.id,
           questionText: 'Từ nào có nghĩa là "${vocab.meaning}"?',
@@ -1128,7 +1323,8 @@ class KitsuneApi {
       } else if (mode == 'FILL_BLANK') {
         questions.add(QuizQuestion(
           id: vocab.id,
-          questionText: 'Viết nghĩa của từ "${vocab.word}" (${vocab.pronunciation ?? ''}):',
+          questionText:
+              'Viết nghĩa của từ "${vocab.word}" (${vocab.pronunciation ?? ''}):',
           options: [vocab.meaning],
           correctAnswer: vocab.meaning,
           type: QuestionType.fill,
@@ -1140,7 +1336,8 @@ class KitsuneApi {
       if (kanjiModes.isEmpty) continue;
       final mode = kanjiModes[rng.nextInt(kanjiModes.length)];
       if (mode == 'HAN_VIET') {
-        final wrongs = _generateWrongOptions(kanji.amHanViet, wrongPool, kanjis.map((k) => k.amHanViet).toList(), rng);
+        final wrongs = _generateWrongOptions(kanji.amHanViet, wrongPool,
+            kanjis.map((k) => k.amHanViet).toList(), rng);
         questions.add(QuizQuestion(
           id: kanji.id,
           questionText: 'Âm Hán Việt của "${kanji.character}" là gì?',
@@ -1149,7 +1346,8 @@ class KitsuneApi {
           type: QuestionType.mcq,
         ));
       } else if (mode == 'ON_KUN_READ') {
-        final readings = [kanji.onyomi ?? '', kanji.kunyomi ?? '']..removeWhere((e) => e.isEmpty);
+        final readings = [kanji.onyomi ?? '', kanji.kunyomi ?? '']
+          ..removeWhere((e) => e.isEmpty);
         final reading = readings.isNotEmpty ? readings.first : kanji.amHanViet;
         questions.add(QuizQuestion(
           id: kanji.id,
@@ -1161,7 +1359,8 @@ class KitsuneApi {
       } else if (mode == 'COMPOSE_KANJI') {
         questions.add(QuizQuestion(
           id: kanji.id,
-          questionText: 'Chữ Kanji nào có nghĩa "${kanji.meaning}" (Âm Hán Việt: ${kanji.amHanViet})?',
+          questionText:
+              'Chữ Kanji nào có nghĩa "${kanji.meaning}" (Âm Hán Việt: ${kanji.amHanViet})?',
           options: [kanji.character],
           correctAnswer: kanji.character,
           type: QuestionType.fill,
@@ -1176,7 +1375,8 @@ class KitsuneApi {
     await client.dio.post(client.table('QuizAttempts'), data: attempt.toJson());
   }
 
-  List<String> _generateWrongOptions(String correct, List<String> pool, List<String> itemMeanings, Random rng) {
+  List<String> _generateWrongOptions(String correct, List<String> pool,
+      List<String> itemMeanings, Random rng) {
     final candidates = <String>{};
     for (final p in pool) {
       if (candidates.length >= 3) break;
@@ -1191,18 +1391,23 @@ class KitsuneApi {
 
   // ── Exams ─────────────────────────────────────────────────────────────────
 
-  Future<List<ExamSummary>> listPublicExams({String query = '', int? jlptLevel}) async {
+  Future<List<ExamSummary>> listPublicExams(
+      {String query = '', int? jlptLevel}) async {
     final parameters = <String, dynamic>{
-      'select': 'Id,Title,Description,JlptLevel,TimeLimitInSeconds,ExamQuestions(Id)',
+      'select':
+          'Id,Title,Description,JlptLevel,TimeLimitInSeconds,ExamQuestions(Id)',
       'IsPublic': 'eq.true',
       'IsDeleted': 'eq.false',
       'order': 'CreatedAt.desc',
     };
     if (jlptLevel != null) parameters['JlptLevel'] = 'eq.$jlptLevel';
-    if (query.trim().isNotEmpty) parameters['Title'] = 'ilike.%${query.trim().replaceAll(',', ' ')}%';
-    final response = await client.dio.get(client.table('Exams'), queryParameters: parameters);
+    if (query.trim().isNotEmpty)
+      parameters['Title'] = 'ilike.%${query.trim().replaceAll(',', ' ')}%';
+    final response = await client.dio
+        .get(client.table('Exams'), queryParameters: parameters);
     return (response.data as List<dynamic>)
-        .map((row) => ExamSummary.fromJson(Map<String, dynamic>.from(row as Map)))
+        .map((row) =>
+            ExamSummary.fromJson(Map<String, dynamic>.from(row as Map)))
         .toList();
   }
 
@@ -1210,7 +1415,8 @@ class KitsuneApi {
     final response = await client.dio.get(
       client.table('Exams'),
       queryParameters: {
-        'select': 'Id,Title,Description,JlptLevel,TimeLimitInSeconds,ExamQuestions(Id,QuestionType,QuestionText,PassageText,OptionsJson,CorrectAnswer,Explanation,OrderIndex)',
+        'select':
+            'Id,Title,Description,JlptLevel,TimeLimitInSeconds,ExamQuestions(Id,QuestionType,QuestionText,PassageText,OptionsJson,CorrectAnswer,Explanation,OrderIndex)',
         'Id': 'eq.$examId',
         'IsDeleted': 'eq.false',
       },
@@ -1234,10 +1440,12 @@ class KitsuneApi {
         'IsCorrect': selected == question.correctAnswer,
       };
     }).toList();
-    final correctCount = evaluated.where((answer) => answer['IsCorrect'] == true).length;
+    final correctCount =
+        evaluated.where((answer) => answer['IsCorrect'] == true).length;
     final totalCount = exam.questions.length;
     final accuracy = totalCount == 0 ? 0.0 : correctCount * 100 / totalCount;
-    final attemptResponse = await client.dio.post(client.table('ExamAttempts'), data: {
+    final attemptResponse =
+        await client.dio.post(client.table('ExamAttempts'), data: {
       'ExamId': exam.id,
       'UserId': userId,
       'AccuracyPercentage': accuracy,
@@ -1245,21 +1453,29 @@ class KitsuneApi {
       'CorrectAnswersCount': correctCount,
       'TotalQuestionsCount': totalCount,
     });
-    final attemptId = (attemptResponse.data as Map<String, dynamic>)['Id'] as int;
+    final attemptId =
+        (attemptResponse.data as Map<String, dynamic>)['Id'] as int;
     if (evaluated.isNotEmpty) {
       await client.dio.post(
         client.table('ExamAttemptAnswers'),
-        data: evaluated.map((answer) => {'AttemptId': attemptId, ...answer}).toList(),
+        data: evaluated
+            .map((answer) => {'AttemptId': attemptId, ...answer})
+            .toList(),
       );
     }
-    return ExamAttemptResult(id: attemptId, correctCount: correctCount, totalCount: totalCount, accuracy: accuracy);
+    return ExamAttemptResult(
+        id: attemptId,
+        correctCount: correctCount,
+        totalCount: totalCount,
+        accuracy: accuracy);
   }
 
   // ── Grammar ────────────────────────────────────────────────────────────────
 
   // ── Grammar ────────────────────────────────────────────────────────────────
 
-  Future<List<GrammarPoint>> searchGrammar({String query = '', int? jlptLevel}) async {
+  Future<List<GrammarPoint>> searchGrammar(
+      {String query = '', int? jlptLevel}) async {
     final parameters = <String, dynamic>{
       'select': SupabaseConfig.grammarSelect,
       'IsDeleted': 'eq.false',
@@ -1269,11 +1485,14 @@ class KitsuneApi {
     if (jlptLevel != null) parameters['JlptLevel'] = 'eq.$jlptLevel';
     if (query.trim().isNotEmpty) {
       final escaped = query.trim().replaceAll(',', ' ');
-      parameters['or'] = '(Title.ilike.%$escaped%,Meaning.ilike.%$escaped%,Structure.ilike.%$escaped%)';
+      parameters['or'] =
+          '(Title.ilike.%$escaped%,Meaning.ilike.%$escaped%,Structure.ilike.%$escaped%)';
     }
-    final response = await client.dio.get(client.table('GrammarPoints'), queryParameters: parameters);
+    final response = await client.dio
+        .get(client.table('GrammarPoints'), queryParameters: parameters);
     return (response.data as List<dynamic>)
-        .map((row) => GrammarPoint.fromJson(Map<String, dynamic>.from(row as Map)))
+        .map((row) =>
+            GrammarPoint.fromJson(Map<String, dynamic>.from(row as Map)))
         .toList();
   }
 
@@ -1285,7 +1504,8 @@ class KitsuneApi {
       _fetchXP(userId),
       _fetchSrsDue(userId),
     ]);
-    return UserStats(streak: results[0], totalXP: results[1], srsCardsDue: results[2]);
+    return UserStats(
+        streak: results[0], totalXP: results[1], srsCardsDue: results[2]);
   }
 
   Future<List<DashboardFolder>> loadDashboardFolders(int userId) async {
@@ -1294,11 +1514,13 @@ class KitsuneApi {
       final folders = await getFolders();
       final limited = folders.take(4).toList();
 
-      return limited.map((f) => DashboardFolder(
-        id: f.id,
-        name: f.name,
-        vocabCount: f.vocabCount,
-      )).toList();
+      return limited
+          .map((f) => DashboardFolder(
+                id: f.id,
+                name: f.name,
+                vocabCount: f.vocabCount,
+              ))
+          .toList();
     } catch (_) {
       return [];
     }
@@ -1334,7 +1556,9 @@ class KitsuneApi {
             },
           );
           final attemptData = attemptResponse.data as List<dynamic>;
-          final lastAttempt = attemptData.isNotEmpty ? attemptData[0] as Map<String, dynamic> : null;
+          final lastAttempt = attemptData.isNotEmpty
+              ? attemptData[0] as Map<String, dynamic>
+              : null;
           quizzes.add(DashboardQuiz(
             id: quizId,
             title: map['Title'] as String,
@@ -1356,7 +1580,8 @@ class KitsuneApi {
       final response = await client.dio.get(
         client.table('QuizAttempts'),
         queryParameters: {
-          'select': 'UserId, AccuracyPercentage, CorrectAnswersCount, Users:UserId(Username, FullName)',
+          'select':
+              'UserId, AccuracyPercentage, CorrectAnswersCount, Users:UserId(Username, FullName)',
           'order': 'CreatedAt.desc',
           'limit': '200',
         },
@@ -1372,7 +1597,9 @@ class KitsuneApi {
         final users = usersRaw is List
             ? (usersRaw.isNotEmpty ? usersRaw[0] as Map<String, dynamic> : null)
             : usersRaw as Map<String, dynamic>?;
-        final name = (users?['FullName'] as String? ?? users?['Username'] as String? ?? 'Ẩn danh');
+        final name = (users?['FullName'] as String? ??
+            users?['Username'] as String? ??
+            'Ẩn danh');
         final accuracy = (map['AccuracyPercentage'] ?? 0.0) as double;
         final correct = (map['CorrectAnswersCount'] ?? 0) as int;
 
@@ -1386,7 +1613,9 @@ class KitsuneApi {
       final sorted = userMap.entries
           .map((e) => _LeaderboardCalc(
                 name: e.value.name,
-                accuracy: e.value.quizCount > 0 ? (e.value.totalAccuracy / e.value.quizCount) : 0.0,
+                accuracy: e.value.quizCount > 0
+                    ? (e.value.totalAccuracy / e.value.quizCount)
+                    : 0.0,
                 quizCount: e.value.quizCount,
                 correctAnswers: e.value.totalCorrect,
               ))
@@ -1431,7 +1660,8 @@ class KitsuneApi {
       final counts = [0, 0, 0, 0, 0, 0, 0];
       final today = DateTime.now();
       for (final row in data) {
-        final date = DateTime.parse((row as Map<String, dynamic>)['CreatedAt'] as String);
+        final date = DateTime.parse(
+            (row as Map<String, dynamic>)['CreatedAt'] as String);
         final diff = today.difference(date).inDays;
         final idx = 6 - diff;
         if (idx >= 0 && idx < 7) counts[idx]++;
@@ -1461,25 +1691,34 @@ class KitsuneApi {
       final quizRows = responses[0].data as List<dynamic>;
       final examRows = responses[1].data as List<dynamic>;
       final cardRows = responses[2].data as List<dynamic>;
-      final cardIds = cardRows.map((row) => (row as Map<String, dynamic>)['Id']).join(',');
+      final cardIds =
+          cardRows.map((row) => (row as Map<String, dynamic>)['Id']).join(',');
       final reviewRows = cardIds.isEmpty
           ? <dynamic>[]
           : (await client.dio.get(
               client.table('SRSReviewLogs'),
-              queryParameters: {'select': 'ReviewedAt', 'CardId': 'in.($cardIds)'},
+              queryParameters: {
+                'select': 'ReviewedAt',
+                'CardId': 'in.($cardIds)'
+              },
             ))
               .data as List<dynamic>;
 
       final dates = <String>{};
       for (final row in [...quizRows, ...examRows]) {
-        dates.add(_formatDate(DateTime.parse((row as Map<String, dynamic>)['CreatedAt'] as String).toLocal()));
+        dates.add(_formatDate(
+            DateTime.parse((row as Map<String, dynamic>)['CreatedAt'] as String)
+                .toLocal()));
       }
       for (final row in reviewRows) {
-        dates.add(_formatDate(DateTime.parse((row as Map<String, dynamic>)['ReviewedAt'] as String).toLocal()));
+        dates.add(_formatDate(DateTime.parse(
+                (row as Map<String, dynamic>)['ReviewedAt'] as String)
+            .toLocal()));
       }
 
       var cursor = DateTime.now();
-      if (!dates.contains(_formatDate(cursor))) cursor = cursor.subtract(const Duration(days: 1));
+      if (!dates.contains(_formatDate(cursor)))
+        cursor = cursor.subtract(const Duration(days: 1));
       if (!dates.contains(_formatDate(cursor))) return 0;
 
       var streak = 0;
@@ -1497,11 +1736,19 @@ class KitsuneApi {
     try {
       final response = await client.dio.get(
         client.table('QuizAttempts'),
-        queryParameters: {'select': 'CorrectAnswersCount', 'UserId': 'eq.$userId'},
+        queryParameters: {
+          'select': 'CorrectAnswersCount',
+          'UserId': 'eq.$userId'
+        },
       );
       final data = response.data as List<dynamic>;
       return data.fold<int>(
-          0, (sum, row) => sum + (((row as Map<String, dynamic>)['CorrectAnswersCount'] ?? 0) as int) * 10);
+          0,
+          (sum, row) =>
+              sum +
+              (((row as Map<String, dynamic>)['CorrectAnswersCount'] ?? 0)
+                      as int) *
+                  10);
     } catch (_) {
       return 0;
     }
@@ -1532,7 +1779,8 @@ class KitsuneApi {
 
   // ── Shared helpers ───────────────────────────────────────────────────────────
 
-  String _normalize(String value) => value.trim().toLowerCase().replaceAll('*', '').replaceAll('%', '');
+  String _normalize(String value) =>
+      value.trim().toLowerCase().replaceAll('*', '').replaceAll('%', '');
 }
 
 class _SrsContext {
@@ -1541,6 +1789,8 @@ class _SrsContext {
   final int userId;
   final List<Map<String, dynamic>> vocabs;
   final List<Map<String, dynamic>> kanjiComponents;
+  final Map<int, List<SrsVocabularyExample>> kanjiExamples;
+  final int todayNewLearned;
   final List<Map<String, dynamic>> cards;
 
   _SrsContext({
@@ -1549,6 +1799,8 @@ class _SrsContext {
     required this.userId,
     required this.vocabs,
     required this.kanjiComponents,
+    required this.kanjiExamples,
+    required this.todayNewLearned,
     required this.cards,
   });
 }

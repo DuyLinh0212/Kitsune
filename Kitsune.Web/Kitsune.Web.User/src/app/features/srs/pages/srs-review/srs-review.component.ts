@@ -64,6 +64,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
   // ─── Limit state ────────────────────────────────────────────────────────────
   readonly selectedLimit = signal<number | null>(null);
+  readonly dailyGoal = signal<number | null>(null);
   readonly dueQueue = signal<SRSCardDto[]>([]);
   readonly newQueue = signal<SRSCardDto[]>([]);
 
@@ -103,14 +104,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.phase() === 'flashcard' ? this.currentFlashcard() : this.currentQuizCard()
   );
   readonly totalStudyUnits = computed(() => {
-    const limit = this.selectedLimit();
-    const session = this.activeSession();
-    if (!session) return 0;
-    
-    if (limit !== null && limit !== -1) {
-      return Math.min(limit, session.flashcards.length + session.quizCards.length);
-    }
-    return session.flashcards.length + session.quizCards.length;
+    return this.dueQueue().length + this.newQueue().length;
   });
   readonly completedUnits = computed(
     () => this.stats().flashCompleted + this.stats().quizCompleted
@@ -131,6 +125,12 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     if (answers === 0) return 100;
     return Math.round(((answers - this.stats().mistakes) / answers) * 100);
   });
+  readonly todayNewLearned = computed(() =>
+    (this.activeSession()?.overview.todayNewLearned ?? 0) + this.stats().flashCompleted
+  );
+  readonly remainingDailyGoal = computed(() =>
+    Math.max(0, (this.dailyGoal() ?? 0) - this.todayNewLearned())
+  );
 
   /** Bar chart: count cards by boxLevel 0–7 (all 8 levels) */
   readonly levelDistribution = computed<LevelBucket[]>(() => {
@@ -207,6 +207,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
               dueCards: 0,
               learnedCards: 0,
               masteredCards: 0,
+              todayNewLearned: 0,
               nextDueAt: null,
             } satisfies DashboardFolder;
           }
@@ -437,6 +438,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.dueQueue.set([]);
     this.newQueue.set([]);
     this.selectedLimit.set(null);
+    this.dailyGoal.set(this.srsService.getDailyGoal());
     this.stats.set({
       flashCompleted: 0,
       quizCompleted: 0,
@@ -454,25 +456,46 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.phase.set('setup_quantity');
   }
   
-  applyLimit(limit: number): void {
+  chooseDailyGoal(limit: number): void {
     const session = this.activeSession();
     if (!session) return;
-    
-    this.selectedLimit.set(limit);
-    
-    const allDue = session.quizCards;
-    const allNew = session.flashcards;
-    
-    let actualLimit = limit;
-    if (actualLimit === -1) {
-      actualLimit = allDue.length + allNew.length;
-    }
-    
-    const dueCount = Math.min(actualLimit, allDue.length);
-    const newCount = Math.min(actualLimit - dueCount, allNew.length);
-    
-    this.dueQueue.set(allDue.slice(0, dueCount));
-    this.newQueue.set(allNew.slice(0, newCount));
+    const resolved = limit === -1 ? session.flashcards.length : limit;
+    this.srsService.setDailyGoal(Math.max(1, resolved));
+    this.dailyGoal.set(Math.max(1, resolved));
+    this.prepareQueues(resolved);
+  }
+
+  continueDailyGoal(): void {
+    this.prepareQueues(this.remainingDailyGoal());
+  }
+
+  learnMore(limit: number): void {
+    const session = this.activeSession();
+    if (!session) return;
+    const resolved = limit === -1 ? session.flashcards.length : limit;
+    const nextGoal = this.todayNewLearned() + Math.max(1, resolved);
+    this.srsService.setDailyGoal(nextGoal);
+    this.dailyGoal.set(nextGoal);
+    this.prepareQueues(resolved);
+  }
+
+  reviewOnly(): void {
+    const session = this.activeSession();
+    if (!session) return;
+    this.selectedLimit.set(session.quizCards.length);
+    this.dueQueue.set([...session.quizCards]);
+    this.newQueue.set([]);
+    this.startStudyingQueues();
+  }
+
+  private prepareQueues(newCardLimit: number): void {
+    const session = this.activeSession();
+    if (!session) return;
+
+    const newCount = Math.min(Math.max(0, newCardLimit), session.flashcards.length);
+    this.selectedLimit.set(session.quizCards.length + newCount);
+    this.dueQueue.set([...session.quizCards]);
+    this.newQueue.set(session.flashcards.slice(0, newCount));
     
     if (this.dueQueue().length > 0) {
       this.phase.set('prompt_review');

@@ -81,7 +81,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/login', (_) => false);
               }
             },
             icon: const Icon(Icons.logout_rounded),
@@ -156,7 +157,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             const SizedBox(height: AppTheme.space20),
             const KitsuneSectionHeader(
               title: 'Thống kê học tập',
-              subtitle: 'Tổng hợp nhanh nhịp học hiện tại của bạn.',
               accent: KitsuneColors.primary,
             ),
             const SizedBox(height: AppTheme.space12),
@@ -190,14 +190,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ),
               loading: () => const Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
-                child: KitsuneLoadingFox(message: 'Đang tải thống kê...', size: 72),
+                child: KitsuneLoadingFox(
+                    message: 'Đang tải thống kê...', size: 72),
               ),
               error: (_, __) => const SizedBox.shrink(),
             ),
             const SizedBox(height: AppTheme.space20),
             KitsuneSectionHeader(
               title: 'Thông tin tài khoản',
-              subtitle: 'Những dữ liệu đang được dùng để cá nhân hóa hành trình học.',
               actionLabel: 'Chỉnh sửa',
               onAction: () => _showEditDialog(context, ref, user),
             ),
@@ -230,29 +230,9 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ],
               ),
             ),
-            const SizedBox(height: AppTheme.space16),
-            KitsuneSurface(
-              color: KitsuneColors.stampSurface,
-              child: Row(
-                children: [
-                  const Icon(
-                    Icons.auto_awesome_rounded,
-                    color: KitsuneColors.primary,
-                  ),
-                  const SizedBox(width: AppTheme.space12),
-                  Expanded(
-                    child: Text(
-                      'Tên hiển thị đẹp và rõ sẽ giúp bạn nhận diện tốt hơn trên bảng xếp hạng và trong quiz cộng đồng.',
-                      style: Theme.of(context).textTheme.bodyMedium,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: AppTheme.space20),
             const KitsuneSectionHeader(
               title: 'Cài đặt',
-              subtitle: 'Tùy chỉnh và thông tin ứng dụng.',
               accent: KitsuneColors.secondary,
             ),
             const SizedBox(height: AppTheme.space12),
@@ -266,7 +246,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         color: KitsuneColors.surfaceVariant,
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(Icons.description_outlined, size: 20, color: KitsuneColors.onSurfaceVariant),
+                      child: const Icon(Icons.description_outlined,
+                          size: 20, color: KitsuneColors.onSurfaceVariant),
                     ),
                     title: const Text('Điều khoản dịch vụ'),
                     trailing: const Icon(Icons.chevron_right_rounded),
@@ -390,21 +371,29 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: const [
-                Text('1. Chấp nhận điều khoản', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('1. Chấp nhận điều khoản',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 SizedBox(height: 4),
-                Text('Bằng việc đăng ký tài khoản và sử dụng Kitsune, bạn đồng ý tuân thủ các điều khoản này.'),
+                Text(
+                    'Bằng việc đăng ký tài khoản và sử dụng Kitsune, bạn đồng ý tuân thủ các điều khoản này.'),
                 SizedBox(height: 12),
-                Text('2. Quyền riêng tư & Dữ liệu', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('2. Quyền riêng tư & Dữ liệu',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 SizedBox(height: 4),
-                Text('Chúng tôi lưu trữ thông tin cơ bản (email, tên) và tiến trình học tập của bạn để đồng bộ trên các thiết bị. Dữ liệu của bạn được bảo mật và không chia sẻ cho bên thứ ba vì mục đích quảng cáo.'),
+                Text(
+                    'Chúng tôi lưu trữ thông tin cơ bản (email, tên) và tiến trình học tập của bạn để đồng bộ trên các thiết bị. Dữ liệu của bạn được bảo mật và không chia sẻ cho bên thứ ba vì mục đích quảng cáo.'),
                 SizedBox(height: 12),
-                Text('3. Sử dụng hợp lý', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('3. Sử dụng hợp lý',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 SizedBox(height: 4),
-                Text('Bạn không được sử dụng các công cụ tự động (bot) để tạo tải giả hoặc phá hoại dịch vụ. Mọi hành vi vi phạm có thể dẫn đến việc khóa tài khoản vĩnh viễn mà không cần báo trước.'),
+                Text(
+                    'Bạn không được sử dụng các công cụ tự động (bot) để tạo tải giả hoặc phá hoại dịch vụ. Mọi hành vi vi phạm có thể dẫn đến việc khóa tài khoản vĩnh viễn mà không cần báo trước.'),
                 SizedBox(height: 12),
-                Text('4. Quyền sở hữu nội dung', style: TextStyle(fontWeight: FontWeight.bold)),
+                Text('4. Quyền sở hữu nội dung',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
                 SizedBox(height: 4),
-                Text('Dữ liệu từ vựng và ngữ pháp do cộng đồng đóng góp thuộc quyền sở hữu chung. Mã nguồn và thiết kế của Kitsune thuộc quyền sở hữu của tác giả Nguyễn Duy Linh.'),
+                Text(
+                    'Dữ liệu từ vựng và ngữ pháp do cộng đồng đóng góp thuộc quyền sở hữu chung. Mã nguồn và thiết kế của Kitsune thuộc quyền sở hữu của tác giả Nguyễn Duy Linh.'),
               ],
             ),
           ),
@@ -419,4 +408,3 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 }
-

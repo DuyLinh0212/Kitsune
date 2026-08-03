@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kitsune_app/core/services/app_usage_service.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
@@ -17,6 +18,7 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   final _searchController = TextEditingController();
   int? _userId;
+  List<double> _weekUsageHours = List<double>.filled(7, 0);
 
   @override
   void initState() {
@@ -34,8 +36,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     final api = ref.read(kitsuneApiProvider);
     try {
       final userId = await api.getCurrentUserId();
+      final usageHours = await AppUsageService.instance.loadWeekHours();
       if (mounted) {
-        setState(() => _userId = userId);
+        setState(() {
+          _userId = userId;
+          _weekUsageHours = usageHours;
+        });
       }
     } catch (_) {}
   }
@@ -78,24 +84,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                       },
                     ),
                     const SizedBox(height: AppTheme.space16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: OutlinedButton.icon(
-                            onPressed: () => Navigator.pushNamed(context, '/grammar'),
-                            icon: const Icon(Icons.menu_book_outlined),
-                            label: const Text('Học ngữ pháp'),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () => Navigator.pushNamed(context, '/exams'),
-                            icon: const Icon(Icons.assignment_rounded),
-                            label: const Text('Làm đề kiểm tra'),
-                          ),
-                        ),
-                      ],
+                    ElevatedButton.icon(
+                      onPressed: () => Navigator.pushNamed(context, '/exams'),
+                      icon: const Icon(Icons.assignment_rounded),
+                      label: const Text('Làm đề kiểm tra'),
                     ),
                     const SizedBox(height: AppTheme.space24),
                     const KitsuneSectionHeader(
@@ -117,7 +109,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       title: 'Quiz của bạn',
                       subtitle: 'Ôn lại bộ đề bạn đã tạo hoặc chơi lại ngay.',
                       actionLabel: 'Mở bộ quiz',
-                      onAction: () => Navigator.pushNamed(context, '/my_quizzes'),
+                      onAction: () =>
+                          Navigator.pushNamed(context, '/my_quizzes'),
                     ),
                     const SizedBox(height: AppTheme.space12),
                     _buildMyQuizzes(),
@@ -126,7 +119,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                       title: 'Bảng xếp hạng',
                       subtitle: 'Nhìn nhanh mặt bằng chung của cộng đồng.',
                       actionLabel: 'Chi tiết',
-                      onAction: () => Navigator.pushNamed(context, '/leaderboard'),
+                      onAction: () =>
+                          Navigator.pushNamed(context, '/leaderboard'),
                     ),
                     const SizedBox(height: AppTheme.space12),
                     _buildLeaderboardPreview(),
@@ -142,7 +136,8 @@ class _HomePageState extends ConsumerState<HomePage> {
     return statsAsync.when(
       data: (stats) {
         return KitsuneHeroCard(
-          title: 'Xin chào ${user?.displayName ?? 'bạn'}, hôm nay mình học gì tiếp?',
+          title:
+              'Xin chào ${user?.displayName ?? 'bạn'}, hôm nay mình học gì tiếp?',
           subtitle: stats.srsCardsDue > 0
               ? 'Bạn đang có ${stats.srsCardsDue} thẻ đến hạn. Đây là lúc tốt nhất để giữ nhịp nhớ lâu.'
               : 'Hôm nay chưa có thẻ đến hạn. Đây là thời điểm đẹp để mở thêm quiz hoặc thư mục mới.',
@@ -188,108 +183,103 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildWeekChart() {
-    final weekData = ref.watch(weekChartProvider(_userId!));
-    return weekData.when(
-      data: (data) {
-        final maxValue =
-            data.reduce((a, b) => a > b ? a : b).clamp(1, 999999).toDouble();
-        final days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    final data = _weekUsageHours;
+    final maxValue = data.reduce((a, b) => a > b ? a : b).clamp(0.25, 999999);
+    final totalHours = data.fold<double>(0, (sum, value) => sum + value);
+    final days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
 
-        return KitsuneSurface(
-          padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return KitsuneSurface(
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  KitsuneMetricPill(
-                    label: 'Streak',
-                    value: '${ref.watch(userStatsProvider(_userId!)).valueOrNull?.streak ?? 0} ngày',
-                    icon: Icons.local_fire_department_rounded,
-                    color: KitsuneColors.primary,
-                  ),
-                  KitsuneMetricPill(
-                    label: 'XP',
-                    value: '${ref.watch(userStatsProvider(_userId!)).valueOrNull?.totalXP ?? 0}',
-                    icon: Icons.workspace_premium_rounded,
-                    color: KitsuneColors.stamp,
-                  ),
-                ],
+              KitsuneMetricPill(
+                label: 'Streak',
+                value:
+                    '${ref.watch(userStatsProvider(_userId!)).valueOrNull?.streak ?? 0} ngày',
+                icon: Icons.local_fire_department_rounded,
+                color: KitsuneColors.primary,
               ),
-              const SizedBox(height: AppTheme.space18),
-              SizedBox(
-                height: 132,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: List.generate(7, (index) {
-                    final isToday = index == DateTime.now().weekday % 7;
-                    final barHeight = data[index] > 0
-                        ? (data[index] / maxValue * 76).clamp(8.0, 76.0)
-                        : 8.0;
-
-                    return Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            '${data[index]}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: isToday
-                                  ? KitsuneColors.primary
-                                  : KitsuneColors.onSurfaceVariant,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          AnimatedContainer(
-                            duration: const Duration(milliseconds: 280),
-                            curve: Curves.easeOutCubic,
-                            width: 28,
-                            height: barHeight,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                begin: Alignment.bottomCenter,
-                                end: Alignment.topCenter,
-                                colors: isToday
-                                    ? [
-                                        KitsuneColors.primary,
-                                        KitsuneColors.primaryLight,
-                                      ]
-                                    : [
-                                        KitsuneColors.secondary,
-                                        KitsuneColors.secondaryLight,
-                                      ],
-                              ),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            days[index],
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight:
-                                  isToday ? FontWeight.w800 : FontWeight.w600,
-                              color: isToday
-                                  ? KitsuneColors.primary
-                                  : KitsuneColors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }),
-                ),
+              KitsuneMetricPill(
+                label: 'Giờ mở app',
+                value: '${totalHours.toStringAsFixed(1)}h',
+                icon: Icons.schedule_rounded,
+                color: KitsuneColors.stamp,
               ),
             ],
           ),
-        );
-      },
-      loading: () => const KitsuneSurface(child: SizedBox(height: 140)),
-      error: (_, __) => const KitsuneSurface(child: SizedBox(height: 140)),
+          const SizedBox(height: AppTheme.space18),
+          SizedBox(
+            height: 132,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: List.generate(7, (index) {
+                final isToday = index == DateTime.now().weekday % 7;
+                final barHeight = data[index] > 0
+                    ? (data[index] / maxValue * 76).clamp(8.0, 76.0)
+                    : 8.0;
+
+                return Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        '${data[index].toStringAsFixed(1)}h',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: isToday
+                              ? KitsuneColors.primary
+                              : KitsuneColors.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 280),
+                        curve: Curves.easeOutCubic,
+                        width: 28,
+                        height: barHeight,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.bottomCenter,
+                            end: Alignment.topCenter,
+                            colors: isToday
+                                ? [
+                                    KitsuneColors.primary,
+                                    KitsuneColors.primaryLight,
+                                  ]
+                                : [
+                                    KitsuneColors.secondary,
+                                    KitsuneColors.secondaryLight,
+                                  ],
+                          ),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        days[index],
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight:
+                              isToday ? FontWeight.w800 : FontWeight.w600,
+                          color: isToday
+                              ? KitsuneColors.primary
+                              : KitsuneColors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -301,7 +291,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           return KitsuneEmptyState(
             icon: Icons.folder_open_rounded,
             title: 'Chưa có thư mục nào',
-            message: 'Tạo thư mục đầu tiên để gom từ vựng theo chủ đề và ôn tập gọn hơn.',
+            message:
+                'Tạo thư mục đầu tiên để gom từ vựng theo chủ đề và ôn tập gọn hơn.',
             action: SizedBox(
               width: 180,
               child: ElevatedButton(
@@ -320,13 +311,14 @@ class _HomePageState extends ConsumerState<HomePage> {
             separatorBuilder: (_, __) => const SizedBox(width: 12),
             itemBuilder: (_, index) {
               final folder = items[index];
-              final color =
-                  KitsuneColors.folderColors[index % KitsuneColors.folderColors.length];
+              final color = KitsuneColors
+                  .folderColors[index % KitsuneColors.folderColors.length];
 
               return SizedBox(
                 width: 188,
                 child: KitsuneSurface(
-                  onTap: () => Navigator.pushNamed(context, '/folders/${folder.id}'),
+                  onTap: () =>
+                      Navigator.pushNamed(context, '/folders/${folder.id}'),
                   color: KitsuneColors.surface,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -373,11 +365,13 @@ class _HomePageState extends ConsumerState<HomePage> {
           return KitsuneEmptyState(
             icon: Icons.quiz_outlined,
             title: 'Bạn chưa tạo quiz nào',
-            message: 'Dựng một bộ quiz riêng để luyện đúng phần từ vựng bạn đang học.',
+            message:
+                'Dựng một bộ quiz riêng để luyện đúng phần từ vựng bạn đang học.',
             action: SizedBox(
               width: 180,
               child: ElevatedButton(
-                onPressed: () => Navigator.pushNamed(context, '/quizzes/create'),
+                onPressed: () =>
+                    Navigator.pushNamed(context, '/quizzes/create'),
                 child: const Text('Tạo quiz'),
               ),
             ),
@@ -466,7 +460,8 @@ class _HomePageState extends ConsumerState<HomePage> {
           return const KitsuneEmptyState(
             icon: Icons.leaderboard_outlined,
             title: 'Bảng xếp hạng đang trống',
-            message: 'Hoàn thành quiz để bắt đầu xuất hiện trên đường đua cộng đồng.',
+            message:
+                'Hoàn thành quiz để bắt đầu xuất hiện trên đường đua cộng đồng.',
           );
         }
 

@@ -256,13 +256,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const KitsuneHeroCard(
-                      title: 'Search',
-                      subtitle:
-                          'Tra nhanh từ vựng và kanji trong một màn hình giống một từ điển học tập.',
-                      accent: KitsuneColors.primary,
+                    Text(
+                      'Tra cứu',
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
                     ),
-                    const SizedBox(height: AppTheme.space16),
+                    const SizedBox(height: AppTheme.space12),
                     KitsuneSearchField(
                       controller: _searchController,
                       focusNode: _searchFocusNode,
@@ -273,7 +274,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                         setState(() {});
                         _scheduleSearch(value);
                       },
-                      onSubmitted: (value) => _performSearch(value, reset: true),
+                      onSubmitted: (value) =>
+                          _performSearch(value, reset: true),
                       onClear: () {
                         _debounce?.cancel();
                         _searchController.clear();
@@ -286,10 +288,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       children: [
                         Expanded(
                           child: _CategoryPill(
-                            label: 'Vocabulary',
+                            label: 'Từ vựng',
                             icon: Icons.menu_book_rounded,
                             isSelected: isVocabulary,
-                            onTap: () => _switchCategory(SearchCategory.vocabulary),
+                            onTap: () =>
+                                _switchCategory(SearchCategory.vocabulary),
                           ),
                         ),
                         const SizedBox(width: AppTheme.space10),
@@ -313,7 +316,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   child: _isLoading
                       ? const Center(
                           key: ValueKey('loading'),
-                          child: KitsuneLoadingFox(message: 'Đang tìm kiếm...', size: 88),
+                          child: KitsuneLoadingFox(
+                              message: 'Đang tìm kiếm...', size: 88),
                         )
                       : _isShowingSearchState
                           ? KeyedSubtree(
@@ -347,8 +351,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           return const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: KitsuneSectionHeader(
-              title: 'Vocabulary picks',
-              subtitle: 'Mở app là có thể tra từ ngay, hoặc xem nhanh vài mục để mở rộng vốn từ.',
+              title: 'Gợi ý từ vựng',
+              subtitle: 'Chạm để xem nghĩa, cách đọc và lưu vào thư mục.',
               accent: KitsuneColors.primary,
             ),
           );
@@ -369,8 +373,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           return const Padding(
             padding: EdgeInsets.only(bottom: 12),
             child: KitsuneSectionHeader(
-              title: 'Kanji picks',
-              subtitle: 'Chạm vào bất kỳ chữ nào để mở chi tiết, xem bộ thủ và nét viết ngay.',
+              title: 'Gợi ý kanji',
+              subtitle: 'Chạm để xem âm đọc, bộ thủ và số nét.',
               accent: KitsuneColors.secondary,
             ),
           );
@@ -685,7 +689,6 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 }
-
 
 class _CategoryPill extends StatelessWidget {
   const _CategoryPill({

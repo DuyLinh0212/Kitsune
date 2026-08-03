@@ -497,6 +497,68 @@
   grid-area: leader;
 }
 
+.activity-card {
+  grid-area: leader;
+}
+
+.activity-total {
+  color: var(--orange);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.usage-chart {
+  min-height: 190px;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+  align-items: end;
+  flex: 1;
+}
+
+.usage-day {
+  height: 180px;
+  display: grid;
+  grid-template-rows: 22px 1fr 20px;
+  gap: 6px;
+  text-align: center;
+}
+
+.usage-value,
+.usage-label {
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.usage-track {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--bg-base);
+}
+
+.usage-bar {
+  width: 100%;
+  min-height: 5px;
+  border-radius: 12px 12px 5px 5px;
+  background: linear-gradient(180deg, var(--violet), var(--violet-dark));
+  transition: height 300ms ease;
+}
+
+.usage-bar--today {
+  background: linear-gradient(180deg, var(--orange), #b8441c);
+}
+
+.activity-note {
+  margin: 10px 0 0;
+  color: var(--text-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
 .lb-list {
   display: flex;
   flex-direction: column;

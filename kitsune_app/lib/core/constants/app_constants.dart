@@ -43,6 +43,8 @@ class AppConstants {
 
   // Active folder storage key
   static const String activeFolderKey = 'kitsune.srs.activeFolderId';
+  static const String dailySrsGoalPrefix = 'kitsune.srs.dailyGoal.';
+  static const String dailySrsLearnedPrefix = 'kitsune.srs.learnedCards.';
 
   // Active dates storage key prefix
   static const String activeDatesPrefix = 'kitsune.active_dates.';

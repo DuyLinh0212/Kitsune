@@ -9,6 +9,7 @@ import { UserStatsService } from '../../../../core/services/user-stats.service';
 import { UserProfile } from '../../../../core/models/auth.model';
 import { supabase } from '../../../../core/supabase/supabase.client';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { UsageTrackingService } from '../../../../core/services/usage-tracking.service';
 
 // ── Interfaces ──────────────────────────────────────────────────────────────
 interface FolderItem {
@@ -51,6 +52,7 @@ interface SearchResult {
 export class HomeComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly userStatsService = inject(UserStatsService);
+  private readonly usageTrackingService = inject(UsageTrackingService);
   protected readonly router = inject(Router);
   protected readonly Math = Math;
 
@@ -85,7 +87,6 @@ export class HomeComponent implements OnInit {
       await Promise.all([
         this.loadFolders(userId),
         this.loadMyQuizzes(userId),
-        this.loadLeaderboard(),
         this.loadSrsWeekData(userId),
       ]);
     } catch (err) {
@@ -118,32 +119,8 @@ export class HomeComponent implements OnInit {
   // Removed loadStreak, loadXP, loadSrsCount as they are now in UserStatsService.
 
   private async loadSrsWeekData(userId: number): Promise<void> {
-    try {
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-
-      const { data, error } = await supabase
-        .from('QuizAttempts')
-        .select('CreatedAt')
-        .eq('UserId', userId)
-        .gte('CreatedAt', sevenDaysAgo.toISOString());
-
-      if (error || !data) return;
-
-      const counts = [0, 0, 0, 0, 0, 0, 0];
-      const today = new Date();
-      for (const row of data as { CreatedAt: string }[]) {
-        const date = new Date(row.CreatedAt);
-        const diffDays = Math.round(
-          (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-        );
-        const idx = 6 - diffDays;
-        if (idx >= 0 && idx < 7) counts[idx]++;
-      }
-      this.srsWeekData.set(counts);
-    } catch (e) {
-      console.warn('[Home] SRS week data load failed', e);
-    }
+    void userId;
+    this.srsWeekData.set(this.usageTrackingService.getWeekHours());
   }
 
   private async loadFolders(userId: number): Promise<void> {
@@ -358,7 +335,11 @@ export class HomeComponent implements OnInit {
   }
 
   get maxWeekValue(): number {
-    return Math.max(...this.srsWeekData(), 1);
+    return Math.max(...this.srsWeekData(), 0.25);
+  }
+
+  get totalWeekHours(): number {
+    return this.srsWeekData().reduce((sum, value) => sum + value, 0);
   }
 
   getBarHeight(val: number): number {

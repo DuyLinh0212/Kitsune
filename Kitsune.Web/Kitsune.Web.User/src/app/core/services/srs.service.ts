@@ -12,6 +12,12 @@ export type SrsMode =
   | 'HAN_VIET'
   | 'COMPOSE_KANJI';
 
+export interface SrsVocabularyExample {
+  word: string;
+  pronunciation: string | null;
+  meaning: string;
+}
+
 export interface SRSCardDto {
   id: number;
   userId: number;
@@ -26,6 +32,7 @@ export interface SRSCardDto {
   amHanViet: string | null;
   onyomi: string | null;
   kunyomi: string | null;
+  examples: SrsVocabularyExample[];
   strokeCount: number | null;
   boxLevel: number;
   nextReviewDate: string;
@@ -41,6 +48,7 @@ export interface FolderSrsOverview {
   dueCards: number;
   learnedCards: number;
   masteredCards: number;
+  todayNewLearned: number;
   nextDueAt: string | null;
 }
 
@@ -122,7 +130,15 @@ interface KanjiComponentRow {
   Kanji: KanjiRow;
 }
 
+interface KanjiExampleRow {
+  KanjiId: number;
+  VocabularyId: number;
+  Vocabulary: VocabRow | null;
+}
+
 const ACTIVE_FOLDER_STORAGE_KEY = 'kitsune.srs.activeFolderId';
+const DAILY_GOAL_STORAGE_PREFIX = 'kitsune.srs.dailyGoal.';
+const DAILY_LEARNED_STORAGE_PREFIX = 'kitsune.srs.learnedCards.';
 const BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
   0: 0,
   1: 4 * 60 * 60 * 1000,
@@ -136,6 +152,21 @@ const BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
 
 @Injectable({ providedIn: 'root' })
 export class SrsService {
+  getDailyGoal(): number | null {
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem(`${DAILY_GOAL_STORAGE_PREFIX}${this.localDateKey()}`);
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
+  }
+
+  setDailyGoal(goal: number): void {
+    if (typeof window === 'undefined') return;
+    window.localStorage.setItem(
+      `${DAILY_GOAL_STORAGE_PREFIX}${this.localDateKey()}`,
+      String(Math.max(1, Math.floor(goal)))
+    );
+  }
+
   getActiveFolderId(): number | null {
     if (typeof window === 'undefined') return null;
     const raw = window.localStorage.getItem(ACTIVE_FOLDER_STORAGE_KEY);
@@ -212,10 +243,13 @@ export class SrsService {
     if (!email) return null;
 
     const userId = await this.getCurrentUserId(email);
-    const context = await this.loadFolderContext(resolvedFolderId, userId);
-    await this.insertMissingCards(context);
+    let context = await this.loadFolderContext(resolvedFolderId, userId);
+    const insertedCards = await this.insertMissingCards(context);
+    if (insertedCards) {
+      context = await this.loadFolderContext(resolvedFolderId, userId);
+    }
     const cards = this.mapCards(context);
-    const overview = this.buildOverview(context.folder, cards);
+    const overview = this.buildOverview(context.folder, cards, context.todayNewLearned);
     const flashcards = cards.filter((card) => card.boxLevel === 0);
     const quizCards = cards.filter((card) => card.boxLevel > 0 && card.isDue);
 
@@ -282,6 +316,7 @@ export class SrsService {
       ReviewedAt: new Date().toISOString(),
     });
     if (logError) console.warn('Không thể ghi log ôn tập SRS:', logError.message);
+    if (flashcard) this.recordLocalNewCard(cardId);
   }
 
   private async loadFolderContext(folderId: number, userId: number): Promise<{
@@ -290,6 +325,8 @@ export class SrsService {
     folder: FolderRow;
     vocabs: VocabRow[];
     kanjiComponents: KanjiComponentRow[];
+    kanjiExamples: Map<number, SrsVocabularyExample[]>;
+    todayNewLearned: number;
     cards: DbCardRow[];
   }> {
     const [{ data: folderData, error: folderError }, { data: vocabData, error: vocabError }, { data: cardData, error: cardError }] =
@@ -317,14 +354,74 @@ export class SrsService {
       ? []
       : await this.loadKanjiComponents(vocabIds);
 
+    const kanjiIds = this.uniqueKanji(kanjiComponents).map((kanji) => kanji.Id);
+    const userCardIds = ((cardData ?? []) as DbCardRow[]).map((card) => card.Id);
+    const [kanjiExamples, todayNewLearned] = await Promise.all([
+      this.loadKanjiExamples(kanjiIds),
+      this.loadTodayNewLearned(userCardIds),
+    ]);
+
     return {
       folderId,
       userId,
       folder: folderData as FolderRow,
       vocabs,
       kanjiComponents,
+      kanjiExamples,
+      todayNewLearned,
       cards: (cardData ?? []) as DbCardRow[],
     };
+  }
+
+  private async loadKanjiExamples(kanjiIds: number[]): Promise<Map<number, SrsVocabularyExample[]>> {
+    const examples = new Map<number, SrsVocabularyExample[]>();
+    if (kanjiIds.length === 0) return examples;
+
+    const { data, error } = await supabase
+      .from('KanjiComponents')
+      .select('KanjiId, VocabularyId, Vocabulary:VocabularyId(Id, Word, Pronunciation, Meaning, FolderId)')
+      .in('KanjiId', kanjiIds)
+      .order('VocabularyId', { ascending: true });
+
+    if (error) throw error;
+    for (const raw of (data ?? []) as unknown[]) {
+      const row = raw as KanjiExampleRow;
+      const vocabulary = row.Vocabulary;
+      if (!vocabulary) continue;
+      const current = examples.get(row.KanjiId) ?? [];
+      if (current.length >= 3 || current.some((item) => item.word === vocabulary.Word)) continue;
+      current.push({
+        word: vocabulary.Word,
+        pronunciation: vocabulary.Pronunciation,
+        meaning: vocabulary.Meaning ?? '',
+      });
+      examples.set(row.KanjiId, current);
+    }
+    return examples;
+  }
+
+  private async loadTodayNewLearned(cardIds: number[]): Promise<number> {
+    const localCount = this.getLocalNewCardIds().size;
+    if (cardIds.length === 0) return localCount;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+
+    const { data, error } = await supabase
+      .from('SRSReviewLogs')
+      .select('CardId')
+      .in('CardId', cardIds)
+      .eq('OldBoxLevel', 0)
+      .gte('ReviewedAt', start.toISOString())
+      .lt('ReviewedAt', end.toISOString());
+
+    if (error) {
+      console.warn('Không thể tải tiến độ từ mới hôm nay:', error.message);
+      return localCount;
+    }
+    const databaseCount = new Set((data ?? []).map((row) => row.CardId as number)).size;
+    return Math.max(databaseCount, localCount);
   }
 
   private async loadKanjiComponents(vocabIds: number[]): Promise<KanjiComponentRow[]> {
@@ -350,7 +447,7 @@ export class SrsService {
     });
   }
 
-  private async insertMissingCards(context: Awaited<ReturnType<SrsService['loadFolderContext']>>): Promise<void> {
+  private async insertMissingCards(context: Awaited<ReturnType<SrsService['loadFolderContext']>>): Promise<boolean> {
     const existingKeys = new Set<string>();
     for (const row of context.cards) {
       existingKeys.add(this.cardKey(row.VocabularyId, row.KanjiId));
@@ -392,10 +489,11 @@ export class SrsService {
       existingKeys.add(key);
     }
 
-    if (inserts.length === 0) return;
+    if (inserts.length === 0) return false;
 
     const { error } = await supabase.from('SRSCards').insert(inserts);
     if (error) throw error;
+    return true;
   }
 
   private mapCards(context: Awaited<ReturnType<SrsService['loadFolderContext']>>): SRSCardDto[] {
@@ -411,7 +509,7 @@ export class SrsService {
     );
 
     return rows
-      .map((row) => this.mapRowToCard(row, vocabMap, kanjiMap, context.folderId, now))
+      .map((row) => this.mapRowToCard(row, vocabMap, kanjiMap, context.kanjiExamples, context.folderId, now))
       .sort((a, b) => this.sortValue(a) - this.sortValue(b));
   }
 
@@ -419,6 +517,7 @@ export class SrsService {
     row: DbCardRow,
     vocabMap: Map<number, VocabRow>,
     kanjiMap: Map<number, KanjiRow>,
+    kanjiExamples: Map<number, SrsVocabularyExample[]>,
     folderId: number,
     now: number
   ): SRSCardDto {
@@ -442,6 +541,7 @@ export class SrsService {
       amHanViet: kanji?.AmHanViet ?? null,
       onyomi: kanji?.Onyomi ?? null,
       kunyomi: kanji?.Kunyomi ?? null,
+      examples: row.KanjiId != null ? (kanjiExamples.get(row.KanjiId) ?? []) : [],
       strokeCount: kanji?.StrokeCount ?? null,
       boxLevel,
       nextReviewDate,
@@ -450,7 +550,7 @@ export class SrsService {
     };
   }
 
-  private buildOverview(folder: FolderRow, cards: SRSCardDto[]): FolderSrsOverview {
+  private buildOverview(folder: FolderRow, cards: SRSCardDto[], todayNewLearned: number): FolderSrsOverview {
     const totalCards = cards.length;
     const newCards = cards.filter((card) => card.boxLevel === 0).length;
     const dueCards = cards.filter((card) => card.boxLevel > 0 && card.isDue).length;
@@ -466,6 +566,7 @@ export class SrsService {
       dueCards,
       learnedCards,
       masteredCards,
+      todayNewLearned,
       nextDueAt,
     };
   }
@@ -507,6 +608,35 @@ export class SrsService {
 
   private cardKey(vocabularyId: number | null, kanjiId: number | null): string {
     return `${vocabularyId ?? 'v'}:${kanjiId ?? 'k'}`;
+  }
+
+  private localDateKey(): string {
+    const now = new Date();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${month}-${day}`;
+  }
+
+  private recordLocalNewCard(cardId: number): void {
+    if (typeof window === 'undefined') return;
+    const ids = this.getLocalNewCardIds();
+    ids.add(cardId);
+    window.localStorage.setItem(
+      `${DAILY_LEARNED_STORAGE_PREFIX}${this.localDateKey()}`,
+      JSON.stringify([...ids])
+    );
+  }
+
+  private getLocalNewCardIds(): Set<number> {
+    if (typeof window === 'undefined') return new Set<number>();
+    const raw = window.localStorage.getItem(`${DAILY_LEARNED_STORAGE_PREFIX}${this.localDateKey()}`);
+    if (!raw) return new Set<number>();
+    try {
+      const values = JSON.parse(raw) as unknown[];
+      return new Set(values.map(Number).filter((value) => Number.isFinite(value)));
+    } catch {
+      return new Set<number>();
+    }
   }
 
   private normalizeLevel(level: number | null | undefined): number {

@@ -745,8 +745,22 @@
   font-size: 24px;
   font-weight: 800;
   color: var(--text-main);
-  margin: 0 0 32px;
+  margin: 0 0 20px;
   line-height: 1.3;
+}
+
+.setup-copy {
+  margin: 0 0 24px;
+  color: var(--text-muted);
+  line-height: 1.55;
+}
+
+.setup-kicker {
+  margin: 0 0 8px;
+  color: var(--orange);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
 }
 
 .limit-options {
@@ -776,6 +790,17 @@
   border-color: var(--violet);
   color: var(--violet-dark);
   transform: translateY(-2px);
+}
+
+.btn-limit--primary {
+  color: #fff;
+  border-color: var(--violet);
+  background: linear-gradient(135deg, var(--violet), var(--violet-dark));
+}
+
+.btn-limit--primary:hover {
+  color: #fff;
+  background: linear-gradient(135deg, var(--violet-dark), var(--violet));
 }
 
 .btn-ok {
@@ -825,7 +850,7 @@
 /* ─── Flashcard ──────────────────────────────────────────────────── */
 .flashcard {
   position: relative;
-  height: 340px;
+  height: 430px;
   background: transparent;
   border: none;
   padding: 0;
@@ -1003,6 +1028,47 @@
   gap: 8px;
   flex-wrap: wrap;
   justify-content: center;
+}
+
+.fc-examples {
+  width: min(100%, 520px);
+  display: grid;
+  gap: 6px;
+  color: rgba(255, 255, 255, 0.94);
+}
+
+.fc-examples__title {
+  margin-bottom: 2px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.fc-example {
+  display: grid;
+  grid-template-columns: minmax(70px, auto) minmax(70px, auto) 1fr;
+  gap: 10px;
+  align-items: baseline;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  text-align: left;
+}
+
+.fc-example__word {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.fc-example__reading,
+.fc-example__meaning,
+.fc-examples__empty {
+  font-size: 12px;
+}
+
+.fc-example__reading {
+  opacity: 0.72;
 }
 
 .reading-chip {
@@ -1535,13 +1601,19 @@
     font-size: 72px;
   }
   .flashcard {
-    height: 280px;
+    height: 440px;
   }
   .fc-kanji-char {
     font-size: 72px;
   }
   .fc-vocab-word {
     font-size: 56px;
+  }
+  .fc-example {
+    grid-template-columns: 1fr 1fr;
+  }
+  .fc-example__meaning {
+    grid-column: 1 / -1;
   }
   .flashcard-actions {
     flex-direction: column;

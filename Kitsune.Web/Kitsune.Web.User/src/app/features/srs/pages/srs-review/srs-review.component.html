@@ -263,14 +263,35 @@
                 <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
                 <path d="M12 12 2.1 7.1"></path>
               </svg>
-              <h2>Hôm nay bạn muốn học bao nhiêu từ?</h2>
-              
-              <div class="limit-options">
-                <button class="btn-limit" (click)="applyLimit(10)">10 từ</button>
-                <button class="btn-limit" (click)="applyLimit(20)">20 từ</button>
-                <button class="btn-limit" (click)="applyLimit(30)">30 từ</button>
-                <button class="btn-limit" (click)="applyLimit(-1)">Tất cả</button>
-              </div>
+              @if (dailyGoal() === null) {
+                <h2>Hôm nay bạn muốn học bao nhiêu từ mới?</h2>
+                <p class="setup-copy">Thẻ đến hạn luôn được ôn riêng và không trừ vào số từ mới.</p>
+                <div class="limit-options">
+                  <button class="btn-limit" (click)="chooseDailyGoal(10)">10 từ mới</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(20)">20 từ mới</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(30)">30 từ mới</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(-1)">Tất cả từ mới</button>
+                </div>
+              } @else {
+                <p class="setup-kicker">NHỊP HỌC HÔM NAY</p>
+                <h2>Bạn đã học {{ todayNewLearned() }}/{{ dailyGoal() }} từ mới.</h2>
+                @if (remainingDailyGoal() > 0) {
+                  <p class="setup-copy">Còn {{ remainingDailyGoal() }} từ để hoàn thành mục tiêu. Bạn có thể học tiếp hoặc chỉ ôn thẻ đến hạn.</p>
+                  <div class="limit-options">
+                    <button class="btn-limit btn-limit--primary" (click)="continueDailyGoal()">
+                      Học tiếp {{ remainingDailyGoal() }} từ
+                    </button>
+                    <button class="btn-limit" (click)="reviewOnly()">Chỉ ôn tập</button>
+                  </div>
+                } @else {
+                  <p class="setup-copy">Mục tiêu hôm nay đã hoàn thành. Giữ đúng 10 từ/ngày bằng cách chỉ ôn tập, hoặc chủ động học thêm.</p>
+                  <div class="limit-options">
+                    <button class="btn-limit btn-limit--primary" (click)="reviewOnly()">Chỉ ôn tập</button>
+                    <button class="btn-limit" (click)="learnMore(5)">Học thêm 5 từ</button>
+                    <button class="btn-limit" (click)="learnMore(10)">Học thêm 10 từ</button>
+                  </div>
+                }
+              }
             </div>
           </div>
         }
@@ -327,6 +348,22 @@
                     }
                     @if (card.kunyomi) {
                       <span class="reading-chip reading-chip--kun">Kun: {{ card.kunyomi }}</span>
+                    }
+                  </div>
+                  <div class="fc-examples">
+                    <div class="fc-examples__title">Ví dụ có {{ card.character }}</div>
+                    @if (card.examples.length > 0) {
+                      @for (example of card.examples; track example.word) {
+                        <div class="fc-example">
+                          <span class="fc-example__word">{{ example.word }}</span>
+                          @if (example.pronunciation) {
+                            <span class="fc-example__reading">{{ example.pronunciation }}</span>
+                          }
+                          <span class="fc-example__meaning">{{ example.meaning }}</span>
+                        </div>
+                      }
+                    } @else {
+                      <span class="fc-examples__empty">Chưa có từ vựng phù hợp trong hệ thống.</span>
                     }
                   </div>
                 </div>

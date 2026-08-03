@@ -149,35 +149,31 @@
       }
     </div>
 
-    <!-- 5. LEADERBOARD -->
-    <div class="bento-card leaderboard-card">
+    <!-- 5. WEEKLY USAGE -->
+    <div class="bento-card activity-card">
       <div class="card-header">
         <h3 class="card-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-          Bảng vinh danh
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg>
+          Nhịp học tuần này
         </h3>
-        <button class="header-link" (click)="router.navigate(['/leaderboard'])">Bảng xếp hạng</button>
+        <span class="activity-total">{{ totalWeekHours | number:'1.1-1' }} giờ mở web</span>
       </div>
-
-      @if (leaderboard().length === 0) {
-        <div class="empty-state small">
-          <p>Đang cập nhật...</p>
-        </div>
-      } @else {
-        <div class="lb-list">
-          @for (entry of leaderboard().slice(0, 5); track entry.rank) {
-            <div class="lb-row" [class.lb-top]="entry.rank <= 3">
-              <span class="lb-medal">{{ getRankMedal(entry.rank) }}</span>
-              <div class="lb-avatar">{{ entry.name.charAt(0).toUpperCase() }}</div>
-              <span class="lb-name">{{ entry.name }}</span>
-              <div class="lb-stats">
-                <span class="lb-acc">{{ entry.accuracy | number:'1.0-0' }}%</span>
-                <span class="lb-quizcount">{{ entry.quizCount }} bài</span>
-              </div>
+      <div class="usage-chart" aria-label="Biểu đồ số giờ mở web trong 7 ngày gần nhất">
+        @for (value of srsWeekData(); track $index) {
+          <div class="usage-day">
+            <span class="usage-value">{{ value | number:'1.1-1' }}h</span>
+            <div class="usage-track">
+              <div
+                class="usage-bar"
+                [class.usage-bar--today]="$index === 6"
+                [style.height.%]="getBarHeight(value)"
+              ></div>
             </div>
-          }
-        </div>
-      }
+            <span class="usage-label">{{ getDayLabel($index) }}</span>
+          </div>
+        }
+      </div>
+      <p class="activity-note">Chỉ tính thời gian tab Kitsune đang được mở, không tính lúc tab chạy nền.</p>
     </div>
 
     }

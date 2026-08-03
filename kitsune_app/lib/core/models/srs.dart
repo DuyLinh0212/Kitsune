@@ -2,6 +2,18 @@
 
 enum SrsItemType { vocabulary, kanji }
 
+class SrsVocabularyExample {
+  final String word;
+  final String? pronunciation;
+  final String meaning;
+
+  const SrsVocabularyExample({
+    required this.word,
+    this.pronunciation,
+    required this.meaning,
+  });
+}
+
 class SRSCardDto {
   final int id;
   final int userId;
@@ -16,6 +28,7 @@ class SRSCardDto {
   final String? amHanViet;
   final String? onyomi;
   final String? kunyomi;
+  final List<SrsVocabularyExample> examples;
   final int? strokeCount;
   final int boxLevel;
   final String nextReviewDate;
@@ -36,6 +49,7 @@ class SRSCardDto {
     this.amHanViet,
     this.onyomi,
     this.kunyomi,
+    this.examples = const [],
     this.strokeCount,
     required this.boxLevel,
     required this.nextReviewDate,
@@ -52,6 +66,7 @@ class FolderSrsOverview {
   final int dueCards;
   final int learnedCards;
   final int masteredCards;
+  final int todayNewLearned;
   final String? nextDueAt;
   final bool canSwitchFolder;
 
@@ -63,6 +78,7 @@ class FolderSrsOverview {
     required this.dueCards,
     required this.learnedCards,
     required this.masteredCards,
+    required this.todayNewLearned,
     this.nextDueAt,
     required this.canSwitchFolder,
   });

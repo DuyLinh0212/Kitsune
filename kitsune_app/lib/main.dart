@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/models/exam.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
+import 'package:kitsune_app/core/services/srs_notification_service.dart';
+import 'package:kitsune_app/core/services/app_usage_service.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
@@ -34,6 +36,8 @@ void main() async {
   try {
     final supabaseClient = SupabaseClient();
     await supabaseClient.init();
+    await SrsNotificationService.instance.initialize();
+    AppUsageService.instance.startTracking();
   } catch (e, stackTrace) {
     debugPrint('Error initializing SupabaseClient: \$e');
     debugPrint(stackTrace.toString());
@@ -164,8 +168,12 @@ class KitsuneApp extends ConsumerWidget {
                 settings.name!.startsWith('/exams/')) {
               final parts = settings.name!.split('/');
               final id = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
-              if (parts.length > 4 && parts[3] == 'result' && settings.arguments is ExamAttemptResult) {
-                page = ExamResultPage(examId: id, result: settings.arguments! as ExamAttemptResult);
+              if (parts.length > 4 &&
+                  parts[3] == 'result' &&
+                  settings.arguments is ExamAttemptResult) {
+                page = ExamResultPage(
+                    examId: id,
+                    result: settings.arguments! as ExamAttemptResult);
               } else {
                 page = ExamPlayPage(examId: id);
               }
@@ -259,6 +267,11 @@ const _navItems = [
     label: 'Ôn tập',
   ),
   _NavItem(
+    icon: Icons.menu_book_outlined,
+    selectedIcon: Icons.menu_book_rounded,
+    label: 'Ngữ pháp',
+  ),
+  _NavItem(
     icon: Icons.person_outline_rounded,
     selectedIcon: Icons.person_rounded,
     label: 'Cá nhân',
@@ -272,6 +285,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     HomePage(),
     SearchPage(),
     SrsReviewPage(),
+    GrammarPage(),
     ProfilePage(),
   ];
 
@@ -301,8 +315,9 @@ class _MainScreenState extends ConsumerState<MainScreen> {
               children: List.generate(_navItems.length, (index) {
                 final item = _navItems[index];
                 final isSelected = index == _currentIndex;
-                final tint =
-                    isSelected ? KitsuneColors.primary : KitsuneColors.onSurfaceMuted;
+                final tint = isSelected
+                    ? KitsuneColors.primary
+                    : KitsuneColors.onSurfaceMuted;
 
                 return Expanded(
                   child: InkWell(
@@ -321,7 +336,8 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                           item.label,
                           style: TextStyle(
                             fontSize: 11,
-                            fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
                             color: tint,
                           ),
                         ),
