@@ -34,6 +34,7 @@ export class VocabularySearchComponent implements OnInit {
   readonly folders = signal<FolderDto[]>([]);
   readonly selectedKanji = signal<KanjiDetailDto | null>(null);
   readonly newFolderName = signal('');
+  readonly folderTarget = signal<'vocabulary' | 'kanji'>('vocabulary');
 
   // Trạng thái loading
   readonly isSearching = signal(false);
@@ -149,6 +150,15 @@ export class VocabularySearchComponent implements OnInit {
 
   // --- Folder ---
   openFolderModal(): void {
+    if (!this.selectedVocab()) return;
+    this.folderTarget.set('vocabulary');
+    this.showFolderModal.set(true);
+    this.newFolderName.set('');
+  }
+
+  openKanjiFolderModal(): void {
+    if (!this.selectedKanji()) return;
+    this.folderTarget.set('kanji');
     this.showFolderModal.set(true);
     this.newFolderName.set('');
   }
@@ -164,7 +174,7 @@ export class VocabularySearchComponent implements OnInit {
       next: (folder) => {
         this.folders.update((f) => [folder, ...f]);
         this.newFolderName.set('');
-        this.showFolderModal.set(false);
+        this.addToFolder(folder.id, folder.name);
         this.showToast('success', `Đã tạo thư mục "${folder.name}"`);
       },
       error: () => this.showToast('error', 'Không thể tạo thư mục'),
@@ -172,6 +182,11 @@ export class VocabularySearchComponent implements OnInit {
   }
 
   addToFolder(folderId: number, folderName: string): void {
+    if (this.folderTarget() === 'kanji') {
+      this.addKanjiToFolder(folderId, folderName);
+      return;
+    }
+
     const vocab = this.selectedVocab();
     if (!vocab || this.isAddingToFolder()) return;
     this.isAddingToFolder.set(true);
@@ -202,6 +217,32 @@ export class VocabularySearchComponent implements OnInit {
             this.showToast('error', 'Không thể thêm vào thư mục');
           },
         });
+      },
+    });
+  }
+
+  private addKanjiToFolder(folderId: number, folderName: string): void {
+    const kanji = this.selectedKanji();
+    if (!kanji || this.isAddingToFolder()) return;
+
+    this.isAddingToFolder.set(true);
+    this.folderService.addVocabularyCopy(
+      folderId,
+      kanji.character,
+      kanji.onyomi ?? kanji.kunyomi ?? null,
+      `${kanji.meaning} (${kanji.amHanViet})`,
+      1,
+      kanji.id
+    ).subscribe({
+      next: () => {
+        this.isAddingToFolder.set(false);
+        this.closeFolderModal();
+        this.folderService.triggerVocabAdded(folderId);
+        this.showToast('success', `Đã thêm kanji ${kanji.character} vào thư mục "${folderName}"`);
+      },
+      error: () => {
+        this.isAddingToFolder.set(false);
+        this.showToast('error', 'Không thể thêm kanji vào thư mục. Kanji có thể đã tồn tại trong thư mục này.');
       },
     });
   }
@@ -248,6 +289,16 @@ export class VocabularySearchComponent implements OnInit {
   closeKanjiModal(): void {
     this.showKanjiModal.set(false);
     this.selectedKanji.set(null);
+  }
+
+  folderModalTitle(): string {
+    return this.folderTarget() === 'kanji' ? 'Thêm kanji vào thư mục' : 'Thêm từ vào thư mục';
+  }
+
+  folderModalItemName(): string {
+    return this.folderTarget() === 'kanji'
+      ? (this.selectedKanji()?.character ?? '')
+      : (this.selectedVocab()?.word ?? '');
   }
 
   // --- Helpers ---

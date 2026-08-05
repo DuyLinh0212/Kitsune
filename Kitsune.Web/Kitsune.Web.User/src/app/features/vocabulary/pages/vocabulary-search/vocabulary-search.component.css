@@ -877,6 +877,64 @@
   line-height: 1.5;
 }
 
+.detail-quick-folder,
+.kanji-add-folder-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--violet) 26%, var(--border-light));
+  border-radius: 999px;
+  background: var(--violet-light);
+  color: var(--violet-dark);
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  transition: transform 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+}
+
+.detail-quick-folder {
+  padding: 8px 11px;
+}
+
+.kanji-modal__actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-light);
+}
+
+.kanji-add-folder-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--violet);
+  border-color: var(--violet);
+  color: #fff;
+  font-size: 14px;
+}
+
+.detail-quick-folder:hover,
+.kanji-add-folder-btn:hover {
+  transform: translateY(-1px);
+}
+
+.detail-quick-folder:hover {
+  background: color-mix(in srgb, var(--violet-light) 60%, #fff);
+  border-color: var(--violet);
+}
+
+.kanji-add-folder-btn:hover {
+  background: var(--violet-dark);
+}
+
+.detail-quick-folder:focus-visible,
+.kanji-add-folder-btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--violet) 28%, transparent);
+  outline-offset: 2px;
+}
+
 /* ===================================
    RESPONSIVE
    =================================== */
