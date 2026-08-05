@@ -356,11 +356,11 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
   }
 
   get selectedCount(): number {
-    return this.vocabularies().length + this.kanjiItems().length;
+    return this.vocabularyItems().length + this.kanjiItems().length;
   }
 
   get vocabCount(): number {
-    return this.vocabularies().length;
+    return this.vocabularyItems().length;
   }
 
   get kanjiCount(): number {
@@ -438,8 +438,9 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
   }
 
   private selectInitialItem(vocabs: VocabularyDto[]): void {
-    if (vocabs.length > 0) {
-      this.selectVocab(vocabs[0]);
+    const vocabItems = vocabs.filter((vocab) => !this.isKanjiOnly(vocab));
+    if (vocabItems.length > 0) {
+      this.selectVocab(vocabItems[0]);
       return;
     }
 
@@ -456,7 +457,7 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
   private filterVocabs(): VocabularyDto[] {
     const query = this.normalizeQuery(this.searchQuery());
     const radicalFilterId = this.selectedRadicalFilter();
-    let vocabs = this.vocabularies();
+    let vocabs = this.vocabularyItems();
 
     if (radicalFilterId) {
       vocabs = vocabs.filter((vocab) =>
@@ -512,6 +513,22 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private vocabularyItems(): VocabularyDto[] {
+    return this.vocabularies().filter((vocab) => !this.isKanjiOnly(vocab));
+  }
+
+  private isKanjiOnly(vocab: VocabularyDto): boolean {
+    const itemType = vocab.specificData?.['_kitsuneItemType'];
+    if (itemType === 'kanji') return true;
+    if (itemType === 'vocabulary' || vocab.specificData) return false;
+
+    // Legacy Kanji copies were created before `_kitsuneItemType` existed.
+    // Keep them in the Kanji index while removing their duplicate ledger row.
+    return vocab.word.trim().length === 1
+      && vocab.kanjiComponents.length === 1
+      && vocab.kanjiComponents[0].character === vocab.word.trim();
   }
 
   private matchesQuery(value: string, query: string): boolean {

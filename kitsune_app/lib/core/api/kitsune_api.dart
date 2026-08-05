@@ -342,6 +342,9 @@ class KitsuneApi {
       'Word': word,
       'Pronunciation': pronunciation,
       'Meaning': meaning,
+      'SpecificData': kanjiId != null
+          ? {'_kitsuneItemType': 'kanji', '_kanjiId': kanjiId}
+          : {'_kitsuneItemType': 'vocabulary'},
     });
     if (kanjiId != null) {
       final newVocab = response.data as Map<String, dynamic>;
@@ -367,6 +370,7 @@ class KitsuneApi {
       'Word': word,
       'Pronunciation': pronunciation,
       'Meaning': meaning,
+      'SpecificData': {'_kitsuneItemType': 'vocabulary'},
     });
     final newVocab = response.data as Map<String, dynamic>;
 

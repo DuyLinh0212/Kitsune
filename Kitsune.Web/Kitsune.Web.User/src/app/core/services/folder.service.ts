@@ -124,15 +124,33 @@ export class FolderService {
     return from(
       supabase
         .from('Vocabularies')
-        .update({ FolderId: folderId })
+        .select('Id, SpecificData')
         .eq('Id', vocabularyId)
-        .select('Id')
     ).pipe(
-      map(({ data, error }) => {
+      switchMap(({ data, error }) => {
         if (error) throw error;
-        if (!data || (data as { Id: number }[]).length === 0) {
+        const current = data?.[0] as { Id: number; SpecificData: Record<string, unknown> | null } | undefined;
+        if (!current) {
           throw new Error('Từ vựng này không thuộc về bạn hoặc không tìm thấy');
         }
+        const specificData = { ...(current.SpecificData ?? {}) };
+        if (!specificData['_kitsuneItemType']) {
+          specificData['_kitsuneItemType'] = 'vocabulary';
+        }
+        return from(
+          supabase
+            .from('Vocabularies')
+            .update({ FolderId: folderId, SpecificData: specificData })
+            .eq('Id', vocabularyId)
+            .select('Id')
+        ).pipe(
+          map(({ data: updated, error: updateError }) => {
+            if (updateError) throw updateError;
+            if (!updated || updated.length === 0) {
+              throw new Error('Từ vựng này không thuộc về bạn hoặc không tìm thấy');
+            }
+          })
+        );
       })
     );
   }
@@ -167,6 +185,9 @@ export class FolderService {
               Word: word,
               Pronunciation: pronunciation ?? null,
               Meaning: meaning,
+              SpecificData: kanjiId
+                ? { _kitsuneItemType: 'kanji', _kanjiId: kanjiId }
+                : { _kitsuneItemType: 'vocabulary' },
             })
             .select('Id')
             .single()
