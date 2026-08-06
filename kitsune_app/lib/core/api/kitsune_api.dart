@@ -336,6 +336,12 @@ class KitsuneApi {
     int languageId, {
     int? kanjiId,
   }) async {
+    await _ensureNoFolderDuplicate(
+      folderId,
+      word,
+      isKanji: kanjiId != null,
+      kanjiId: kanjiId,
+    );
     final response = await client.dio.post(client.table('Vocabularies'), data: {
       'FolderId': folderId,
       'LanguageId': languageId,
@@ -364,6 +370,7 @@ class KitsuneApi {
     required String meaning,
     required List<int> kanjiIds,
   }) async {
+    await _ensureNoFolderDuplicate(folderId, word, isKanji: false);
     final response = await client.dio.post(client.table('Vocabularies'), data: {
       'FolderId': folderId,
       'LanguageId': languageId,
@@ -386,6 +393,55 @@ class KitsuneApi {
     }
 
     await client.dio.post(client.table('KanjiComponents'), data: inserts);
+  }
+
+  Future<void> _ensureNoFolderDuplicate(
+    int folderId,
+    String word, {
+    required bool isKanji,
+    int? kanjiId,
+  }) async {
+    final response = await client.dio.get(
+      client.table('Vocabularies'),
+      queryParameters: {
+        'select': 'Id,Word,SpecificData,KanjiComponents(KanjiId)',
+        'FolderId': 'eq.$folderId',
+        'Word': 'eq.$word',
+      },
+    );
+    final rows = response.data as List<dynamic>;
+    final duplicate = rows.any((raw) {
+      final row = raw as Map<String, dynamic>;
+      final specificData = row['SpecificData'] as Map<String, dynamic>?;
+      final storedType = specificData?['_kitsuneItemType'];
+
+      if (storedType == 'kanji') {
+        return isKanji &&
+            (kanjiId == null || specificData?['_kanjiId'] == kanjiId);
+      }
+      if (storedType == 'vocabulary' || specificData != null) {
+        return !isKanji;
+      }
+
+      final components = (row['KanjiComponents'] as List<dynamic>?) ?? [];
+      final isLegacyKanji = word.trim().runes.length == 1 &&
+          components.length == 1 &&
+          (components.first as Map<String, dynamic>)['KanjiId'] != null;
+      if (isLegacyKanji) {
+        final storedKanjiId =
+            (components.first as Map<String, dynamic>)['KanjiId'] as int?;
+        return isKanji && (kanjiId == null || storedKanjiId == kanjiId);
+      }
+      return !isKanji;
+    });
+
+    if (duplicate) {
+      throw Exception(
+        isKanji
+            ? 'Kanji này đã có trong thư mục!'
+            : 'Từ vựng này đã có trong thư mục!',
+      );
+    }
   }
 
   Future<void> removeVocabulary(int vocabularyId) async {
@@ -832,13 +888,15 @@ class KitsuneApi {
     final vocabRes = await client.dio.get(
       client.table('Vocabularies'),
       queryParameters: {
-        'select': 'Id, Word, Pronunciation, Meaning, FolderId',
+        'select': 'Id, Word, Pronunciation, Meaning, FolderId, SpecificData',
         'FolderId': 'eq.$folderId',
         'order': 'CreatedAt.asc',
       },
     );
-    final vocabs =
+    final allVocabs =
         (vocabRes.data as List<dynamic>).cast<Map<String, dynamic>>();
+    final vocabs =
+        allVocabs.where((vocab) => !_isKanjiOnlyVocabulary(vocab)).toList();
 
     final cardRes = await client.dio.get(
       client.table('SRSCards'),
@@ -849,7 +907,7 @@ class KitsuneApi {
     );
     final cards = (cardRes.data as List<dynamic>).cast<Map<String, dynamic>>();
 
-    final vocabIds = vocabs.map((v) => v['Id'] as int).toList();
+    final vocabIds = allVocabs.map((v) => v['Id'] as int).toList();
     List<Map<String, dynamic>> kanjiComponents = [];
     if (vocabIds.isNotEmpty) {
       final idsStr = vocabIds.join(',');
@@ -869,8 +927,19 @@ class KitsuneApi {
         .map((kanji) => kanji['Id'] as int)
         .toList();
     final kanjiExamples = await _loadKanjiExamples(kanjiIds);
-    final userCardIds = cards.map((card) => card['Id'] as int).toList();
-    final todayNewLearned = await _loadTodayNewLearned(userCardIds);
+    final visibleVocabIds = vocabs.map((vocab) => vocab['Id'] as int).toSet();
+    final visibleKanjiIds = kanjiIds.toSet();
+    final folderCardIds = cards
+        .where((card) {
+          final vocabularyId = card['VocabularyId'] as int?;
+          final kanjiId = card['KanjiId'] as int?;
+          return vocabularyId != null
+              ? visibleVocabIds.contains(vocabularyId)
+              : kanjiId != null && visibleKanjiIds.contains(kanjiId);
+        })
+        .map((card) => card['Id'] as int)
+        .toList();
+    final todayNewLearned = await _loadTodayNewLearned(folderCardIds);
 
     return _SrsContext(
       folderId: folderId,
@@ -893,7 +962,7 @@ class KitsuneApi {
       client.table('KanjiComponents'),
       queryParameters: {
         'select':
-            'KanjiId,VocabularyId,Vocabulary:VocabularyId(Id,Word,Pronunciation,Meaning,FolderId)',
+            'KanjiId,VocabularyId,Vocabulary:VocabularyId(Id,Word,Pronunciation,Meaning,FolderId,SpecificData)',
         'KanjiId': 'in.(${kanjiIds.join(',')})',
         'order': 'VocabularyId.asc',
       },
@@ -903,7 +972,7 @@ class KitsuneApi {
       final row = raw as Map<String, dynamic>;
       final kanjiId = row['KanjiId'] as int;
       final vocabulary = row['Vocabulary'] as Map<String, dynamic>?;
-      if (vocabulary == null) continue;
+      if (vocabulary == null || _isKanjiOnlyVocabulary(vocabulary)) continue;
       final current = result.putIfAbsent(kanjiId, () => []);
       final word = vocabulary['Word'] as String? ?? '';
       if (current.length >= 3 || current.any((item) => item.word == word))
@@ -991,6 +1060,11 @@ class KitsuneApi {
     if (inserts.isEmpty) return false;
     await client.dio.post(client.table('SRSCards'), data: inserts);
     return true;
+  }
+
+  bool _isKanjiOnlyVocabulary(Map<String, dynamic> vocab) {
+    final specificData = vocab['SpecificData'] as Map<String, dynamic>?;
+    return specificData?['_kitsuneItemType'] == 'kanji';
   }
 
   FolderSrsOverview _buildSrsOverview(_SrsContext context) {

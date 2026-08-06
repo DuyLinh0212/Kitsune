@@ -306,13 +306,6 @@
               </div>
             }
 
-            @if (vocab.specificData) {
-              <div class="inspector-section">
-                <span class="inspector-section__label">Specific data</span>
-                <pre class="inspector-code">{{ vocab.specificData | json }}</pre>
-              </div>
-            }
-
             <div class="inspector-actions">
               <button type="button" class="primary-action" (click)="openVocabDetail(vocab)">
                 Mở trang tra cứu từ này

@@ -112,6 +112,7 @@ interface VocabRow {
   Pronunciation: string | null;
   Meaning: string | null;
   FolderId: number;
+  SpecificData: Record<string, unknown> | null;
 }
 
 interface KanjiRow {
@@ -334,7 +335,7 @@ export class SrsService {
         supabase.from('VocabularyFolder').select('Id, FolderName').eq('Id', folderId).single(),
         supabase
           .from('Vocabularies')
-          .select('Id, Word, Pronunciation, Meaning, FolderId')
+          .select('Id, Word, Pronunciation, Meaning, FolderId, SpecificData')
           .eq('FolderId', folderId)
           .order('CreatedAt', { ascending: true }),
         supabase
@@ -347,18 +348,28 @@ export class SrsService {
     if (vocabError) throw vocabError;
     if (cardError) throw cardError;
 
-    const vocabs = (vocabData ?? []) as VocabRow[];
-    const vocabIds = vocabs.map((v) => v.Id);
+    const allVocabs = (vocabData ?? []) as VocabRow[];
+    const vocabs = allVocabs.filter((vocab) => !this.isKanjiOnlyVocabulary(vocab));
+    const vocabIds = allVocabs.map((v) => v.Id);
 
     const kanjiComponents = vocabIds.length === 0
       ? []
       : await this.loadKanjiComponents(vocabIds);
 
     const kanjiIds = this.uniqueKanji(kanjiComponents).map((kanji) => kanji.Id);
-    const userCardIds = ((cardData ?? []) as DbCardRow[]).map((card) => card.Id);
+    const allCards = (cardData ?? []) as DbCardRow[];
+    const visibleVocabIds = new Set(vocabs.map((vocab) => vocab.Id));
+    const visibleKanjiIds = new Set(kanjiIds);
+    const folderCardIds = allCards
+      .filter((card) =>
+        card.VocabularyId != null
+          ? visibleVocabIds.has(card.VocabularyId)
+          : card.KanjiId != null && visibleKanjiIds.has(card.KanjiId)
+      )
+      .map((card) => card.Id);
     const [kanjiExamples, todayNewLearned] = await Promise.all([
       this.loadKanjiExamples(kanjiIds),
-      this.loadTodayNewLearned(userCardIds),
+      this.loadTodayNewLearned(folderCardIds),
     ]);
 
     return {
@@ -369,7 +380,7 @@ export class SrsService {
       kanjiComponents,
       kanjiExamples,
       todayNewLearned,
-      cards: (cardData ?? []) as DbCardRow[],
+      cards: allCards,
     };
   }
 
@@ -379,7 +390,7 @@ export class SrsService {
 
     const { data, error } = await supabase
       .from('KanjiComponents')
-      .select('KanjiId, VocabularyId, Vocabulary:VocabularyId(Id, Word, Pronunciation, Meaning, FolderId)')
+      .select('KanjiId, VocabularyId, Vocabulary:VocabularyId(Id, Word, Pronunciation, Meaning, FolderId, SpecificData)')
       .in('KanjiId', kanjiIds)
       .order('VocabularyId', { ascending: true });
 
@@ -387,7 +398,7 @@ export class SrsService {
     for (const raw of (data ?? []) as unknown[]) {
       const row = raw as KanjiExampleRow;
       const vocabulary = row.Vocabulary;
-      if (!vocabulary) continue;
+      if (!vocabulary || this.isKanjiOnlyVocabulary(vocabulary)) continue;
       const current = examples.get(row.KanjiId) ?? [];
       if (current.length >= 3 || current.some((item) => item.word === vocabulary.Word)) continue;
       current.push({
@@ -604,6 +615,10 @@ export class SrsService {
       map.set(row.KanjiId, row.Kanji);
     }
     return [...map.values()];
+  }
+
+  private isKanjiOnlyVocabulary(vocab: Pick<VocabRow, 'SpecificData'>): boolean {
+    return vocab.SpecificData?.['_kitsuneItemType'] === 'kanji';
   }
 
   private cardKey(vocabularyId: number | null, kanjiId: number | null): string {
