@@ -349,12 +349,21 @@ export class SrsService {
     if (cardError) throw cardError;
 
     const allVocabs = (vocabData ?? []) as VocabRow[];
-    const vocabs = allVocabs.filter((vocab) => !this.isKanjiOnlyVocabulary(vocab));
     const vocabIds = allVocabs.map((v) => v.Id);
 
     const kanjiComponents = vocabIds.length === 0
       ? []
       : await this.loadKanjiComponents(vocabIds);
+
+    const componentsByVocabulary = new Map<number, KanjiComponentRow[]>();
+    for (const component of kanjiComponents) {
+      const current = componentsByVocabulary.get(component.VocabularyId) ?? [];
+      current.push(component);
+      componentsByVocabulary.set(component.VocabularyId, current);
+    }
+    const vocabs = allVocabs.filter((vocab) =>
+      !this.isKanjiOnlyVocabulary(vocab, componentsByVocabulary.get(vocab.Id) ?? [])
+    );
 
     const kanjiIds = this.uniqueKanji(kanjiComponents).map((kanji) => kanji.Id);
     const allCards = (cardData ?? []) as DbCardRow[];
@@ -617,8 +626,17 @@ export class SrsService {
     return [...map.values()];
   }
 
-  private isKanjiOnlyVocabulary(vocab: Pick<VocabRow, 'SpecificData'>): boolean {
-    return vocab.SpecificData?.['_kitsuneItemType'] === 'kanji';
+  private isKanjiOnlyVocabulary(
+    vocab: Pick<VocabRow, 'Word' | 'SpecificData'>,
+    components: KanjiComponentRow[] = []
+  ): boolean {
+    const itemType = vocab.SpecificData?.['_kitsuneItemType'];
+    if (itemType === 'kanji') return true;
+    if (itemType === 'vocabulary' || vocab.SpecificData) return false;
+
+    return vocab.Word.trim().length === 1 &&
+      components.length === 1 &&
+      components[0].Kanji.Character === vocab.Word.trim();
   }
 
   private cardKey(vocabularyId: number | null, kanjiId: number | null): string {

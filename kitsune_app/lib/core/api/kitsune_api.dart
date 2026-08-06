@@ -895,8 +895,6 @@ class KitsuneApi {
     );
     final allVocabs =
         (vocabRes.data as List<dynamic>).cast<Map<String, dynamic>>();
-    final vocabs =
-        allVocabs.where((vocab) => !_isKanjiOnlyVocabulary(vocab)).toList();
 
     final cardRes = await client.dio.get(
       client.table('SRSCards'),
@@ -925,6 +923,18 @@ class KitsuneApi {
 
     final kanjiIds = _uniqueKanji(kanjiComponents)
         .map((kanji) => kanji['Id'] as int)
+        .toList();
+    final componentsByVocabulary = <int, List<Map<String, dynamic>>>{};
+    for (final component in kanjiComponents) {
+      final vocabularyId = component['VocabularyId'] as int;
+      componentsByVocabulary.putIfAbsent(vocabularyId, () => []).add(component);
+    }
+    final vocabs = allVocabs
+        .where((vocab) => !_isKanjiOnlyVocabulary(
+              vocab,
+              components:
+                  componentsByVocabulary[vocab['Id'] as int] ?? const [],
+            ))
         .toList();
     final kanjiExamples = await _loadKanjiExamples(kanjiIds);
     final visibleVocabIds = vocabs.map((vocab) => vocab['Id'] as int).toSet();
@@ -1062,9 +1072,19 @@ class KitsuneApi {
     return true;
   }
 
-  bool _isKanjiOnlyVocabulary(Map<String, dynamic> vocab) {
+  bool _isKanjiOnlyVocabulary(
+    Map<String, dynamic> vocab, {
+    List<Map<String, dynamic>> components = const [],
+  }) {
     final specificData = vocab['SpecificData'] as Map<String, dynamic>?;
-    return specificData?['_kitsuneItemType'] == 'kanji';
+    final itemType = specificData?['_kitsuneItemType'];
+    if (itemType == 'kanji') return true;
+    if (itemType == 'vocabulary' || specificData != null) return false;
+
+    final word = (vocab['Word'] as String? ?? '').trim();
+    if (word.runes.length != 1 || components.length != 1) return false;
+    final kanji = components.first['Kanji'] as Map<String, dynamic>?;
+    return kanji?['Character'] == word;
   }
 
   FolderSrsOverview _buildSrsOverview(_SrsContext context) {
