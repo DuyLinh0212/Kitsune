@@ -63,8 +63,9 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
 
     setState(() => _isSearching = true);
     try {
-      final items =
-          await ref.read(kitsuneApiProvider).searchVocabulary(query.trim());
+      final items = await ref
+          .read(kitsuneApiProvider)
+          .searchVocabulary(query.trim(), limit: 30);
       if (mounted) {
         setState(() => _results = items);
       }

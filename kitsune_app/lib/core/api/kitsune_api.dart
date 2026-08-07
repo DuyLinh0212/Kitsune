@@ -469,7 +469,7 @@ class KitsuneApi {
   // ── Vocabulary ───────────────────────────────────────────────────────────────
 
   Future<List<VocabularyDto>> searchVocabulary(String query,
-      {int? limit}) async {
+      {int? limit = 30}) async {
     final normalizedQuery = _normalize(query);
     if (normalizedQuery.isEmpty) {
       return _fetchVocabByParams(
@@ -477,23 +477,41 @@ class KitsuneApi {
       );
     }
 
-    final responses = await Future.wait([
+    final candidateLimit =
+        limit == null ? 100 : (limit * 4 > 100 ? limit * 4 : 100);
+
+    final exactResponses = await Future.wait([
+      _fetchVocabByParams(queryParameters: {
+        'Word': 'ilike.$normalizedQuery',
+        'limit': '$candidateLimit',
+      }),
+      _fetchVocabByParams(queryParameters: {
+        'Meaning': 'ilike.$normalizedQuery',
+        'limit': '$candidateLimit',
+      }),
+      _fetchVocabByParams(queryParameters: {
+        'Pronunciation': 'ilike.$normalizedQuery',
+        'limit': '$candidateLimit',
+      }),
+    ]);
+
+    final containsResponses = await Future.wait([
       _fetchVocabByParams(queryParameters: {
         'Word': 'ilike.*$normalizedQuery*',
-        if (limit != null) 'limit': '$limit',
+        'limit': '$candidateLimit',
       }),
       _fetchVocabByParams(queryParameters: {
         'Meaning': 'ilike.*$normalizedQuery*',
-        if (limit != null) 'limit': '$limit',
+        'limit': '$candidateLimit',
       }),
       _fetchVocabByParams(queryParameters: {
         'Pronunciation': 'ilike.*$normalizedQuery*',
-        if (limit != null) 'limit': '$limit',
+        'limit': '$candidateLimit',
       }),
     ]);
 
     final merged = <int, VocabularyDto>{};
-    for (final items in responses) {
+    for (final items in [...exactResponses, ...containsResponses]) {
       for (final item in items) {
         merged[item.id] = item;
       }
@@ -506,7 +524,9 @@ class KitsuneApi {
       ..sort((a, b) {
         final scoreCompare = b.value.compareTo(a.value);
         if (scoreCompare != 0) return scoreCompare;
-        return a.key.word.length.compareTo(b.key.word.length);
+        final lengthCompare = a.key.word.length.compareTo(b.key.word.length);
+        if (lengthCompare != 0) return lengthCompare;
+        return a.key.id.compareTo(b.key.id);
       });
 
     final results = ranked.map((entry) => entry.key).toList();
@@ -621,31 +641,43 @@ class KitsuneApi {
   }
 
   int _scoreVocab(VocabularyDto item, String query) {
-    final exactFields = <String>[
-      item.word,
-      item.meaning,
-      item.pronunciation ?? '',
-      item.specificData?['amHanViet'] as String? ?? '',
-      item.specificData?['kanji'] as String? ?? '',
-    ].map(_normalize).toList();
+    final fields = <MapEntry<String, int>>[
+      MapEntry(item.word, 500),
+      MapEntry(item.pronunciation ?? '', 400),
+      MapEntry(item.meaning, 300),
+      MapEntry(_specificDataText(item, 'amHanViet'), 250),
+      MapEntry(_specificDataText(item, 'kanji'), 200),
+      MapEntry(_specificDataText(item, 'exampleMeaning'), 120),
+      MapEntry(_specificDataText(item, 'exampleSentence'), 100),
+      ...item.kanjiComponents.expand((component) => [
+            MapEntry(component.character, 180),
+            MapEntry(component.amHanViet, 160),
+          ]),
+    ];
 
-    final containsFields = <String>[
-      item.word,
-      item.meaning,
-      item.pronunciation ?? '',
-      item.specificData?['amHanViet'] as String? ?? '',
-      item.specificData?['kanji'] as String? ?? '',
-      item.specificData?['exampleMeaning'] as String? ?? '',
-      item.specificData?['exampleSentence'] as String? ?? '',
-      ...item.kanjiComponents.map((component) => component.character),
-      ...item.kanjiComponents.map((component) => component.amHanViet),
-    ].map(_normalize).toList();
+    var bestScore = 0;
+    for (final field in fields) {
+      final value = _normalize(field.key);
+      if (value.isEmpty) continue;
+      if (value == query) {
+        final score = 3000 + field.value;
+        if (score > bestScore) bestScore = score;
+        continue;
+      }
 
-    if (_normalize(item.word) == query) return 150;
-    if (exactFields.any((field) => field == query)) return 120;
-    if (containsFields.any((field) => field.startsWith(query))) return 80;
-    if (containsFields.any((field) => field.contains(query))) return 40;
-    return 0;
+      final index = value.indexOf(query);
+      if (index < 0) continue;
+      final tier = index == 0 ? 2000 : 1000;
+      final positionPenalty = index > 100 ? 100 : index;
+      final score = tier + field.value - positionPenalty;
+      if (score > bestScore) bestScore = score;
+    }
+    return bestScore;
+  }
+
+  String _specificDataText(VocabularyDto item, String key) {
+    final value = item.specificData?[key];
+    return value is String ? value : '';
   }
 
   // ── Kanji ────────────────────────────────────────────────────────────────────
@@ -1877,8 +1909,12 @@ class KitsuneApi {
 
   // ── Shared helpers ───────────────────────────────────────────────────────────
 
-  String _normalize(String value) =>
-      value.trim().toLowerCase().replaceAll('*', '').replaceAll('%', '');
+  String _normalize(String value) => value
+      .trim()
+      .toLowerCase()
+      .replaceAll('*', '')
+      .replaceAll('%', '')
+      .replaceAll(RegExp(r'\s+'), ' ');
 }
 
 class _SrsContext {

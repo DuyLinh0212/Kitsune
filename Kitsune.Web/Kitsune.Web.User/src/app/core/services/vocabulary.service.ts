@@ -128,21 +128,104 @@ export class VocabularyService {
     );
   }
 
-  // Tìm kiếm theo Word, Meaning, Pronunciation
+  // Tìm kiếm theo Word, Meaning, Pronunciation rồi xếp hạng ở client.
+  // Supabase không có relevance ranking cho ilike; lấy cả exact candidates
+  // trước khi lấy contains candidates để kết quả khớp chính xác không bị
+  // loại khỏi giới hạn truy vấn ban đầu.
   searchGlobal(query: string, limit = 30): Observable<VocabularyDto[]> {
-    const q = query.replace(/'/g, "''");
-    return from(
+    return from(this.fetchSearchResults(query, limit));
+  }
+
+  private async fetchSearchResults(query: string, limit: number): Promise<VocabularyDto[]> {
+    const rawQuery = query.trim();
+    const normalizedQuery = this.normalizeSearchValue(rawQuery);
+    if (!normalizedQuery) return [];
+
+    const fields = ['Word', 'Meaning', 'Pronunciation'];
+    const candidateLimit = Math.max(limit * 4, 100);
+    const exactQueries = fields.map((field) =>
       supabase
         .from('Vocabularies')
         .select(VOCAB_SELECT)
-        .or(`Word.ilike.%${q}%,Meaning.ilike.%${q}%,Pronunciation.ilike.%${q}%`)
-        .limit(limit)
-    ).pipe(
-      map(({ data, error }) => {
-        if (error) throw error;
-        return (data ?? []).map((r) => this.mapRow(r));
-      })
+        .ilike(field, rawQuery)
+        .limit(candidateLimit)
     );
+    const containsQueries = fields.map((field) =>
+      supabase
+        .from('Vocabularies')
+        .select(VOCAB_SELECT)
+        .ilike(field, `%${rawQuery}%`)
+        .limit(candidateLimit)
+    );
+
+    const responses = await Promise.all([...exactQueries, ...containsQueries]);
+    const rows = responses.flatMap((response) => {
+      if (response.error) throw response.error;
+      return response.data ?? [];
+    });
+
+    const unique = new Map<number, VocabularyDto>();
+    for (const row of rows) {
+      const vocab = this.mapRow(row);
+      unique.set(vocab.id, vocab);
+    }
+
+    return [...unique.values()]
+      .map((vocab) => ({ vocab, score: this.scoreSearchResult(vocab, normalizedQuery) }))
+      .filter((entry) => entry.score > 0)
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+
+        const lengthDiff = a.vocab.word.length - b.vocab.word.length;
+        if (lengthDiff !== 0) return lengthDiff;
+        return a.vocab.id - b.vocab.id;
+      })
+      .slice(0, limit)
+      .map((entry) => entry.vocab);
+  }
+
+  private scoreSearchResult(vocab: VocabularyDto, query: string): number {
+    const fields: Array<{ value: string; priority: number }> = [
+      { value: vocab.word, priority: 500 },
+      { value: vocab.pronunciation ?? '', priority: 400 },
+      { value: vocab.meaning, priority: 300 },
+      { value: this.getSpecificDataText(vocab, 'amHanViet'), priority: 250 },
+      { value: this.getSpecificDataText(vocab, 'kanji'), priority: 200 },
+      ...vocab.kanjiComponents.flatMap((component) => [
+        { value: component.character, priority: 180 },
+        { value: component.amHanViet, priority: 160 },
+      ]),
+    ];
+
+    let bestScore = 0;
+    for (const field of fields) {
+      const value = this.normalizeSearchValue(field.value);
+      if (!value) continue;
+
+      if (value === query) {
+        bestScore = Math.max(bestScore, 3000 + field.priority);
+        continue;
+      }
+
+      const index = value.indexOf(query);
+      if (index < 0) continue;
+
+      const tier = index === 0 ? 2000 : 1000;
+      const positionPenalty = Math.min(index, 100);
+      bestScore = Math.max(bestScore, tier + field.priority - positionPenalty);
+    }
+
+    return bestScore;
+  }
+
+  private getSpecificDataText(vocab: VocabularyDto, key: string): string {
+    const value = vocab.specificData?.[key];
+    return typeof value === 'string' ? value : '';
+  }
+
+  private normalizeSearchValue(value: string): string {
+    return value.trim().toLocaleLowerCase().replace(/\s+/g, ' ');
   }
 
   // Kiểm tra trạng thái bookmark của 1 từ vựng
