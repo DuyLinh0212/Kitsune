@@ -899,12 +899,12 @@ class KitsuneApi {
     return session;
   }
 
-  Future<void> completeFlashcard(int cardId) async {
-    await _updateSrsCardProgress(cardId, correct: true, isFlashcard: true);
+  Future<SrsCardProgressUpdate> completeFlashcard(int cardId) {
+    return _updateSrsCardProgress(cardId, correct: true, isFlashcard: true);
   }
 
-  Future<void> submitQuizAnswer(int cardId, bool correct) async {
-    await _updateSrsCardProgress(cardId, correct: correct, isFlashcard: false);
+  Future<SrsCardProgressUpdate> submitQuizAnswer(int cardId, bool correct) {
+    return _updateSrsCardProgress(cardId, correct: correct, isFlashcard: false);
   }
 
   Future<_SrsContext> _loadSrsContext(int folderId, int userId) async {
@@ -927,15 +927,6 @@ class KitsuneApi {
     );
     final allVocabs =
         (vocabRes.data as List<dynamic>).cast<Map<String, dynamic>>();
-
-    final cardRes = await client.dio.get(
-      client.table('SRSCards'),
-      queryParameters: {
-        'select': SupabaseConfig.srsCardSelect,
-        'UserId': 'eq.$userId',
-      },
-    );
-    final cards = (cardRes.data as List<dynamic>).cast<Map<String, dynamic>>();
 
     final vocabIds = allVocabs.map((v) => v['Id'] as int).toList();
     List<Map<String, dynamic>> kanjiComponents = [];
@@ -971,16 +962,12 @@ class KitsuneApi {
     final kanjiExamples = await _loadKanjiExamples(kanjiIds);
     final visibleVocabIds = vocabs.map((vocab) => vocab['Id'] as int).toSet();
     final visibleKanjiIds = kanjiIds.toSet();
-    final folderCardIds = cards
-        .where((card) {
-          final vocabularyId = card['VocabularyId'] as int?;
-          final kanjiId = card['KanjiId'] as int?;
-          return vocabularyId != null
-              ? visibleVocabIds.contains(vocabularyId)
-              : kanjiId != null && visibleKanjiIds.contains(kanjiId);
-        })
-        .map((card) => card['Id'] as int)
-        .toList();
+    final cards = await _loadFolderSrsCards(
+      userId,
+      visibleVocabIds.toList(),
+      visibleKanjiIds.toList(),
+    );
+    final folderCardIds = cards.map((card) => card['Id'] as int).toList();
     final results = await Future.wait([
       _loadTodayNewLearned(folderCardIds),
       _loadWrongReviewCounts(folderCardIds),
@@ -999,6 +986,35 @@ class KitsuneApi {
       wrongReviewCounts: wrongReviewCounts,
       cards: cards,
     );
+  }
+
+  Future<List<Map<String, dynamic>>> _loadFolderSrsCards(
+    int userId,
+    List<int> vocabularyIds,
+    List<int> kanjiIds,
+  ) async {
+    if (vocabularyIds.isEmpty && kanjiIds.isEmpty) {
+      return const <Map<String, dynamic>>[];
+    }
+
+    final query = <String, dynamic>{
+      'select': SupabaseConfig.srsCardSelect,
+      'UserId': 'eq.$userId',
+    };
+    if (vocabularyIds.isNotEmpty && kanjiIds.isNotEmpty) {
+      query['or'] =
+          '(VocabularyId.in.(${vocabularyIds.join(',')}),KanjiId.in.(${kanjiIds.join(',')}))';
+    } else if (vocabularyIds.isNotEmpty) {
+      query['VocabularyId'] = 'in.(${vocabularyIds.join(',')})';
+    } else {
+      query['KanjiId'] = 'in.(${kanjiIds.join(',')})';
+    }
+
+    final response = await client.dio.get(
+      client.table('SRSCards'),
+      queryParameters: query,
+    );
+    return (response.data as List<dynamic>).cast<Map<String, dynamic>>();
   }
 
   Future<Map<int, int>> _loadWrongReviewCounts(List<int> cardIds) async {
@@ -1217,6 +1233,10 @@ class KitsuneApi {
             vocab?['Meaning'] as String? ?? kanji?['Meaning'] as String? ?? '',
         character: kanji?['Character'] as String?,
         amHanViet: kanji?['AmHanViet'] as String?,
+        radicalCharacter: (kanji?['Radical']
+            as Map<String, dynamic>?)?['RadicalCharacter'] as String?,
+        radicalName: (kanji?['Radical']
+            as Map<String, dynamic>?)?['RadicalName'] as String?,
         onyomi: kanji?['Onyomi'] as String?,
         kunyomi: kanji?['Kunyomi'] as String?,
         examples: kId != null
@@ -1246,7 +1266,7 @@ class KitsuneApi {
     return result;
   }
 
-  Future<void> _updateSrsCardProgress(int cardId,
+  Future<SrsCardProgressUpdate> _updateSrsCardProgress(int cardId,
       {required bool correct, required bool isFlashcard}) async {
     final userId = await getCurrentUserId();
 
@@ -1301,6 +1321,13 @@ class KitsuneApi {
     if (isFlashcard) {
       await _recordLocalNewCard(cardId);
     }
+    return SrsCardProgressUpdate(
+      cardId: cardId,
+      boxLevel: nextLevel,
+      intervalDays: SrsEngine.intervalDays(nextLevel),
+      nextReviewDate: nextReviewDate,
+      wrongReviewCountDelta: correct || isFlashcard ? 0 : 1,
+    );
   }
 
   Future<void> _recordLocalNewCard(int cardId) async {

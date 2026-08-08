@@ -26,6 +26,8 @@ class SRSCardDto {
   final String meaning;
   final String? character;
   final String? amHanViet;
+  final String? radicalCharacter;
+  final String? radicalName;
   final String? onyomi;
   final String? kunyomi;
   final List<SrsVocabularyExample> examples;
@@ -48,6 +50,8 @@ class SRSCardDto {
     required this.meaning,
     this.character,
     this.amHanViet,
+    this.radicalCharacter,
+    this.radicalName,
     this.onyomi,
     this.kunyomi,
     this.examples = const [],
@@ -57,6 +61,22 @@ class SRSCardDto {
     required this.nextReviewDate,
     required this.isDue,
     required this.isNew,
+  });
+}
+
+class SrsCardProgressUpdate {
+  final int cardId;
+  final int boxLevel;
+  final double intervalDays;
+  final String nextReviewDate;
+  final int wrongReviewCountDelta;
+
+  const SrsCardProgressUpdate({
+    required this.cardId,
+    required this.boxLevel,
+    required this.intervalDays,
+    required this.nextReviewDate,
+    required this.wrongReviewCountDelta,
   });
 }
 

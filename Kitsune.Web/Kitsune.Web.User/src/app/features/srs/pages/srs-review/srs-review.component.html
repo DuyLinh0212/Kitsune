@@ -465,7 +465,7 @@
         @if (phase() === 'quiz' && currentQuizCard(); as card) {
           <div class="study-area">
             @if (currentQuestion(); as question) {
-              <div class="quiz-wrapper">
+              <div class="quiz-wrapper" [class.quiz-wrapper--drawing]="question.kind === 'drawing'">
 
                 <!-- Mode badge -->
                 <div class="quiz-mode-strip">
@@ -484,13 +484,15 @@
                 </div>
 
                 <!-- Prompt -->
-                <div class="quiz-prompt-card" [class.quiz-prompt-card--kanji]="card.type === 'kanji'">
+                <div class="quiz-prompt-card" [class.quiz-prompt-card--kanji]="card.type === 'kanji'" [class.quiz-prompt-card--drawing]="question.kind === 'drawing'">
                   <p class="quiz-prompt-label">{{ question.promptLabel }}</p>
-                  @if (question.kind !== 'drawing') {
-                    <div class="quiz-prompt-main" [class.quiz-prompt-main--kanji]="card.type === 'kanji' && question.mode !== 'WORD_FROM_MEAN'">
-                      {{ question.prompt }}
-                    </div>
-                  }
+                  <div
+                    class="quiz-prompt-main"
+                    [class.quiz-prompt-main--kanji]="card.type === 'kanji' && question.mode !== 'WORD_FROM_MEAN'"
+                    [class.quiz-prompt-main--drawing]="question.kind === 'drawing'"
+                  >
+                    {{ question.prompt }}
+                  </div>
                   @if (question.helper) {
                     <p class="quiz-prompt-helper">{{ question.helper }}</p>
                   }
@@ -573,6 +575,13 @@
                 Bạn đã hoàn thành toàn bộ thẻ trong lượt này. Tuyệt vời!
               </p>
             </div>
+
+            @if (countdownDisplay()) {
+              <div class="summary-next-review">
+                <span>⏱ Lần ôn tiếp theo sau</span>
+                <strong>{{ countdownDisplay() }}</strong>
+              </div>
+            }
 
             <div class="summary-stats">
               <div class="stat-card">

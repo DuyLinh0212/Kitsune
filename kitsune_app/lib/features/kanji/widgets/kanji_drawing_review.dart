@@ -285,63 +285,71 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
           ],
         ),
         const SizedBox(height: AppTheme.space12),
-        AspectRatio(
-          aspectRatio: 1,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              _drawingSize = Size(constraints.maxWidth, constraints.maxHeight);
-              return DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFFDF8),
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  border: Border.all(color: KitsuneColors.surfaceBorder),
-                ),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-                  child: Stack(
-                    children: [
-                      Positioned.fill(
-                        child: IgnorePointer(
-                          ignoring:
-                              widget.disabled || _isLoading || _error != null,
-                          child: GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onPanStart: (details) =>
-                                _beginStroke(details.localPosition),
-                            onPanUpdate: (details) =>
-                                _extendStroke(details.localPosition),
-                            onPanEnd: (details) =>
-                                _finishStroke(details.localPosition),
-                            onPanCancel: () => _activeStroke == null
-                                ? null
-                                : _finishStroke(_activeStroke!.last),
-                            child: CustomPaint(
-                              painter: _KanjiDrawingPainter(
-                                strokes: _activeStroke == null
-                                    ? _strokes
-                                    : [..._strokes, _activeStroke!],
-                                expectedStrokes: _expectedStrokes,
-                                viewBox: _viewBox,
-                                showHint: _showHint,
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 340),
+            child: SizedBox(
+              height: MediaQuery.sizeOf(context).height < 700 ? 190 : 250,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  _drawingSize =
+                      Size(constraints.maxWidth, constraints.maxHeight);
+                  return DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFDF8),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      border: Border.all(color: KitsuneColors.surfaceBorder),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+                      child: Stack(
+                        children: [
+                          Positioned.fill(
+                            child: IgnorePointer(
+                              ignoring: widget.disabled ||
+                                  _isLoading ||
+                                  _error != null,
+                              child: GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onPanStart: (details) =>
+                                    _beginStroke(details.localPosition),
+                                onPanUpdate: (details) =>
+                                    _extendStroke(details.localPosition),
+                                onPanEnd: (details) =>
+                                    _finishStroke(details.localPosition),
+                                onPanCancel: () => _activeStroke == null
+                                    ? null
+                                    : _finishStroke(_activeStroke!.last),
+                                child: CustomPaint(
+                                  painter: _KanjiDrawingPainter(
+                                    strokes: _activeStroke == null
+                                        ? _strokes
+                                        : [..._strokes, _activeStroke!],
+                                    expectedStrokes: _expectedStrokes,
+                                    viewBox: _viewBox,
+                                    showHint: _showHint,
+                                  ),
+                                ),
                               ),
                             ),
                           ),
-                        ),
+                          if (_isLoading)
+                            const Center(child: KitsuneLoadingFox(size: 50))
+                          else if (_error != null)
+                            Center(
+                              child: Padding(
+                                padding: const EdgeInsets.all(24),
+                                child:
+                                    Text(_error!, textAlign: TextAlign.center),
+                              ),
+                            ),
+                        ],
                       ),
-                      if (_isLoading)
-                        const Center(child: KitsuneLoadingFox(size: 50))
-                      else if (_error != null)
-                        Center(
-                          child: Padding(
-                            padding: const EdgeInsets.all(24),
-                            child: Text(_error!, textAlign: TextAlign.center),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              );
-            },
+                    ),
+                  );
+                },
+              ),
+            ),
           ),
         ),
         const SizedBox(height: AppTheme.space12),

@@ -354,13 +354,14 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     setState(() => _isSubmitting = true);
     try {
       final repo = ref.read(kitsuneApiProvider);
-      await repo.completeFlashcard(_flashQueue.first.id);
+      final progress = await repo.completeFlashcard(_flashQueue.first.id);
 
       if (!mounted) {
         return;
       }
 
       setState(() {
+        _applyLocalProgress(progress);
         _flashQueue = _flashQueue.sublist(1);
         _flashCompleted += 1;
         _isCardFlipped = false;
@@ -430,7 +431,12 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
     try {
       final repo = ref.read(kitsuneApiProvider);
-      await repo.submitQuizAnswer(_quizQueue.first.id, isCorrect);
+      final progress =
+          await repo.submitQuizAnswer(_quizQueue.first.id, isCorrect);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _applyLocalProgress(progress));
       _feedbackTimer?.cancel();
       _feedbackTimer = Timer(
         Duration(milliseconds: isCorrect ? 850 : 1350),
@@ -485,9 +491,6 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     }
 
     setState(() => _phase = _StudyPhase.summary);
-    if (_selectedFolderId != null) {
-      _refreshOverview(_selectedFolderId!);
-    }
     _invalidateDashboard();
   }
 
@@ -497,15 +500,116 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     ref.invalidate(weekChartProvider);
   }
 
+  void _applyLocalProgress(SrsCardProgressUpdate progress) {
+    final session = _session;
+    if (session == null) return;
+
+    SRSCardDto? previous;
+    for (final card in session.cards) {
+      if (card.id == progress.cardId) {
+        previous = card;
+        break;
+      }
+    }
+    if (previous == null) return;
+    final previousCard = previous;
+
+    final now = DateTime.now();
+    final cards = session.cards.map((card) {
+      if (card.id != progress.cardId) return card;
+      final dueAt = DateTime.tryParse(progress.nextReviewDate);
+      return SRSCardDto(
+        id: card.id,
+        userId: card.userId,
+        folderId: card.folderId,
+        type: card.type,
+        vocabularyId: card.vocabularyId,
+        kanjiId: card.kanjiId,
+        word: card.word,
+        pronunciation: card.pronunciation,
+        meaning: card.meaning,
+        character: card.character,
+        amHanViet: card.amHanViet,
+        radicalCharacter: card.radicalCharacter,
+        radicalName: card.radicalName,
+        onyomi: card.onyomi,
+        kunyomi: card.kunyomi,
+        examples: card.examples,
+        strokeCount: card.strokeCount,
+        boxLevel: progress.boxLevel,
+        wrongReviewCount:
+            card.wrongReviewCount + progress.wrongReviewCountDelta,
+        nextReviewDate: progress.nextReviewDate,
+        isDue: progress.boxLevel == 0 || (dueAt != null && !dueAt.isAfter(now)),
+        isNew: progress.boxLevel == 0,
+      );
+    }).toList();
+    final overview = _buildLocalOverview(
+      session.overview,
+      cards,
+      session.overview.todayNewLearned + (previousCard.isNew ? 1 : 0),
+    );
+
+    _session = FolderSrsSession(
+      folderId: session.folderId,
+      folderName: session.folderName,
+      overview: overview,
+      cards: cards,
+      flashcards: cards.where((card) => card.boxLevel == 0).toList(),
+      quizCards:
+          cards.where((card) => card.boxLevel > 0 && card.isDue).toList(),
+    );
+    _dashboardFolders = _dashboardFolders.map((item) {
+      if (item.folder.id != session.folderId) return item;
+      return _DashboardFolder(
+        folder: item.folder,
+        overview: _buildLocalOverview(
+          item.overview,
+          cards,
+          item.overview.todayNewLearned + (previousCard.isNew ? 1 : 0),
+        ),
+      );
+    }).toList();
+    _countdownText = _computeCountdown();
+  }
+
+  FolderSrsOverview _buildLocalOverview(
+    FolderSrsOverview base,
+    List<SRSCardDto> cards,
+    int todayNewLearned,
+  ) {
+    final future = cards
+        .where((card) => !card.isDue && card.nextReviewDate.isNotEmpty)
+        .toList()
+      ..sort((a, b) => a.nextReviewDate.compareTo(b.nextReviewDate));
+    final newCards = cards.where((card) => card.boxLevel == 0).length;
+    return FolderSrsOverview(
+      folderId: base.folderId,
+      folderName: base.folderName,
+      totalCards: cards.length,
+      newCards: newCards,
+      dueCards: cards.where((card) => card.boxLevel > 0 && card.isDue).length,
+      learnedCards: cards.length - newCards,
+      masteredCards: cards.where((card) => card.boxLevel >= 7).length,
+      todayNewLearned: todayNewLearned,
+      nextDueAt: future.isEmpty ? null : future.first.nextReviewDate,
+      canSwitchFolder: base.canSwitchFolder,
+    );
+  }
+
   _QuizPrompt _buildQuestion(SRSCardDto card, List<SRSCardDto> pool) {
     if (card.type == SrsItemType.kanji &&
         card.character?.trim().isNotEmpty == true &&
         _shouldUseDrawing(card)) {
       return _QuizPrompt(
         mode: QuizMode.drawKanji,
-        prompt: '',
-        promptLabel: 'Viết kanji này theo trí nhớ',
-        helper: 'Viết ${card.strokeCount ?? 'đủ'} nét theo đúng thứ tự.',
+        prompt: card.amHanViet?.trim().isNotEmpty == true
+            ? card.amHanViet!
+            : 'Âm Hán Việt chưa có',
+        promptLabel: 'Viết Kanji theo âm Hán Việt',
+        helper: card.radicalCharacter?.trim().isNotEmpty == true
+            ? 'Gợi ý bộ thủ: ${card.radicalCharacter}${card.radicalName?.trim().isNotEmpty == true ? ' · ${card.radicalName}' : ''}'
+            : 'Gợi ý: đối chiếu nghĩa và bộ thủ bạn đã học.',
         options: const [],
         correctAnswer: card.character!,
         isDrawing: true,
@@ -1647,17 +1751,20 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                 style: Theme.of(context).textTheme.labelMedium,
               ),
               const SizedBox(height: AppTheme.space8),
-              if (!question.isDrawing)
-                Text(
-                  question.prompt,
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                        fontSize: card.type == SrsItemType.kanji &&
-                                question.mode != QuizMode.wordFromMean
-                            ? 56
-                            : 34,
-                        color: KitsuneColors.onSurface,
-                      ),
-                ),
+              Text(
+                question.prompt,
+                style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                      fontSize: question.isDrawing
+                          ? 28
+                          : card.type == SrsItemType.kanji &&
+                                  question.mode != QuizMode.wordFromMean
+                              ? 56
+                              : 34,
+                      color: question.isDrawing
+                          ? KitsuneColors.secondary
+                          : KitsuneColors.onSurface,
+                    ),
+              ),
               if (question.helper.trim().isNotEmpty) ...[
                 const SizedBox(height: AppTheme.space8),
                 Text(

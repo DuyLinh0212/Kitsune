@@ -32,5 +32,5 @@ class SupabaseConfig {
       'Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate';
 
   static const String kanjiComponentWithKanjiSelect =
-      'VocabularyId, KanjiId, "Order", Kanji:KanjiId(Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi)';
+      'VocabularyId, KanjiId, "Order", Kanji:KanjiId(Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi, Radical:RadicalId(RadicalCharacter, RadicalName))';
 }

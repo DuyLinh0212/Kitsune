@@ -8,6 +8,7 @@ import {
   FolderSrsOverview,
   FolderSrsSession,
   SRSCardDto,
+  SrsCardProgressUpdate,
   SrsMode,
   SrsService,
 } from '../../../../core/services/srs.service';
@@ -277,7 +278,6 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
   closeStudy(): void {
     this.showStudyOverlay.set(false);
-    void this.refreshDashboardFolders();
   }
 
   toggleFolderDropdown(): void {
@@ -307,7 +307,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
     this.isSubmitting.set(true);
     try {
-      await firstValueFrom(this.srsService.completeFlashcard(card.id));
+      const progress = await firstValueFrom(this.srsService.completeFlashcard(card.id));
+      this.applyLocalProgress(progress);
       this.flashQueue.update((queue) => queue.slice(1));
       this.stats.update((stats) => ({
         ...stats,
@@ -368,7 +369,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.isSubmitting.set(true);
 
     try {
-      await firstValueFrom(this.srsService.submitQuizAnswer(card.id, isCorrect));
+      const progress = await firstValueFrom(this.srsService.submitQuizAnswer(card.id, isCorrect));
+      this.applyLocalProgress(progress);
       this.answerFeedback.set({
         correct: isCorrect,
         message: isCorrect
@@ -562,7 +564,6 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     }
 
     this.phase.set('summary');
-    void this.refreshDashboardFolders();
   }
 
   private advanceQuizQueue(correct: boolean): void {
@@ -592,14 +593,86 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.currentQuestion.set(this.buildQuestion(card, pool));
   }
 
+  private applyLocalProgress(progress: SrsCardProgressUpdate): void {
+    const session = this.activeSession();
+    if (!session) return;
+
+    const previousCard = session.cards.find((card) => card.id === progress.cardId);
+    if (!previousCard) return;
+
+    const now = Date.now();
+    const cards = session.cards.map((card) => {
+      if (card.id !== progress.cardId) return card;
+      const isNew = progress.boxLevel === 0;
+      return {
+        ...card,
+        boxLevel: progress.boxLevel,
+        nextReviewDate: progress.nextReviewDate,
+        wrongReviewCount: card.wrongReviewCount + progress.wrongReviewCountDelta,
+        isNew,
+        isDue: isNew || new Date(progress.nextReviewDate).getTime() <= now,
+      };
+    });
+    const overview = this.buildLocalOverview(session.overview, cards, session.overview.todayNewLearned);
+    const updatedSession: FolderSrsSession = {
+      ...session,
+      overview,
+      cards,
+      flashcards: cards.filter((card) => card.boxLevel === 0),
+      quizCards: cards.filter((card) => card.boxLevel > 0 && card.isDue),
+    };
+    this.activeSession.set(updatedSession);
+
+    this.dashboardFolders.update((folders) =>
+      folders.map((folder) => {
+        if (folder.folderId !== updatedSession.folderId) return folder;
+        return {
+          ...folder,
+          ...this.buildLocalOverview(
+            folder,
+            cards,
+            folder.todayNewLearned + (previousCard.isNew ? 1 : 0)
+          ),
+        };
+      })
+    );
+    this.updateCountdown();
+  }
+
+  private buildLocalOverview(
+    base: FolderSrsOverview,
+    cards: SRSCardDto[],
+    todayNewLearned: number
+  ): FolderSrsOverview {
+    const totalCards = cards.length;
+    const newCards = cards.filter((card) => card.boxLevel === 0).length;
+    const dueCards = cards.filter((card) => card.boxLevel > 0 && card.isDue).length;
+    const futureCards = cards
+      .filter((card) => !card.isDue)
+      .sort((left, right) => new Date(left.nextReviewDate).getTime() - new Date(right.nextReviewDate).getTime());
+
+    return {
+      ...base,
+      totalCards,
+      newCards,
+      dueCards,
+      learnedCards: totalCards - newCards,
+      masteredCards: cards.filter((card) => card.boxLevel >= 7).length,
+      todayNewLearned,
+      nextDueAt: futureCards[0]?.nextReviewDate ?? null,
+    };
+  }
+
   private buildQuestion(card: SRSCardDto, pool: SRSCardDto[]): QuizQuestion {
     if (card.type === 'kanji' && card.character && this.shouldUseDrawing(card)) {
       return {
         mode: 'DRAW_KANJI',
         kind: 'drawing',
-        prompt: '',
-        promptLabel: 'Viết kanji này theo trí nhớ',
-        helper: `Viết ${card.strokeCount ?? 'đủ'} nét theo đúng thứ tự.`,
+        prompt: card.amHanViet ?? 'Âm Hán Việt chưa có',
+        promptLabel: 'Viết Kanji theo âm Hán Việt',
+        helper: card.radicalCharacter
+          ? `Gợi ý bộ thủ: ${card.radicalCharacter}${card.radicalName ? ` · ${card.radicalName}` : ''}`
+          : 'Gợi ý: đối chiếu nghĩa và bộ thủ bạn đã học.',
         options: [],
         correctAnswer: card.character,
       };

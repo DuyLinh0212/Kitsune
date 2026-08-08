@@ -35,11 +35,21 @@ export interface SRSCardDto {
   kunyomi: string | null;
   examples: SrsVocabularyExample[];
   strokeCount: number | null;
+  radicalCharacter: string | null;
+  radicalName: string | null;
   boxLevel: number;
   wrongReviewCount: number;
   nextReviewDate: string;
   isDue: boolean;
   isNew: boolean;
+}
+
+export interface SrsCardProgressUpdate {
+  cardId: number;
+  boxLevel: number;
+  intervalDays: number;
+  nextReviewDate: string;
+  wrongReviewCountDelta: number;
 }
 
 export interface FolderSrsOverview {
@@ -125,6 +135,10 @@ interface KanjiRow {
   StrokeCount: number;
   Onyomi: string | null;
   Kunyomi: string | null;
+  Radical: {
+    RadicalCharacter: string;
+    RadicalName: string;
+  } | null;
 }
 
 interface KanjiComponentRow {
@@ -211,16 +225,16 @@ export class SrsService {
     return from(this.activateFolderNow(folderId));
   }
 
-  completeFlashcard(cardId: number): Observable<void> {
-    return from(this.updateCardProgress(cardId, true, true)).pipe(map(() => void 0));
+  completeFlashcard(cardId: number): Observable<SrsCardProgressUpdate> {
+    return from(this.updateCardProgress(cardId, true, true));
   }
 
-  submitQuizAnswer(cardId: number, correct: boolean): Observable<void> {
-    return from(this.updateCardProgress(cardId, correct, false)).pipe(map(() => void 0));
+  submitQuizAnswer(cardId: number, correct: boolean): Observable<SrsCardProgressUpdate> {
+    return from(this.updateCardProgress(cardId, correct, false));
   }
 
   submitReview(cardId: number, rating: 1 | 2 | 3 | 4): Observable<void> {
-    return this.submitQuizAnswer(cardId, rating >= 3);
+    return this.submitQuizAnswer(cardId, rating >= 3).pipe(map(() => void 0));
   }
 
   getStatsOverview(): Observable<SrsStatsOverview> {
@@ -276,7 +290,11 @@ export class SrsService {
     return session;
   }
 
-  private async updateCardProgress(cardId: number, correct: boolean, flashcard: boolean): Promise<void> {
+  private async updateCardProgress(
+    cardId: number,
+    correct: boolean,
+    flashcard: boolean
+  ): Promise<SrsCardProgressUpdate> {
     const { data: authData } = await supabase.auth.getUser();
     const email = authData.user?.email;
     if (!email) throw new Error('Not authenticated');
@@ -320,6 +338,14 @@ export class SrsService {
     });
     if (logError) console.warn('Không thể ghi log ôn tập SRS:', logError.message);
     if (flashcard) this.recordLocalNewCard(cardId);
+
+    return {
+      cardId,
+      boxLevel: nextLevel,
+      intervalDays: this.intervalDays(nextLevel),
+      nextReviewDate,
+      wrongReviewCountDelta: correct || flashcard ? 0 : 1,
+    };
   }
 
   private async loadFolderContext(folderId: number, userId: number): Promise<{
@@ -333,7 +359,7 @@ export class SrsService {
     wrongReviewCounts: Map<number, number>;
     cards: DbCardRow[];
   }> {
-    const [{ data: folderData, error: folderError }, { data: vocabData, error: vocabError }, { data: cardData, error: cardError }] =
+    const [{ data: folderData, error: folderError }, { data: vocabData, error: vocabError }] =
       await Promise.all([
         supabase.from('VocabularyFolder').select('Id, FolderName').eq('Id', folderId).single(),
         supabase
@@ -341,15 +367,10 @@ export class SrsService {
           .select('Id, Word, Pronunciation, Meaning, FolderId, SpecificData')
           .eq('FolderId', folderId)
           .order('CreatedAt', { ascending: true }),
-        supabase
-          .from('SRSCards')
-          .select('Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate')
-          .eq('UserId', userId),
       ]);
 
     if (folderError) throw folderError;
     if (vocabError) throw vocabError;
-    if (cardError) throw cardError;
 
     const allVocabs = (vocabData ?? []) as VocabRow[];
     const vocabIds = allVocabs.map((v) => v.Id);
@@ -369,9 +390,13 @@ export class SrsService {
     );
 
     const kanjiIds = this.uniqueKanji(kanjiComponents).map((kanji) => kanji.Id);
-    const allCards = (cardData ?? []) as DbCardRow[];
     const visibleVocabIds = new Set(vocabs.map((vocab) => vocab.Id));
     const visibleKanjiIds = new Set(kanjiIds);
+    const allCards = await this.loadFolderCards(
+      userId,
+      [...visibleVocabIds],
+      [...visibleKanjiIds]
+    );
     const folderCardIds = allCards
       .filter((card) =>
         card.VocabularyId != null
@@ -396,6 +421,33 @@ export class SrsService {
       wrongReviewCounts,
       cards: allCards,
     };
+  }
+
+  private async loadFolderCards(
+    userId: number,
+    vocabularyIds: number[],
+    kanjiIds: number[]
+  ): Promise<DbCardRow[]> {
+    if (vocabularyIds.length === 0 && kanjiIds.length === 0) return [];
+
+    let query = supabase
+      .from('SRSCards')
+      .select('Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate')
+      .eq('UserId', userId);
+
+    if (vocabularyIds.length > 0 && kanjiIds.length > 0) {
+      query = query.or(
+        `VocabularyId.in.(${vocabularyIds.join(',')}),KanjiId.in.(${kanjiIds.join(',')})`
+      );
+    } else if (vocabularyIds.length > 0) {
+      query = query.in('VocabularyId', vocabularyIds);
+    } else {
+      query = query.in('KanjiId', kanjiIds);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    return (data ?? []) as DbCardRow[];
   }
 
   private async loadWrongReviewCounts(cardIds: number[]): Promise<Map<number, number>> {
@@ -480,7 +532,10 @@ export class SrsService {
         VocabularyId,
         KanjiId,
         "Order",
-        Kanji:KanjiId(Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi)
+        Kanji:KanjiId(
+          Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi,
+          Radical:RadicalId(RadicalCharacter, RadicalName)
+        )
       `)
       .in('VocabularyId', vocabIds)
       .order('Order', { ascending: true });
@@ -601,6 +656,8 @@ export class SrsService {
       kunyomi: kanji?.Kunyomi ?? null,
       examples: row.KanjiId != null ? (kanjiExamples.get(row.KanjiId) ?? []) : [],
       strokeCount: kanji?.StrokeCount ?? null,
+      radicalCharacter: kanji?.Radical?.RadicalCharacter ?? null,
+      radicalName: kanji?.Radical?.RadicalName ?? null,
       boxLevel,
       wrongReviewCount: wrongReviewCounts.get(row.Id) ?? 0,
       nextReviewDate,
