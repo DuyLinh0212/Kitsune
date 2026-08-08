@@ -183,7 +183,7 @@
           <!-- Divider -->
           <div class="action-bar__divider"></div>
 
-          <!-- Countdown or Start Button -->
+          <!-- Start Button / Current Queue -->
           @if (totalDueCards() > 0) {
             <div class="action-bar__due">
               <div class="due-count-badge">
@@ -197,7 +197,15 @@
                 Bắt đầu ôn tập
               </button>
             </div>
-          } @else if (countdownDisplay()) {
+          } @else if (!countdownDisplay()) {
+            <div class="action-bar__done">
+              <span>🎉</span>
+              <p>Bạn đã hoàn thành mục tiêu hôm nay!</p>
+            </div>
+          }
+
+          <!-- Always show the next-review countdown when a future card exists. -->
+          @if (countdownDisplay()) {
             <div class="action-bar__countdown">
               <p class="countdown-label">Thời gian đến lượt ôn tiếp</p>
               <div class="countdown-display">
@@ -206,11 +214,6 @@
                 </svg>
                 {{ countdownDisplay() }}
               </div>
-            </div>
-          } @else {
-            <div class="action-bar__done">
-              <span>🎉</span>
-              <p>Bạn đã hoàn thành mục tiêu hôm nay!</p>
             </div>
           }
         } @else {
