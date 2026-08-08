@@ -7,7 +7,7 @@ class AppConstants {
   // SRS box level intervals (ms)
   static const Map<int, Duration> srsIntervals = {
     0: Duration.zero,
-    1: Duration(hours: 4),
+    1: Duration(hours: 1),
     2: Duration(days: 1),
     3: Duration(days: 3),
     4: Duration(days: 7),

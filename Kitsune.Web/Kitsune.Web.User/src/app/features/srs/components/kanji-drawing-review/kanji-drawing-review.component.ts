@@ -1,0 +1,361 @@
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnChanges, Output, ViewChild, signal } from '@angular/core';
+
+interface DrawingPoint {
+  x: number;
+  y: number;
+}
+
+interface DrawingStroke {
+  points: DrawingPoint[];
+}
+
+interface ExpectedStroke {
+  path: Path2D;
+  bounds: DOMRect;
+}
+
+interface SvgViewBox {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+@Component({
+  selector: 'app-kanji-drawing-review',
+  standalone: true,
+  templateUrl: './kanji-drawing-review.component.html',
+  styleUrl: './kanji-drawing-review.component.css',
+})
+export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
+  @Input({ required: true }) character = '';
+  @Input() strokeCount: number | null = null;
+  @Input() disabled = false;
+  @Output() readonly checked = new EventEmitter<boolean>();
+  @ViewChild('drawingCanvas') private canvasRef?: ElementRef<HTMLCanvasElement>;
+
+  readonly isLoading = signal(true);
+  readonly error = signal<string | null>(null);
+  readonly feedback = signal<{ correct: boolean; message: string } | null>(null);
+  readonly showHint = signal(false);
+  readonly drawnStrokeCount = signal(0);
+  readonly expectedStrokeCount = signal(0);
+
+  private canvas: HTMLCanvasElement | null = null;
+  private context: CanvasRenderingContext2D | null = null;
+  private expectedStrokes: ExpectedStroke[] = [];
+  private viewBox: SvgViewBox = { x: 0, y: 0, width: 109, height: 109 };
+  private userStrokes: DrawingStroke[] = [];
+  private activeStroke: DrawingStroke | null = null;
+  private requestToken = 0;
+
+  ngAfterViewInit(): void {
+    this.canvas = this.canvasRef?.nativeElement ?? null;
+    this.resizeCanvas();
+    void this.loadStrokes();
+  }
+
+  ngOnChanges(): void {
+    if (this.canvas) {
+      void this.loadStrokes();
+    }
+  }
+
+  onPointerDown(event: PointerEvent): void {
+    if (this.disabled || this.isLoading() || this.error()) return;
+    const canvas = this.canvas;
+    if (!canvas) return;
+
+    canvas.setPointerCapture(event.pointerId);
+    this.activeStroke = { points: [this.pointerPoint(event)] };
+    this.feedback.set(null);
+    this.redraw();
+  }
+
+  onPointerMove(event: PointerEvent): void {
+    if (!this.activeStroke || this.disabled) return;
+    this.activeStroke.points.push(this.pointerPoint(event));
+    this.redraw();
+  }
+
+  onPointerUp(event: PointerEvent): void {
+    const canvas = this.canvas;
+    if (!this.activeStroke || !canvas) return;
+
+    this.activeStroke.points.push(this.pointerPoint(event));
+    if (this.activeStroke.points.length > 2) {
+      this.userStrokes.push(this.activeStroke);
+      this.drawnStrokeCount.set(this.userStrokes.length);
+    }
+    this.activeStroke = null;
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+    this.redraw();
+  }
+
+  clear(): void {
+    if (this.disabled) return;
+    this.userStrokes = [];
+    this.activeStroke = null;
+    this.drawnStrokeCount.set(0);
+    this.expectedStrokeCount.set(0);
+    this.feedback.set(null);
+    this.redraw();
+  }
+
+  revealHint(): void {
+    this.showHint.set(true);
+    this.redraw();
+  }
+
+  checkDrawing(): void {
+    if (this.disabled || this.isLoading() || this.error()) return;
+
+    const expectedCount = this.expectedStrokes.length;
+    if (this.userStrokes.length !== expectedCount) {
+      this.report(false, `Cần viết đủ ${expectedCount} nét theo đúng thứ tự. Bạn đã viết ${this.userStrokes.length} nét.`);
+      return;
+    }
+
+    const isCorrect = this.userStrokes.every((stroke, index) =>
+      this.matchesExpectedStroke(stroke, this.expectedStrokes[index])
+    );
+    this.report(
+      isCorrect,
+      isCorrect
+        ? 'Chính xác! Thứ tự và vị trí nét viết đều ổn.'
+        : 'Nét viết chưa khớp. Xem gợi ý để đối chiếu rồi thử lại ở lần sau.'
+    );
+  }
+
+  private async loadStrokes(): Promise<void> {
+    const character = this.character.trim();
+    const token = ++this.requestToken;
+    this.isLoading.set(true);
+    this.error.set(null);
+    this.feedback.set(null);
+    this.showHint.set(false);
+    this.userStrokes = [];
+    this.activeStroke = null;
+    this.drawnStrokeCount.set(0);
+
+    if (!character || typeof window === 'undefined') {
+      this.finishWithError('Không có dữ liệu Kanji để luyện viết.', token);
+      return;
+    }
+
+    const codePoint = character.codePointAt(0);
+    if (!codePoint) {
+      this.finishWithError('Không đọc được ký tự Kanji.', token);
+      return;
+    }
+
+    const hex = codePoint.toString(16).padStart(5, '0').toLowerCase();
+    const url = `https://wzwwopifwhijewbmyywz.supabase.co/storage/v1/object/public/kanji-strokes/${hex}.svg`;
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const markup = await response.text();
+      if (token !== this.requestToken) return;
+
+      const parsed = this.parseSvgStrokes(markup);
+      if (parsed.strokes.length === 0) throw new Error('empty strokes');
+
+      this.expectedStrokes = parsed.strokes;
+      this.expectedStrokeCount.set(parsed.strokes.length);
+      this.viewBox = parsed.viewBox;
+      this.isLoading.set(false);
+      this.redraw();
+    } catch {
+      this.finishWithError('Không tải được dữ liệu nét viết cho chữ này.', token);
+    }
+  }
+
+  private finishWithError(message: string, token: number): void {
+    if (token !== this.requestToken) return;
+    this.expectedStrokes = [];
+    this.expectedStrokeCount.set(0);
+    this.isLoading.set(false);
+    this.error.set(message);
+    this.redraw();
+  }
+
+  private parseSvgStrokes(markup: string): { strokes: ExpectedStroke[]; viewBox: SvgViewBox } {
+    const document = new DOMParser().parseFromString(markup, 'image/svg+xml');
+    const svg = document.querySelector('svg');
+    const viewBoxParts = (svg?.getAttribute('viewBox') ?? '0 0 109 109')
+      .trim()
+      .split(/\s+/)
+      .map(Number);
+    const viewBox: SvgViewBox = viewBoxParts.length === 4 && viewBoxParts.every(Number.isFinite)
+      ? { x: viewBoxParts[0], y: viewBoxParts[1], width: viewBoxParts[2], height: viewBoxParts[3] }
+      : { x: 0, y: 0, width: 109, height: 109 };
+
+    const strokes = Array.from(document.querySelectorAll('path'))
+      .filter((element) => (element.getAttribute('id') ?? '').includes('-s'))
+      .map((element) => element.getAttribute('d')?.trim() ?? '')
+      .filter(Boolean)
+      .map((d) => {
+        const path = new Path2D(d);
+        const bounds = this.measurePathBounds(path, viewBox);
+        return { path, bounds };
+      });
+
+    return { strokes, viewBox };
+  }
+
+  private measurePathBounds(path: Path2D, viewBox: SvgViewBox): DOMRect {
+    const measureCanvas = document.createElement('canvas');
+    measureCanvas.width = Math.ceil(viewBox.width);
+    measureCanvas.height = Math.ceil(viewBox.height);
+    const context = measureCanvas.getContext('2d');
+    if (!context) return new DOMRect(viewBox.x, viewBox.y, viewBox.width, viewBox.height);
+
+    context.translate(-viewBox.x, -viewBox.y);
+    context.fill(path);
+    const pixels = context.getImageData(0, 0, measureCanvas.width, measureCanvas.height).data;
+    let minX = measureCanvas.width;
+    let minY = measureCanvas.height;
+    let maxX = -1;
+    let maxY = -1;
+    for (let y = 0; y < measureCanvas.height; y += 1) {
+      for (let x = 0; x < measureCanvas.width; x += 1) {
+        if (pixels[(y * measureCanvas.width + x) * 4 + 3] === 0) continue;
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+    return maxX < 0
+      ? new DOMRect(viewBox.x, viewBox.y, viewBox.width, viewBox.height)
+      : new DOMRect(minX + viewBox.x, minY + viewBox.y, maxX - minX + 1, maxY - minY + 1);
+  }
+
+  private matchesExpectedStroke(stroke: DrawingStroke, expected: ExpectedStroke): boolean {
+    const context = this.context;
+    if (!context || stroke.points.length < 3) return false;
+    const sample = stroke.points.filter((_, index) => index === 0 || index === stroke.points.length - 1 || index % 3 === 0);
+    const expectedBounds = expected.bounds;
+    const tolerance = Math.max(expectedBounds.width, expectedBounds.height) * 0.16 + 4;
+    let pathHits = 0;
+    let boundsHits = 0;
+
+    for (const point of sample) {
+      const svgPoint = this.toSvgPoint(point);
+      if (context.isPointInPath(expected.path, svgPoint.x, svgPoint.y)) pathHits += 1;
+      if (
+        svgPoint.x >= expectedBounds.left - tolerance &&
+        svgPoint.x <= expectedBounds.right + tolerance &&
+        svgPoint.y >= expectedBounds.top - tolerance &&
+        svgPoint.y <= expectedBounds.bottom + tolerance
+      ) {
+        boundsHits += 1;
+      }
+    }
+
+    return pathHits / sample.length >= 0.2 || boundsHits / sample.length >= 0.72;
+  }
+
+  private report(correct: boolean, message: string): void {
+    this.feedback.set({ correct, message });
+    if (!correct) this.showHint.set(true);
+    this.redraw();
+    this.checked.emit(correct);
+  }
+
+  private pointerPoint(event: PointerEvent): DrawingPoint {
+    const rect = this.canvas?.getBoundingClientRect();
+    return {
+      x: event.clientX - (rect?.left ?? 0),
+      y: event.clientY - (rect?.top ?? 0),
+    };
+  }
+
+  private resizeCanvas(): void {
+    const canvas = this.canvas;
+    if (!canvas || typeof window === 'undefined') return;
+    const rect = canvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    canvas.width = Math.max(1, Math.floor(rect.width * ratio));
+    canvas.height = Math.max(1, Math.floor(rect.height * ratio));
+    const context = canvas.getContext('2d');
+    if (!context) return;
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    this.context = context;
+    this.redraw();
+  }
+
+  private redraw(): void {
+    const canvas = this.canvas;
+    const context = this.context;
+    if (!canvas || !context) return;
+    const { width, height } = canvas.getBoundingClientRect();
+    context.clearRect(0, 0, width, height);
+    this.drawGrid(context, width, height);
+
+    if (this.showHint() && this.expectedStrokes.length > 0) {
+      const transform = this.canvasTransform(width, height);
+      context.save();
+      context.translate(transform.x, transform.y);
+      context.scale(transform.scale, transform.scale);
+      context.translate(-this.viewBox.x, -this.viewBox.y);
+      context.fillStyle = 'rgba(143, 62, 37, 0.16)';
+      this.expectedStrokes.forEach((stroke) => context.fill(stroke.path));
+      context.restore();
+    }
+
+    const strokes = this.activeStroke ? [...this.userStrokes, this.activeStroke] : this.userStrokes;
+    context.strokeStyle = '#7c2d12';
+    context.lineWidth = 5;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    for (const stroke of strokes) {
+      if (stroke.points.length < 2) continue;
+      context.beginPath();
+      context.moveTo(stroke.points[0].x, stroke.points[0].y);
+      stroke.points.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+      context.stroke();
+    }
+  }
+
+  private drawGrid(context: CanvasRenderingContext2D, width: number, height: number): void {
+    context.save();
+    context.strokeStyle = 'rgba(147, 99, 58, 0.22)';
+    context.lineWidth = 1;
+    context.setLineDash([5, 5]);
+    context.beginPath();
+    context.moveTo(width / 2, 0);
+    context.lineTo(width / 2, height);
+    context.moveTo(0, height / 2);
+    context.lineTo(width, height / 2);
+    context.moveTo(0, 0);
+    context.lineTo(width, height);
+    context.moveTo(width, 0);
+    context.lineTo(0, height);
+    context.stroke();
+    context.restore();
+  }
+
+  private canvasTransform(width: number, height: number): { x: number; y: number; scale: number } {
+    const scale = Math.min(width / this.viewBox.width, height / this.viewBox.height) * 0.84;
+    return {
+      x: (width - this.viewBox.width * scale) / 2,
+      y: (height - this.viewBox.height * scale) / 2,
+      scale,
+    };
+  }
+
+  private toSvgPoint(point: DrawingPoint): DrawingPoint {
+    const canvas = this.canvas;
+    if (!canvas) return point;
+    const rect = canvas.getBoundingClientRect();
+    const transform = this.canvasTransform(rect.width, rect.height);
+    return {
+      x: (point.x - transform.x) / transform.scale + this.viewBox.x,
+      y: (point.y - transform.y) / transform.scale + this.viewBox.y,
+    };
+  }
+}

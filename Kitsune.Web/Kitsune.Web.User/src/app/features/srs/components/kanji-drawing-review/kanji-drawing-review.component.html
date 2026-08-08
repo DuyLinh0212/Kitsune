@@ -1,0 +1,37 @@
+<section class="drawing-review" aria-label="Luyện viết Kanji">
+  <div class="drawing-review__header">
+    <div>
+      <p class="drawing-review__eyebrow">Viết từ trí nhớ</p>
+      <p class="drawing-review__instruction">Vẽ từng nét vào ô trống, không có chữ mờ làm mẫu.</p>
+    </div>
+    <span class="drawing-review__count">{{ drawnStrokeCount() }}/{{ expectedStrokeCount() || strokeCount || '—' }} nét</span>
+  </div>
+
+  <div class="drawing-review__canvas-wrap" [class.drawing-review__canvas-wrap--hint]="showHint()">
+    <canvas
+      #drawingCanvas
+      class="drawing-review__canvas"
+      (pointerdown)="onPointerDown($event)"
+      (pointermove)="onPointerMove($event)"
+      (pointerup)="onPointerUp($event)"
+      (pointercancel)="onPointerUp($event)"
+      aria-label="Vùng viết Kanji"
+    ></canvas>
+
+    @if (isLoading()) {
+      <div class="drawing-review__state">Đang tải dữ liệu nét viết…</div>
+    } @else if (error(); as message) {
+      <div class="drawing-review__state drawing-review__state--error">{{ message }}</div>
+    }
+  </div>
+
+  <div class="drawing-review__actions">
+    <button type="button" class="drawing-review__button drawing-review__button--quiet" [disabled]="disabled || isLoading()" (click)="clear()">Xóa nét</button>
+    <button type="button" class="drawing-review__button drawing-review__button--quiet" [disabled]="disabled || isLoading()" (click)="revealHint()">Xem gợi ý</button>
+    <button type="button" class="drawing-review__button drawing-review__button--primary" [disabled]="disabled || isLoading() || !!error() || drawnStrokeCount() === 0" (click)="checkDrawing()">Kiểm tra nét</button>
+  </div>
+
+  @if (feedback(); as result) {
+    <p class="drawing-review__feedback" [class.drawing-review__feedback--correct]="result.correct" [class.drawing-review__feedback--wrong]="!result.correct">{{ result.message }}</p>
+  }
+</section>

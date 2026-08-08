@@ -31,6 +31,7 @@ class SRSCardDto {
   final List<SrsVocabularyExample> examples;
   final int? strokeCount;
   final int boxLevel;
+  final int wrongReviewCount;
   final String nextReviewDate;
   final bool isDue;
   final bool isNew;
@@ -52,6 +53,7 @@ class SRSCardDto {
     this.examples = const [],
     this.strokeCount,
     required this.boxLevel,
+    this.wrongReviewCount = 0,
     required this.nextReviewDate,
     required this.isDue,
     required this.isNew,

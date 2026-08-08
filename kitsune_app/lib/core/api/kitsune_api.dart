@@ -619,9 +619,9 @@ class KitsuneApi {
       'KanjiId': null,
       'BoxLevel': 1,
       'EaseFactor': 2.5,
-      'IntervalDays': 0,
+      'IntervalDays': SrsEngine.intervalDays(1),
       'Repetitions': 0,
-      'NextReviewDate': DateTime.now().toIso8601String(),
+      'NextReviewDate': SrsEngine.computeNextReviewDate(1),
     });
   }
 
@@ -981,7 +981,12 @@ class KitsuneApi {
         })
         .map((card) => card['Id'] as int)
         .toList();
-    final todayNewLearned = await _loadTodayNewLearned(folderCardIds);
+    final results = await Future.wait([
+      _loadTodayNewLearned(folderCardIds),
+      _loadWrongReviewCounts(folderCardIds),
+    ]);
+    final todayNewLearned = results[0] as int;
+    final wrongReviewCounts = results[1] as Map<int, int>;
 
     return _SrsContext(
       folderId: folderId,
@@ -991,8 +996,38 @@ class KitsuneApi {
       kanjiComponents: kanjiComponents,
       kanjiExamples: kanjiExamples,
       todayNewLearned: todayNewLearned,
+      wrongReviewCounts: wrongReviewCounts,
       cards: cards,
     );
+  }
+
+  Future<Map<int, int>> _loadWrongReviewCounts(List<int> cardIds) async {
+    final counts = <int, int>{};
+    if (cardIds.isEmpty) return counts;
+
+    try {
+      final response = await client.dio.get(
+        client.table('SRSReviewLogs'),
+        queryParameters: {
+          'select': 'CardId,Rating,OldBoxLevel,NewBoxLevel',
+          'CardId': 'in.(${cardIds.join(',')})',
+        },
+      );
+      for (final raw in response.data as List<dynamic>) {
+        final row = raw as Map<String, dynamic>;
+        final rating = (row['Rating'] as num?)?.toInt() ?? 4;
+        final oldLevel = (row['OldBoxLevel'] as num?)?.toInt() ?? 0;
+        final newLevel = (row['NewBoxLevel'] as num?)?.toInt() ?? oldLevel;
+        if (rating <= 2 || newLevel < oldLevel) {
+          final cardId = (row['CardId'] as num).toInt();
+          counts[cardId] = (counts[cardId] ?? 0) + 1;
+        }
+      }
+    } catch (_) {
+      // Drawing-mode weighting falls back to its baseline when logs are unavailable.
+    }
+
+    return counts;
   }
 
   Future<Map<int, List<SrsVocabularyExample>>> _loadKanjiExamples(
@@ -1189,6 +1224,7 @@ class KitsuneApi {
             : const <SrsVocabularyExample>[],
         strokeCount: kanji?['StrokeCount'] as int?,
         boxLevel: boxLevel,
+        wrongReviewCount: context.wrongReviewCounts[row['Id'] as int] ?? 0,
         nextReviewDate: nextReviewDate,
         isDue: isDue,
         isNew: boxLevel == 0,
@@ -1925,6 +1961,7 @@ class _SrsContext {
   final List<Map<String, dynamic>> kanjiComponents;
   final Map<int, List<SrsVocabularyExample>> kanjiExamples;
   final int todayNewLearned;
+  final Map<int, int> wrongReviewCounts;
   final List<Map<String, dynamic>> cards;
 
   _SrsContext({
@@ -1935,6 +1972,7 @@ class _SrsContext {
     required this.kanjiComponents,
     required this.kanjiExamples,
     required this.todayNewLearned,
+    required this.wrongReviewCounts,
     required this.cards,
   });
 }

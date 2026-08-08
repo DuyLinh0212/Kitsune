@@ -12,6 +12,7 @@ import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
+import 'package:kitsune_app/features/kanji/widgets/kanji_drawing_review.dart';
 import 'package:kitsune_app/providers/dashboard_provider.dart';
 import 'package:kitsune_app/providers/folder_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
@@ -26,6 +27,7 @@ class _QuizPrompt {
     required this.helper,
     required this.options,
     required this.correctAnswer,
+    this.isDrawing = false,
   });
 
   final QuizMode mode;
@@ -34,6 +36,7 @@ class _QuizPrompt {
   final String helper;
   final List<String> options;
   final String correctAnswer;
+  final bool isDrawing;
 }
 
 class _DashboardFolder {
@@ -396,6 +399,21 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     final isCorrect =
         _normalize(answer) == _normalize(_currentQuestion!.correctAnswer);
 
+    await _recordQuizResult(isCorrect);
+  }
+
+  Future<void> _submitDrawingAnswer(bool isCorrect) async {
+    if (_quizQueue.isEmpty ||
+        _currentQuestion == null ||
+        !_currentQuestion!.isDrawing ||
+        _isSubmitting) {
+      return;
+    }
+    await _recordQuizResult(isCorrect);
+  }
+
+  Future<void> _recordQuizResult(bool isCorrect) async {
+    if (_quizQueue.isEmpty || _currentQuestion == null || _isSubmitting) return;
     setState(() {
       _isSubmitting = true;
       _answersGiven += 1;
@@ -405,7 +423,9 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       _lastAnswerCorrect = isCorrect;
       _feedbackMessage = isCorrect
           ? 'Chính xác. Thẻ này đã được đẩy tới lần ôn tiếp theo.'
-          : 'Chưa đúng. Đáp án đúng là "${_currentQuestion!.correctAnswer}".';
+          : _currentQuestion!.isDrawing
+              ? 'Nét viết chưa khớp. Thẻ này sẽ quay lại cuối hàng để luyện lại.'
+              : 'Chưa đúng. Đáp án đúng là "${_currentQuestion!.correctAnswer}".';
     });
 
     try {
@@ -478,6 +498,19 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   _QuizPrompt _buildQuestion(SRSCardDto card, List<SRSCardDto> pool) {
+    if (card.type == SrsItemType.kanji &&
+        card.character?.trim().isNotEmpty == true &&
+        _shouldUseDrawing(card)) {
+      return _QuizPrompt(
+        mode: QuizMode.drawKanji,
+        prompt: '',
+        promptLabel: 'Viết kanji này theo trí nhớ',
+        helper: 'Viết ${card.strokeCount ?? 'đủ'} nét theo đúng thứ tự.',
+        options: const [],
+        correctAnswer: card.character!,
+        isDrawing: true,
+      );
+    }
     final modes = card.type == SrsItemType.vocabulary
         ? _shuffle(QuizMode.vocabModes)
         : _shuffle(QuizMode.kanjiModes);
@@ -662,6 +695,16 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     return _shuffle([correct, ...wrongs]);
   }
 
+  bool _shouldUseDrawing(SRSCardDto card) {
+    final probability = switch (card.wrongReviewCount) {
+      >= 3 => 0.8,
+      2 => 0.6,
+      1 => 0.38,
+      _ => 0.15,
+    };
+    return _rng.nextDouble() < probability;
+  }
+
   List<T> _shuffle<T>(List<T> items) {
     final clone = [...items];
     for (var index = clone.length - 1; index > 0; index--) {
@@ -750,6 +793,14 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       return _LevelBucket(
         level: level,
         count: cards.where((card) => card.boxLevel == level).length,
+        kanjiCount: cards
+            .where((card) =>
+                card.boxLevel == level && card.type == SrsItemType.kanji)
+            .length,
+        vocabularyCount: cards
+            .where((card) =>
+                card.boxLevel == level && card.type == SrsItemType.vocabulary)
+            .length,
         label: AppConstants.srsLevelLabels[level] ?? 'Level $level',
         color: KitsuneColors.srsLevelColors[level],
       );
@@ -1033,9 +1084,29 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           children: buckets.map((bucket) {
             return KitsuneActionBadge(
               icon: Icons.circle,
-              label: bucket.label,
+              label: '${bucket.label}: ${bucket.count} thẻ',
               color: bucket.color,
               isActive: bucket.count > 0,
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: AppTheme.space10),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: buckets.map((bucket) {
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: KitsuneColors.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: KitsuneColors.surfaceBorder),
+              ),
+              child: Text(
+                '${bucket.label}: ${bucket.kanjiCount} Kanji · ${bucket.vocabularyCount} từ',
+                style:
+                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+              ),
             );
           }).toList(),
         ),
@@ -1576,16 +1647,17 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                 style: Theme.of(context).textTheme.labelMedium,
               ),
               const SizedBox(height: AppTheme.space8),
-              Text(
-                question.prompt,
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontSize: card.type == SrsItemType.kanji &&
-                              question.mode != QuizMode.wordFromMean
-                          ? 56
-                          : 34,
-                      color: KitsuneColors.onSurface,
-                    ),
-              ),
+              if (!question.isDrawing)
+                Text(
+                  question.prompt,
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontSize: card.type == SrsItemType.kanji &&
+                                question.mode != QuizMode.wordFromMean
+                            ? 56
+                            : 34,
+                        color: KitsuneColors.onSurface,
+                      ),
+                ),
               if (question.helper.trim().isNotEmpty) ...[
                 const SizedBox(height: AppTheme.space8),
                 Text(
@@ -1597,86 +1669,94 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           ),
         ),
         const SizedBox(height: AppTheme.space16),
-        ...question.options.asMap().entries.map((entry) {
-          final index = entry.key;
-          final option = entry.value;
-          final isSelected = _selectedOption == option;
-          final isCorrect = option == question.correctAnswer;
+        if (question.isDrawing)
+          KanjiDrawingReview(
+            character: card.character ?? '',
+            strokeCount: card.strokeCount,
+            disabled: _isSubmitting || _feedbackMessage != null,
+            onChecked: _submitDrawingAnswer,
+          )
+        else
+          ...question.options.asMap().entries.map((entry) {
+            final index = entry.key;
+            final option = entry.value;
+            final isSelected = _selectedOption == option;
+            final isCorrect = option == question.correctAnswer;
 
-          Color fill = KitsuneColors.surface;
-          Color border = KitsuneColors.surfaceBorder;
+            Color fill = KitsuneColors.surface;
+            Color border = KitsuneColors.surfaceBorder;
 
-          if (_feedbackMessage != null && isCorrect) {
-            fill = KitsuneColors.successSurface;
-            border = KitsuneColors.success;
-          } else if (_feedbackMessage != null && isSelected && !isCorrect) {
-            fill = KitsuneColors.errorSurface;
-            border = KitsuneColors.error;
-          } else if (isSelected) {
-            fill = KitsuneColors.primarySurface;
-            border = KitsuneColors.primary;
-          }
+            if (_feedbackMessage != null && isCorrect) {
+              fill = KitsuneColors.successSurface;
+              border = KitsuneColors.success;
+            } else if (_feedbackMessage != null && isSelected && !isCorrect) {
+              fill = KitsuneColors.errorSurface;
+              border = KitsuneColors.error;
+            } else if (isSelected) {
+              fill = KitsuneColors.primarySurface;
+              border = KitsuneColors.primary;
+            }
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                onTap: _feedbackMessage != null
-                    ? null
-                    : () => setState(() => _selectedOption = option),
-                child: Container(
-                  padding: const EdgeInsets.all(AppTheme.space16),
-                  decoration: BoxDecoration(
-                    color: fill,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    border: Border.all(color: border),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x0F2B2018),
-                        blurRadius: 18,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: border.withValues(alpha: 0.12),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  onTap: _feedbackMessage != null
+                      ? null
+                      : () => setState(() => _selectedOption = option),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppTheme.space16),
+                    decoration: BoxDecoration(
+                      color: fill,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(color: border),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x0F2B2018),
+                          blurRadius: 18,
+                          offset: Offset(0, 8),
                         ),
-                        child: Text(
-                          String.fromCharCode(65 + index),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: border,
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 26,
+                          height: 26,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: border.withValues(alpha: 0.12),
+                          ),
+                          child: Text(
+                            String.fromCharCode(65 + index),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: border,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          option,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: KitsuneColors.onSurface,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            option,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: KitsuneColors.onSurface,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
         if (_feedbackMessage != null) ...[
           KitsuneSurface(
             color: (_lastAnswerCorrect ?? false)
@@ -1695,20 +1775,21 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           ),
           const SizedBox(height: AppTheme.space12),
         ],
-        ElevatedButton(
-          onPressed: _selectedOption == null ||
-                  _feedbackMessage != null ||
-                  _isSubmitting
-              ? null
-              : _submitQuizAnswer,
-          child: _isSubmitting
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: KitsuneLoadingFox(size: 28),
-                )
-              : const Text('Xác nhận đáp án'),
-        ),
+        if (!question.isDrawing)
+          ElevatedButton(
+            onPressed: _selectedOption == null ||
+                    _feedbackMessage != null ||
+                    _isSubmitting
+                ? null
+                : _submitQuizAnswer,
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: KitsuneLoadingFox(size: 28),
+                  )
+                : const Text('Xác nhận đáp án'),
+          ),
       ],
     );
   }
@@ -1818,6 +1899,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         return 'Âm Hán Việt';
       case QuizMode.composeKanji:
         return 'Nhận dạng Kanji';
+      case QuizMode.drawKanji:
+        return 'Viết Kanji';
     }
   }
 
@@ -1835,6 +1918,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         return KitsuneColors.secondary;
       case QuizMode.composeKanji:
         return KitsuneColors.success;
+      case QuizMode.drawKanji:
+        return KitsuneColors.primary;
     }
   }
 }
@@ -1843,12 +1928,16 @@ class _LevelBucket {
   const _LevelBucket({
     required this.level,
     required this.count,
+    required this.kanjiCount,
+    required this.vocabularyCount,
     required this.label,
     required this.color,
   });
 
   final int level;
   final int count;
+  final int kanjiCount;
+  final int vocabularyCount;
   final String label;
   final Color color;
 }

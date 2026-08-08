@@ -10,7 +10,8 @@ export type SrsMode =
   | 'FILL_BLANK'
   | 'ON_KUN_READ'
   | 'HAN_VIET'
-  | 'COMPOSE_KANJI';
+  | 'COMPOSE_KANJI'
+  | 'DRAW_KANJI';
 
 export interface SrsVocabularyExample {
   word: string;
@@ -35,6 +36,7 @@ export interface SRSCardDto {
   examples: SrsVocabularyExample[];
   strokeCount: number | null;
   boxLevel: number;
+  wrongReviewCount: number;
   nextReviewDate: string;
   isDue: boolean;
   isNew: boolean;
@@ -142,7 +144,7 @@ const DAILY_GOAL_STORAGE_PREFIX = 'kitsune.srs.dailyGoal.';
 const DAILY_LEARNED_STORAGE_PREFIX = 'kitsune.srs.learnedCards.';
 const BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
   0: 0,
-  1: 4 * 60 * 60 * 1000,
+  1: 60 * 60 * 1000,
   2: 24 * 60 * 60 * 1000,
   3: 3 * 24 * 60 * 60 * 1000,
   4: 7 * 24 * 60 * 60 * 1000,
@@ -258,7 +260,7 @@ export class SrsService {
       folderId: resolvedFolderId,
       folderName: context.folder.FolderName,
       overview,
-      cards: this.sortCards([...flashcards, ...quizCards]),
+      cards: this.sortCards(cards),
       flashcards: this.sortCards(flashcards),
       quizCards: this.sortCards(quizCards),
     };
@@ -328,6 +330,7 @@ export class SrsService {
     kanjiComponents: KanjiComponentRow[];
     kanjiExamples: Map<number, SrsVocabularyExample[]>;
     todayNewLearned: number;
+    wrongReviewCounts: Map<number, number>;
     cards: DbCardRow[];
   }> {
     const [{ data: folderData, error: folderError }, { data: vocabData, error: vocabError }, { data: cardData, error: cardError }] =
@@ -376,9 +379,10 @@ export class SrsService {
           : card.KanjiId != null && visibleKanjiIds.has(card.KanjiId)
       )
       .map((card) => card.Id);
-    const [kanjiExamples, todayNewLearned] = await Promise.all([
+    const [kanjiExamples, todayNewLearned, wrongReviewCounts] = await Promise.all([
       this.loadKanjiExamples(kanjiIds),
       this.loadTodayNewLearned(folderCardIds),
+      this.loadWrongReviewCounts(folderCardIds),
     ]);
 
     return {
@@ -389,8 +393,33 @@ export class SrsService {
       kanjiComponents,
       kanjiExamples,
       todayNewLearned,
+      wrongReviewCounts,
       cards: allCards,
     };
+  }
+
+  private async loadWrongReviewCounts(cardIds: number[]): Promise<Map<number, number>> {
+    const counts = new Map<number, number>();
+    if (cardIds.length === 0) return counts;
+
+    const { data, error } = await supabase
+      .from('SRSReviewLogs')
+      .select('CardId, Rating, OldBoxLevel, NewBoxLevel')
+      .in('CardId', cardIds);
+
+    if (error) {
+      console.warn('Không thể tải lịch sử sai SRS:', error.message);
+      return counts;
+    }
+
+    for (const log of data ?? []) {
+      const row = log as { CardId: number; Rating: number; OldBoxLevel: number; NewBoxLevel: number };
+      if (row.Rating <= 2 || row.NewBoxLevel < row.OldBoxLevel) {
+        counts.set(row.CardId, (counts.get(row.CardId) ?? 0) + 1);
+      }
+    }
+
+    return counts;
   }
 
   private async loadKanjiExamples(kanjiIds: number[]): Promise<Map<number, SrsVocabularyExample[]>> {
@@ -529,7 +558,15 @@ export class SrsService {
     );
 
     return rows
-      .map((row) => this.mapRowToCard(row, vocabMap, kanjiMap, context.kanjiExamples, context.folderId, now))
+      .map((row) => this.mapRowToCard(
+        row,
+        vocabMap,
+        kanjiMap,
+        context.kanjiExamples,
+        context.wrongReviewCounts,
+        context.folderId,
+        now
+      ))
       .sort((a, b) => this.sortValue(a) - this.sortValue(b));
   }
 
@@ -538,6 +575,7 @@ export class SrsService {
     vocabMap: Map<number, VocabRow>,
     kanjiMap: Map<number, KanjiRow>,
     kanjiExamples: Map<number, SrsVocabularyExample[]>,
+    wrongReviewCounts: Map<number, number>,
     folderId: number,
     now: number
   ): SRSCardDto {
@@ -564,6 +602,7 @@ export class SrsService {
       examples: row.KanjiId != null ? (kanjiExamples.get(row.KanjiId) ?? []) : [],
       strokeCount: kanji?.StrokeCount ?? null,
       boxLevel,
+      wrongReviewCount: wrongReviewCounts.get(row.Id) ?? 0,
       nextReviewDate,
       isDue,
       isNew: boxLevel === 0,
@@ -709,7 +748,7 @@ export class SrsService {
 
   private intervalDays(level: number): number {
     const interval = BOX_LEVEL_INTERVALS_MS[level] ?? 0;
-    return Math.max(0, Math.round(interval / (24 * 60 * 60 * 1000)));
+    return Math.max(0, interval / (24 * 60 * 60 * 1000));
   }
 
   private resolveRepetitions(currentLevel: number, nextLevel: number, correct: boolean): number {

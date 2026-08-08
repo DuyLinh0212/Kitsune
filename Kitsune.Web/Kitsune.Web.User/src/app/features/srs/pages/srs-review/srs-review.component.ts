@@ -12,13 +12,14 @@ import {
   SrsService,
 } from '../../../../core/services/srs.service';
 import { TtsService } from '../../../../core/services/tts.service';
+import { KanjiDrawingReviewComponent } from '../../components/kanji-drawing-review/kanji-drawing-review.component';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 interface DashboardFolder extends FolderDto, FolderSrsOverview {}
 
 interface QuizQuestion {
   mode: SrsMode;
-  kind: 'mc' | 'fill';
+  kind: 'mc' | 'fill' | 'drawing';
   prompt: string;
   promptLabel: string;
   helper: string;
@@ -38,6 +39,8 @@ type StudyPhase = 'idle' | 'setup_quantity' | 'prompt_review' | 'flashcard' | 'q
 interface LevelBucket {
   level: number;
   count: number;
+  kanjiCount: number;
+  vocabularyCount: number;
   label: string;
   color: string;
 }
@@ -45,7 +48,7 @@ interface LevelBucket {
 @Component({
   selector: 'app-srs-review',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LoadingFoxComponent],
+  imports: [CommonModule, FormsModule, RouterLink, LoadingFoxComponent, KanjiDrawingReviewComponent],
   templateUrl: './srs-review.component.html',
   styleUrl: './srs-review.component.css',
 })
@@ -148,10 +151,15 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       { level: 6, label: 'Cấp 6', color: '#8b5cf6' },
       { level: 7, label: 'Master', color: '#ec4899' },
     ];
-    return config.map((c) => ({
-      ...c,
-      count: cards.filter((card) => card.boxLevel === c.level).length,
-    }));
+    return config.map((c) => {
+      const cardsAtLevel = cards.filter((card) => card.boxLevel === c.level);
+      return {
+        ...c,
+        count: cardsAtLevel.length,
+        kanjiCount: cardsAtLevel.filter((card) => card.type === 'kanji').length,
+        vocabularyCount: cardsAtLevel.filter((card) => card.type === 'vocabulary').length,
+      };
+    });
   });
 
   readonly maxLevelCount = computed(() => {
@@ -345,6 +353,18 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     if (!answer) return;
 
     const isCorrect = this.normalize(answer) === this.normalize(question.correctAnswer);
+    await this.recordQuizResult(isCorrect, question);
+  }
+
+  async submitDrawingAnswer(isCorrect: boolean): Promise<void> {
+    const question = this.currentQuestion();
+    if (!question || question.kind !== 'drawing') return;
+    await this.recordQuizResult(isCorrect, question);
+  }
+
+  private async recordQuizResult(isCorrect: boolean, question: QuizQuestion): Promise<void> {
+    const card = this.currentQuizCard();
+    if (!card || this.isSubmitting()) return;
     this.isSubmitting.set(true);
 
     try {
@@ -353,7 +373,9 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
         correct: isCorrect,
         message: isCorrect
           ? '✓ Chính xác! Thẻ này đã được lên lịch cho lần ôn tiếp theo.'
-          : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}". Thẻ sẽ quay lại cuối hàng.`,
+          : question.kind === 'drawing'
+            ? '✗ Nét viết chưa khớp. Thẻ sẽ quay lại cuối hàng để bạn luyện lại.'
+            : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}". Thẻ sẽ quay lại cuối hàng.`,
       });
       this.stats.update((stats) => ({
         flashCompleted: stats.flashCompleted,
@@ -408,6 +430,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       ON_KUN_READ: 'Cách đọc',
       HAN_VIET: 'Âm Hán Việt',
       COMPOSE_KANJI: 'Nhận dạng Kanji',
+      DRAW_KANJI: 'Viết Kanji',
     };
     return labels[mode] ?? mode;
   }
@@ -420,6 +443,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       ON_KUN_READ: '#B23A2E',
       HAN_VIET: '#5F7A52',
       COMPOSE_KANJI: '#4F8B5C',
+      DRAW_KANJI: '#8D4024',
     };
     return colors[mode] ?? '#6b7280';
   }
@@ -569,6 +593,18 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   }
 
   private buildQuestion(card: SRSCardDto, pool: SRSCardDto[]): QuizQuestion {
+    if (card.type === 'kanji' && card.character && this.shouldUseDrawing(card)) {
+      return {
+        mode: 'DRAW_KANJI',
+        kind: 'drawing',
+        prompt: '',
+        promptLabel: 'Viết kanji này theo trí nhớ',
+        helper: `Viết ${card.strokeCount ?? 'đủ'} nét theo đúng thứ tự.`,
+        options: [],
+        correctAnswer: card.character,
+      };
+    }
+
     const modes = card.type === 'vocabulary'
       ? this.shuffle<SrsMode>(['MEAN_FROM_WORD', 'WORD_FROM_MEAN', 'FILL_BLANK'])
       : this.shuffle<SrsMode>(['ON_KUN_READ', 'HAN_VIET', 'COMPOSE_KANJI']);
@@ -726,6 +762,17 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     }
 
     return this.shuffle([correct, ...wrongs]);
+  }
+
+  private shouldUseDrawing(card: SRSCardDto): boolean {
+    const probability = card.wrongReviewCount >= 3
+      ? 0.8
+      : card.wrongReviewCount === 2
+        ? 0.6
+        : card.wrongReviewCount === 1
+          ? 0.38
+          : 0.15;
+    return Math.random() < probability;
   }
 
   private shuffle<T>(items: T[]): T[] {

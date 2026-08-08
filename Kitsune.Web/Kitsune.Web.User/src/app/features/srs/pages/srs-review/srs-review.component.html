@@ -111,7 +111,7 @@
           @for (bucket of levelDistribution(); track bucket.level) {
             <div class="bar-col">
               <span class="bar-count" [class.bar-count--zero]="bucket.count === 0">
-                {{ bucket.count > 0 ? bucket.count + ' từ' : '—' }}
+                {{ bucket.count > 0 ? bucket.count + ' thẻ' : '—' }}
               </span>
               <div
                 class="bar"
@@ -131,6 +131,17 @@
             <div class="chart-legend-item">
               <span class="chart-legend-dot" [style.background]="bucket.color"></span>
               <span>{{ bucket.label }}</span>
+            </div>
+          }
+        </div>
+
+        <div class="level-details" aria-label="Chi tiết số thẻ theo cấp độ">
+          @for (bucket of levelDistribution(); track bucket.level) {
+            <div class="level-details__item">
+              <span class="level-details__dot" [style.background]="bucket.color"></span>
+              <span class="level-details__label">{{ bucket.label }}</span>
+              <strong>{{ bucket.count }} thẻ</strong>
+              <span>{{ bucket.kanjiCount }} Kanji · {{ bucket.vocabularyCount }} từ</span>
             </div>
           }
         </div>
@@ -475,9 +486,11 @@
                 <!-- Prompt -->
                 <div class="quiz-prompt-card" [class.quiz-prompt-card--kanji]="card.type === 'kanji'">
                   <p class="quiz-prompt-label">{{ question.promptLabel }}</p>
-                  <div class="quiz-prompt-main" [class.quiz-prompt-main--kanji]="card.type === 'kanji' && question.mode !== 'WORD_FROM_MEAN'">
-                    {{ question.prompt }}
-                  </div>
+                  @if (question.kind !== 'drawing') {
+                    <div class="quiz-prompt-main" [class.quiz-prompt-main--kanji]="card.type === 'kanji' && question.mode !== 'WORD_FROM_MEAN'">
+                      {{ question.prompt }}
+                    </div>
+                  }
                   @if (question.helper) {
                     <p class="quiz-prompt-helper">{{ question.helper }}</p>
                   }
@@ -506,6 +519,15 @@
                   </div>
                 }
 
+                @if (question.kind === 'drawing') {
+                  <app-kanji-drawing-review
+                    [character]="card.character ?? ''"
+                    [strokeCount]="card.strokeCount"
+                    [disabled]="isSubmitting() || !!answerFeedback()"
+                    (checked)="submitDrawingAnswer($event)"
+                  />
+                }
+
 
 
                 <!-- Feedback -->
@@ -516,7 +538,8 @@
                 }
 
                 <!-- Submit button -->
-                <div class="quiz-actions">
+                @if (question.kind !== 'drawing') {
+                  <div class="quiz-actions">
                   <button
                     type="button"
                     class="quiz-submit-btn"
@@ -534,6 +557,7 @@
                     }
                   </button>
                 </div>
+                }
               </div>
             }
           </div>
