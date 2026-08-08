@@ -101,3 +101,5 @@ backup.sql
 # =========================
 # Custom Ignored Folders
 # =========================
+.tmp-srs-build/
+test.js
