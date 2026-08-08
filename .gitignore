@@ -103,3 +103,4 @@ backup.sql
 # =========================
 .tmp-srs-build/
 test.js
+/scripts/
