@@ -342,6 +342,14 @@ export class HomeComponent implements OnInit {
     return this.srsWeekData().reduce((sum, value) => sum + value, 0);
   }
 
+  formatWeekDuration(hours: number): string {
+    const totalMinutes = Math.max(0, Math.round(hours * 60));
+    if (totalMinutes < 60) return `${totalMinutes} phút`;
+
+    const displayHours = Number((totalMinutes / 60).toFixed(1));
+    return `${displayHours} giờ`;
+  }
+
   getBarHeight(val: number): number {
     return Math.round((val / this.maxWeekValue) * 100);
   }

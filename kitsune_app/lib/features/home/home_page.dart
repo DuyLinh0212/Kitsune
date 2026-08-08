@@ -205,8 +205,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 color: KitsuneColors.primary,
               ),
               KitsuneMetricPill(
-                label: 'Giờ mở app',
-                value: '${totalHours.toStringAsFixed(1)}h',
+                label: 'Thời gian mở app',
+                value: _formatWeekDuration(totalHours),
                 icon: Icons.schedule_rounded,
                 color: KitsuneColors.stamp,
               ),
@@ -228,7 +228,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Text(
-                        '${data[index].toStringAsFixed(1)}h',
+                        _formatWeekDuration(data[index]),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -281,6 +281,15 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       ),
     );
+  }
+
+  String _formatWeekDuration(double hours) {
+    final totalMinutes = (hours * 60).round().clamp(0, 2147483647);
+    if (totalMinutes < 60) return '$totalMinutes phút';
+
+    final displayHours = (totalMinutes / 60).toStringAsFixed(1);
+    final normalizedHours = double.parse(displayHours).toString();
+    return '$normalizedHours giờ';
   }
 
   Widget _buildRecentFolders() {

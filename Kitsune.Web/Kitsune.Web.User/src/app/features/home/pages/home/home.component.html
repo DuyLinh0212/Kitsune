@@ -156,12 +156,12 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg>
           Nhịp học tuần này
         </h3>
-        <span class="activity-total">{{ totalWeekHours | number:'1.1-1' }} giờ mở web</span>
+        <span class="activity-total">{{ formatWeekDuration(totalWeekHours) }} mở web</span>
       </div>
       <div class="usage-chart" aria-label="Biểu đồ số giờ mở web trong 7 ngày gần nhất">
         @for (value of srsWeekData(); track $index) {
           <div class="usage-day">
-            <span class="usage-value">{{ value | number:'1.1-1' }}h</span>
+            <span class="usage-value">{{ formatWeekDuration(value) }}</span>
             <div class="usage-track">
               <div
                 class="usage-bar"
