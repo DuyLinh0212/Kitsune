@@ -308,7 +308,7 @@ export class VocabularyService {
             KanjiId: null,
             BoxLevel: 1,
             EaseFactor: 2.5,
-            IntervalDays: 1 / 24,
+            IntervalDays: 1,
             Repetitions: 0,
             NextReviewDate: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
           })

@@ -32,9 +32,10 @@ class SrsEngine {
     return DateTime.now().add(interval).toIso8601String();
   }
 
-  static double intervalDays(int level) {
+  static int intervalDays(int level) {
     final interval = AppConstants.srsIntervals[level] ?? Duration.zero;
-    return interval.inMinutes / Duration.minutesPerDay;
+    if (interval == Duration.zero) return 0;
+    return interval.inDays == 0 ? 1 : interval.inDays;
   }
 
   static int resolveReps(int current, int next, bool correct) {

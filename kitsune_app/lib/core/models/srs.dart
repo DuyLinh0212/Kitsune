@@ -67,7 +67,7 @@ class SRSCardDto {
 class SrsCardProgressUpdate {
   final int cardId;
   final int boxLevel;
-  final double intervalDays;
+  final int intervalDays;
   final String nextReviewDate;
   final int wrongReviewCountDelta;
 

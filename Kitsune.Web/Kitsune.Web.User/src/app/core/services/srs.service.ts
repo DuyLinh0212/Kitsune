@@ -805,7 +805,8 @@ export class SrsService {
 
   private intervalDays(level: number): number {
     const interval = BOX_LEVEL_INTERVALS_MS[level] ?? 0;
-    return Math.max(0, interval / (24 * 60 * 60 * 1000));
+    if (interval <= 0) return 0;
+    return Math.max(1, Math.floor(interval / (24 * 60 * 60 * 1000)));
   }
 
   private resolveRepetitions(currentLevel: number, nextLevel: number, correct: boolean): number {
