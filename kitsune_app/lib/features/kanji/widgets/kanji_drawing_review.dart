@@ -190,10 +190,12 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
       return;
     }
 
-    final correct = List.generate(expectedCount, (index) {
-      return _matchesExpectedStroke(
-          _strokes[index], _expectedStrokes[index], size);
-    }).every((value) => value);
+    final normalization = _createStrokeNormalization(size);
+    final correct = normalization != null &&
+        List.generate(expectedCount, (index) {
+          return _matchesExpectedStroke(
+              _strokes[index], _expectedStrokes[index], size, normalization);
+        }).every((value) => value);
     _report(
       correct,
       correct
@@ -202,31 +204,87 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
     );
   }
 
-  bool _matchesExpectedStroke(List<Offset> stroke, Path expected, Size size) {
+  bool _matchesExpectedStroke(List<Offset> stroke, Path expected, Size size,
+      _StrokeNormalization normalization) {
     if (stroke.length < 3) return false;
     final expectedBounds = expected.getBounds();
-    final tolerance =
-        max(expectedBounds.width, expectedBounds.height) * 0.16 + 4;
+    final tolerance = min(
+      14.0,
+      max(6.0, max(expectedBounds.width, expectedBounds.height) * 0.18),
+    );
+    final expectedPoints = _sampleExpectedPath(expected);
+    if (expectedPoints.isEmpty) return false;
     final sample = <Offset>[
-      for (var index = 0; index < stroke.length; index += 3) stroke[index],
+      for (var index = 0; index < stroke.length; index += 2) stroke[index],
       stroke.last,
     ];
     var pathHits = 0;
     var boundsHits = 0;
     for (final point in sample) {
-      final svgPoint = _toSvgPoint(point, size);
-      if (expected.contains(svgPoint)) pathHits += 1;
+      final svgPoint = normalization.apply(_toSvgPoint(point, size));
+      if (expectedPoints.any((expectedPoint) =>
+          (expectedPoint - svgPoint).distance <= tolerance)) {
+        pathHits += 1;
+      }
       if (Rect.fromLTRB(
-        expectedBounds.left - tolerance,
-        expectedBounds.top - tolerance,
-        expectedBounds.right + tolerance,
-        expectedBounds.bottom + tolerance,
+        expectedBounds.left - tolerance * 1.25,
+        expectedBounds.top - tolerance * 1.25,
+        expectedBounds.right + tolerance * 1.25,
+        expectedBounds.bottom + tolerance * 1.25,
       ).contains(svgPoint)) {
         boundsHits += 1;
       }
     }
-    return pathHits / sample.length >= 0.2 ||
-        boundsHits / sample.length >= 0.72;
+    return pathHits / sample.length >= 0.38 &&
+        boundsHits / sample.length >= 0.62;
+  }
+
+  List<Offset> _sampleExpectedPath(Path path) {
+    final points = <Offset>[];
+    for (final metric in path.computeMetrics()) {
+      for (var distance = 0.0; distance < metric.length; distance += 2) {
+        final tangent = metric.getTangentForOffset(distance);
+        if (tangent != null) points.add(tangent.position);
+      }
+      final end = metric.getTangentForOffset(metric.length);
+      if (end != null) points.add(end.position);
+    }
+    return points;
+  }
+
+  _StrokeNormalization? _createStrokeNormalization(Size size) {
+    final userPoints = <Offset>[
+      for (final stroke in _strokes)
+        for (final point in stroke) _toSvgPoint(point, size),
+    ];
+    if (userPoints.isEmpty || _expectedStrokes.isEmpty) return null;
+
+    final source = _pointsBounds(userPoints);
+    var target = _expectedStrokes.first.getBounds();
+    for (final stroke in _expectedStrokes.skip(1)) {
+      final bounds = stroke.getBounds();
+      target = Rect.fromLTRB(
+        min(target.left, bounds.left),
+        min(target.top, bounds.top),
+        max(target.right, bounds.right),
+        max(target.bottom, bounds.bottom),
+      );
+    }
+    return _StrokeNormalization(source: source, target: target);
+  }
+
+  Rect _pointsBounds(List<Offset> points) {
+    var left = points.first.dx;
+    var right = points.first.dx;
+    var top = points.first.dy;
+    var bottom = points.first.dy;
+    for (final point in points.skip(1)) {
+      left = min(left, point.dx);
+      right = max(right, point.dx);
+      top = min(top, point.dy);
+      bottom = max(bottom, point.dy);
+    }
+    return Rect.fromLTRB(left, top, right, bottom);
   }
 
   void _report(bool correct, String message) {
@@ -420,6 +478,26 @@ class _CanvasTransform {
   final double dy;
 }
 
+class _StrokeNormalization {
+  const _StrokeNormalization({required this.source, required this.target});
+
+  final Rect source;
+  final Rect target;
+
+  Offset apply(Offset point) {
+    return Offset(
+      source.width > 1
+          ? target.left +
+              ((point.dx - source.left) / source.width) * target.width
+          : target.center.dx,
+      source.height > 1
+          ? target.top +
+              ((point.dy - source.top) / source.height) * target.height
+          : target.center.dy,
+    );
+  }
+}
+
 class _KanjiDrawingPainter extends CustomPainter {
   const _KanjiDrawingPainter({
     required this.strokes,
@@ -453,7 +531,12 @@ class _KanjiDrawingPainter extends CustomPainter {
       canvas.save();
       canvas.translate(dx, dy);
       canvas.scale(scale);
-      final hint = Paint()..color = const Color(0x268F3E25);
+      final hint = Paint()
+        ..color = const Color(0x388F3E25)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
       for (final path in expectedStrokes) {
         canvas.drawPath(path, hint);
       }

@@ -24,6 +24,11 @@ interface SvgViewBox {
   height: number;
 }
 
+interface StrokeNormalization {
+  source: DOMRect;
+  target: DOMRect;
+}
+
 @Component({
   selector: 'app-kanji-drawing-review',
   standalone: true,
@@ -120,8 +125,9 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
       return;
     }
 
-    const isCorrect = this.userStrokes.every((stroke, index) =>
-      this.matchesExpectedStroke(stroke, this.expectedStrokes[index])
+    const normalization = this.createStrokeNormalization();
+    const isCorrect = normalization !== null && this.userStrokes.every((stroke, index) =>
+      this.matchesExpectedStroke(stroke, this.expectedStrokes[index], normalization)
     );
     this.report(
       isCorrect,
@@ -223,7 +229,11 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
     }
 
     context.translate(-viewBox.x, -viewBox.y);
-    context.fill(path);
+    context.strokeStyle = '#000';
+    context.lineWidth = 3;
+    context.lineCap = 'round';
+    context.lineJoin = 'round';
+    context.stroke(path);
     const pixels = context.getImageData(0, 0, measureCanvas.width, measureCanvas.height).data;
     let minX = measureCanvas.width;
     let minY = measureCanvas.height;
@@ -249,7 +259,11 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
     };
   }
 
-  private matchesExpectedStroke(stroke: DrawingStroke, expected: ExpectedStroke): boolean {
+  private matchesExpectedStroke(
+    stroke: DrawingStroke,
+    expected: ExpectedStroke,
+    normalization: StrokeNormalization
+  ): boolean {
     if (stroke.points.length < 3) return false;
     const sample = stroke.points.filter((_, index) =>
       index === 0 || index === stroke.points.length - 1 || index % 2 === 0
@@ -263,7 +277,7 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
     let boundsHits = 0;
 
     for (const point of sample) {
-      const svgPoint = this.toSvgPoint(point);
+      const svgPoint = this.normalizePoint(this.toSvgPoint(point), normalization);
       if (this.isExpectedInkNearby(expected, svgPoint, tolerance)) inkHits += 1;
       if (
         svgPoint.x >= expectedBounds.left - tolerance * 1.25 &&
@@ -276,6 +290,47 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
     }
 
     return inkHits / sample.length >= 0.38 && boundsHits / sample.length >= 0.62;
+  }
+
+  private createStrokeNormalization(): StrokeNormalization | null {
+    const userPoints = this.userStrokes.flatMap((stroke) =>
+      stroke.points.map((point) => this.toSvgPoint(point))
+    );
+    if (userPoints.length === 0 || this.expectedStrokes.length === 0) return null;
+
+    const source = this.pointsBounds(userPoints);
+    const target = this.expectedStrokes
+      .map((stroke) => stroke.bounds)
+      .reduce((bounds, current) => this.unionBounds(bounds, current));
+    return { source, target };
+  }
+
+  private pointsBounds(points: DrawingPoint[]): DOMRect {
+    const xs = points.map((point) => point.x);
+    const ys = points.map((point) => point.y);
+    const left = Math.min(...xs);
+    const top = Math.min(...ys);
+    return new DOMRect(left, top, Math.max(...xs) - left, Math.max(...ys) - top);
+  }
+
+  private unionBounds(left: DOMRect, right: DOMRect): DOMRect {
+    const x = Math.min(left.left, right.left);
+    const y = Math.min(left.top, right.top);
+    const maxX = Math.max(left.right, right.right);
+    const maxY = Math.max(left.bottom, right.bottom);
+    return new DOMRect(x, y, maxX - x, maxY - y);
+  }
+
+  private normalizePoint(point: DrawingPoint, normalization: StrokeNormalization): DrawingPoint {
+    const { source, target } = normalization;
+    return {
+      x: source.width > 1
+        ? target.left + ((point.x - source.left) / source.width) * target.width
+        : target.left + target.width / 2,
+      y: source.height > 1
+        ? target.top + ((point.y - source.top) / source.height) * target.height
+        : target.top + target.height / 2,
+    };
   }
 
   private isExpectedInkNearby(
@@ -348,8 +403,11 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
       context.translate(transform.x, transform.y);
       context.scale(transform.scale, transform.scale);
       context.translate(-this.viewBox.x, -this.viewBox.y);
-      context.fillStyle = 'rgba(143, 62, 37, 0.16)';
-      this.expectedStrokes.forEach((stroke) => context.fill(stroke.path));
+      context.strokeStyle = 'rgba(143, 62, 37, 0.22)';
+      context.lineWidth = 3;
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      this.expectedStrokes.forEach((stroke) => context.stroke(stroke.path));
       context.restore();
     }
 
