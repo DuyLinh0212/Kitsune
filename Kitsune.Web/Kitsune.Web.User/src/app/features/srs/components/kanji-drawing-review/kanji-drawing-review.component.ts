@@ -12,6 +12,9 @@ interface DrawingStroke {
 interface ExpectedStroke {
   path: Path2D;
   bounds: DOMRect;
+  ink: Uint8ClampedArray;
+  inkWidth: number;
+  inkHeight: number;
 }
 
 interface SvgViewBox {
@@ -99,7 +102,6 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
     this.userStrokes = [];
     this.activeStroke = null;
     this.drawnStrokeCount.set(0);
-    this.expectedStrokeCount.set(0);
     this.feedback.set(null);
     this.redraw();
   }
@@ -199,19 +201,26 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
       .filter(Boolean)
       .map((d) => {
         const path = new Path2D(d);
-        const bounds = this.measurePathBounds(path, viewBox);
-        return { path, bounds };
+        return this.createExpectedStroke(path, viewBox);
       });
 
     return { strokes, viewBox };
   }
 
-  private measurePathBounds(path: Path2D, viewBox: SvgViewBox): DOMRect {
+  private createExpectedStroke(path: Path2D, viewBox: SvgViewBox): ExpectedStroke {
     const measureCanvas = document.createElement('canvas');
     measureCanvas.width = Math.ceil(viewBox.width);
     measureCanvas.height = Math.ceil(viewBox.height);
     const context = measureCanvas.getContext('2d');
-    if (!context) return new DOMRect(viewBox.x, viewBox.y, viewBox.width, viewBox.height);
+    if (!context) {
+      return {
+        path,
+        bounds: new DOMRect(viewBox.x, viewBox.y, viewBox.width, viewBox.height),
+        ink: new Uint8ClampedArray(),
+        inkWidth: 0,
+        inkHeight: 0,
+      };
+    }
 
     context.translate(-viewBox.x, -viewBox.y);
     context.fill(path);
@@ -229,34 +238,71 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
         maxY = Math.max(maxY, y);
       }
     }
-    return maxX < 0
-      ? new DOMRect(viewBox.x, viewBox.y, viewBox.width, viewBox.height)
-      : new DOMRect(minX + viewBox.x, minY + viewBox.y, maxX - minX + 1, maxY - minY + 1);
+    return {
+      path,
+      bounds: maxX < 0
+        ? new DOMRect(viewBox.x, viewBox.y, viewBox.width, viewBox.height)
+        : new DOMRect(minX + viewBox.x, minY + viewBox.y, maxX - minX + 1, maxY - minY + 1),
+      ink: pixels,
+      inkWidth: measureCanvas.width,
+      inkHeight: measureCanvas.height,
+    };
   }
 
   private matchesExpectedStroke(stroke: DrawingStroke, expected: ExpectedStroke): boolean {
-    const context = this.context;
-    if (!context || stroke.points.length < 3) return false;
-    const sample = stroke.points.filter((_, index) => index === 0 || index === stroke.points.length - 1 || index % 3 === 0);
+    if (stroke.points.length < 3) return false;
+    const sample = stroke.points.filter((_, index) =>
+      index === 0 || index === stroke.points.length - 1 || index % 2 === 0
+    );
     const expectedBounds = expected.bounds;
-    const tolerance = Math.max(expectedBounds.width, expectedBounds.height) * 0.16 + 4;
-    let pathHits = 0;
+    const tolerance = Math.min(
+      14,
+      Math.max(6, Math.max(expectedBounds.width, expectedBounds.height) * 0.18)
+    );
+    let inkHits = 0;
     let boundsHits = 0;
 
     for (const point of sample) {
       const svgPoint = this.toSvgPoint(point);
-      if (context.isPointInPath(expected.path, svgPoint.x, svgPoint.y)) pathHits += 1;
+      if (this.isExpectedInkNearby(expected, svgPoint, tolerance)) inkHits += 1;
       if (
-        svgPoint.x >= expectedBounds.left - tolerance &&
-        svgPoint.x <= expectedBounds.right + tolerance &&
-        svgPoint.y >= expectedBounds.top - tolerance &&
-        svgPoint.y <= expectedBounds.bottom + tolerance
+        svgPoint.x >= expectedBounds.left - tolerance * 1.25 &&
+        svgPoint.x <= expectedBounds.right + tolerance * 1.25 &&
+        svgPoint.y >= expectedBounds.top - tolerance * 1.25 &&
+        svgPoint.y <= expectedBounds.bottom + tolerance * 1.25
       ) {
         boundsHits += 1;
       }
     }
 
-    return pathHits / sample.length >= 0.2 || boundsHits / sample.length >= 0.72;
+    return inkHits / sample.length >= 0.38 && boundsHits / sample.length >= 0.62;
+  }
+
+  private isExpectedInkNearby(
+    expected: ExpectedStroke,
+    point: DrawingPoint,
+    tolerance: number
+  ): boolean {
+    if (expected.inkWidth === 0 || expected.inkHeight === 0) return false;
+
+    const centerX = Math.round(point.x - this.viewBox.x);
+    const centerY = Math.round(point.y - this.viewBox.y);
+    const radius = Math.ceil(tolerance);
+    const squaredRadius = radius * radius;
+    const minX = Math.max(0, centerX - radius);
+    const maxX = Math.min(expected.inkWidth - 1, centerX + radius);
+    const minY = Math.max(0, centerY - radius);
+    const maxY = Math.min(expected.inkHeight - 1, centerY + radius);
+
+    for (let y = minY; y <= maxY; y += 1) {
+      for (let x = minX; x <= maxX; x += 1) {
+        const distanceX = x - centerX;
+        const distanceY = y - centerY;
+        if (distanceX * distanceX + distanceY * distanceY > squaredRadius) continue;
+        if (expected.ink[(y * expected.inkWidth + x) * 4 + 3] > 0) return true;
+      }
+    }
+    return false;
   }
 
   private report(correct: boolean, message: string): void {
