@@ -121,19 +121,41 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
 
     const expectedCount = this.expectedStrokes.length;
     if (this.userStrokes.length !== expectedCount) {
-      this.report(false, `Cần viết đủ ${expectedCount} nét theo đúng thứ tự. Bạn đã viết ${this.userStrokes.length} nét.`);
+      this.report(false, `Cần viết đủ ${expectedCount} nét. Bạn đã viết ${this.userStrokes.length} nét.`);
       return;
     }
 
     const normalization = this.createStrokeNormalization();
-    const isCorrect = normalization !== null && this.userStrokes.every((stroke, index) =>
-      this.matchesExpectedStroke(stroke, this.expectedStrokes[index], normalization)
-    );
+    const isCorrect = normalization !== null && this.matchesExpectedStrokesInAnyOrder(normalization);
     this.report(
       isCorrect,
       isCorrect
-        ? 'Chính xác! Thứ tự và vị trí nét viết đều ổn.'
+        ? 'Chính xác! Các nét viết đã tạo đúng chữ Kanji.'
         : 'Nét viết chưa khớp. Xem gợi ý để đối chiếu rồi thử lại ở lần sau.'
+    );
+  }
+
+  private matchesExpectedStrokesInAnyOrder(normalization: StrokeNormalization): boolean {
+    const matchedUserByExpected = Array<number>(this.expectedStrokes.length).fill(-1);
+
+    const assignExpectedStroke = (userIndex: number, visited: boolean[]): boolean => {
+      const userStroke = this.userStrokes[userIndex];
+      for (let expectedIndex = 0; expectedIndex < this.expectedStrokes.length; expectedIndex += 1) {
+        if (visited[expectedIndex]) continue;
+        if (!this.matchesExpectedStroke(userStroke, this.expectedStrokes[expectedIndex], normalization)) continue;
+
+        visited[expectedIndex] = true;
+        const matchedUserIndex = matchedUserByExpected[expectedIndex];
+        if (matchedUserIndex === -1 || assignExpectedStroke(matchedUserIndex, visited)) {
+          matchedUserByExpected[expectedIndex] = userIndex;
+          return true;
+        }
+      }
+      return false;
+    };
+
+    return this.userStrokes.every((_, userIndex) =>
+      assignExpectedStroke(userIndex, Array<boolean>(this.expectedStrokes.length).fill(false)),
     );
   }
 

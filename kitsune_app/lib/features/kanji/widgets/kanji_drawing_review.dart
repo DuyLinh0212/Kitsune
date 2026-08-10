@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
@@ -171,6 +172,11 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
     });
   }
 
+  void _cancelStroke() {
+    final active = _activeStroke;
+    if (active != null) _finishStroke(active.last);
+  }
+
   void _clear() {
     if (widget.disabled) return;
     setState(() {
@@ -186,22 +192,53 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
     final expectedCount = _expectedStrokes.length;
     if (_strokes.length != expectedCount) {
       _report(false,
-          'Cần viết đủ $expectedCount nét theo đúng thứ tự. Bạn đã viết ${_strokes.length} nét.');
+          'Cần viết đủ $expectedCount nét. Bạn đã viết ${_strokes.length} nét.');
       return;
     }
 
     final normalization = _createStrokeNormalization(size);
     final correct = normalization != null &&
-        List.generate(expectedCount, (index) {
-          return _matchesExpectedStroke(
-              _strokes[index], _expectedStrokes[index], size, normalization);
-        }).every((value) => value);
+        _matchesExpectedStrokesInAnyOrder(size, normalization);
     _report(
       correct,
       correct
-          ? 'Chính xác! Thứ tự và vị trí nét viết đều ổn.'
+          ? 'Chính xác! Các nét viết đã tạo đúng chữ Kanji.'
           : 'Nét viết chưa khớp. Xem gợi ý để đối chiếu rồi luyện lại ở lần sau.',
     );
+  }
+
+  bool _matchesExpectedStrokesInAnyOrder(
+      Size size, _StrokeNormalization normalization) {
+    final matchedUserByExpected = List<int>.filled(_expectedStrokes.length, -1);
+
+    bool assignExpectedStroke(int userIndex, List<bool> visited) {
+      for (var expectedIndex = 0;
+          expectedIndex < _expectedStrokes.length;
+          expectedIndex += 1) {
+        if (visited[expectedIndex] ||
+            !_matchesExpectedStroke(_strokes[userIndex],
+                _expectedStrokes[expectedIndex], size, normalization)) {
+          continue;
+        }
+
+        visited[expectedIndex] = true;
+        final matchedUserIndex = matchedUserByExpected[expectedIndex];
+        if (matchedUserIndex == -1 ||
+            assignExpectedStroke(matchedUserIndex, visited)) {
+          matchedUserByExpected[expectedIndex] = userIndex;
+          return true;
+        }
+      }
+      return false;
+    }
+
+    for (var userIndex = 0; userIndex < _strokes.length; userIndex += 1) {
+      if (!assignExpectedStroke(
+          userIndex, List<bool>.filled(_expectedStrokes.length, false))) {
+        return false;
+      }
+    }
+    return true;
   }
 
   bool _matchesExpectedStroke(List<Offset> stroke, Path expected, Size size,
@@ -367,17 +404,22 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
                               ignoring: widget.disabled ||
                                   _isLoading ||
                                   _error != null,
-                              child: GestureDetector(
+                              child: RawGestureDetector(
                                 behavior: HitTestBehavior.opaque,
-                                onPanStart: (details) =>
-                                    _beginStroke(details.localPosition),
-                                onPanUpdate: (details) =>
-                                    _extendStroke(details.localPosition),
-                                onPanEnd: (details) =>
-                                    _finishStroke(details.localPosition),
-                                onPanCancel: () => _activeStroke == null
-                                    ? null
-                                    : _finishStroke(_activeStroke!.last),
+                                gestures: {
+                                  _DrawingGestureRecognizer:
+                                      GestureRecognizerFactoryWithHandlers<
+                                          _DrawingGestureRecognizer>(
+                                    _DrawingGestureRecognizer.new,
+                                    (recognizer) {
+                                      recognizer
+                                        ..onStart = _beginStroke
+                                        ..onUpdate = _extendStroke
+                                        ..onEnd = _finishStroke
+                                        ..onCancel = _cancelStroke;
+                                    },
+                                  ),
+                                },
                                 child: CustomPaint(
                                   painter: _KanjiDrawingPainter(
                                     strokes: _activeStroke == null
@@ -459,6 +501,33 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
         ],
       ],
     );
+  }
+}
+
+/// Captures drawing pointers before the enclosing scroll view can claim them.
+class _DrawingGestureRecognizer extends EagerGestureRecognizer {
+  ValueChanged<Offset>? onStart;
+  ValueChanged<Offset>? onUpdate;
+  ValueChanged<Offset>? onEnd;
+  VoidCallback? onCancel;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    super.addAllowedPointer(event);
+    onStart?.call(event.localPosition);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerMoveEvent) {
+      onUpdate?.call(event.localPosition);
+    } else if (event is PointerUpEvent) {
+      onEnd?.call(event.localPosition);
+      stopTrackingPointer(event.pointer);
+    } else if (event is PointerCancelEvent) {
+      onCancel?.call();
+      stopTrackingPointer(event.pointer);
+    }
   }
 }
 
