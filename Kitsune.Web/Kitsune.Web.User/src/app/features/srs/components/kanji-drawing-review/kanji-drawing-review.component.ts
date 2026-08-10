@@ -292,8 +292,8 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
     );
     const expectedBounds = expected.bounds;
     const tolerance = Math.min(
-      14,
-      Math.max(6, Math.max(expectedBounds.width, expectedBounds.height) * 0.18)
+      24,
+      Math.max(10, Math.max(expectedBounds.width, expectedBounds.height) * 0.30)
     );
     let inkHits = 0;
     let boundsHits = 0;
@@ -311,7 +311,7 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
       }
     }
 
-    return inkHits / sample.length >= 0.38 && boundsHits / sample.length >= 0.62;
+    return inkHits / sample.length >= 0.25 && boundsHits / sample.length >= 0.50;
   }
 
   private createStrokeNormalization(): StrokeNormalization | null {
@@ -419,20 +419,6 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
     context.clearRect(0, 0, width, height);
     this.drawGrid(context, width, height);
 
-    if (this.showHint() && this.expectedStrokes.length > 0) {
-      const transform = this.canvasTransform(width, height);
-      context.save();
-      context.translate(transform.x, transform.y);
-      context.scale(transform.scale, transform.scale);
-      context.translate(-this.viewBox.x, -this.viewBox.y);
-      context.strokeStyle = 'rgba(143, 62, 37, 0.22)';
-      context.lineWidth = 3;
-      context.lineCap = 'round';
-      context.lineJoin = 'round';
-      this.expectedStrokes.forEach((stroke) => context.stroke(stroke.path));
-      context.restore();
-    }
-
     const strokes = this.activeStroke ? [...this.userStrokes, this.activeStroke] : this.userStrokes;
     context.strokeStyle = '#7c2d12';
     context.lineWidth = 5;
@@ -444,6 +430,20 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
       context.moveTo(stroke.points[0].x, stroke.points[0].y);
       stroke.points.slice(1).forEach((point) => context.lineTo(point.x, point.y));
       context.stroke();
+    }
+
+    if (this.showHint() && this.expectedStrokes.length > 0) {
+      const transform = this.canvasTransform(width, height);
+      context.save();
+      context.translate(transform.x, transform.y);
+      context.scale(transform.scale, transform.scale);
+      context.translate(-this.viewBox.x, -this.viewBox.y);
+      context.strokeStyle = 'rgba(143, 62, 37, 0.28)';
+      context.lineWidth = 3.5;
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      this.expectedStrokes.forEach((stroke) => context.stroke(stroke.path));
+      context.restore();
     }
   }
 

@@ -246,8 +246,8 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
     if (stroke.length < 3) return false;
     final expectedBounds = expected.getBounds();
     final tolerance = min(
-      14.0,
-      max(6.0, max(expectedBounds.width, expectedBounds.height) * 0.18),
+      24.0,
+      max(10.0, max(expectedBounds.width, expectedBounds.height) * 0.30),
     );
     final expectedPoints = _sampleExpectedPath(expected);
     if (expectedPoints.isEmpty) return false;
@@ -272,8 +272,8 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
         boundsHits += 1;
       }
     }
-    return pathHits / sample.length >= 0.38 &&
-        boundsHits / sample.length >= 0.62;
+    return pathHits / sample.length >= 0.25 &&
+        boundsHits / sample.length >= 0.50;
   }
 
   List<Offset> _sampleExpectedPath(Path path) {
@@ -596,22 +596,6 @@ class _KanjiDrawingPainter extends CustomPainter {
         min(size.width / viewBox.width, size.height / viewBox.height) * 0.84;
     final dx = (size.width - viewBox.width * scale) / 2;
     final dy = (size.height - viewBox.height * scale) / 2;
-    if (showHint) {
-      canvas.save();
-      canvas.translate(dx, dy);
-      canvas.scale(scale);
-      final hint = Paint()
-        ..color = const Color(0x388F3E25)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 3
-        ..strokeCap = StrokeCap.round
-        ..strokeJoin = StrokeJoin.round;
-      for (final path in expectedStrokes) {
-        canvas.drawPath(path, hint);
-      }
-      canvas.restore();
-    }
-
     final ink = Paint()
       ..color = const Color(0xFF7C2D12)
       ..style = PaintingStyle.stroke
@@ -625,6 +609,22 @@ class _KanjiDrawingPainter extends CustomPainter {
         path.lineTo(point.dx, point.dy);
       }
       canvas.drawPath(path, ink);
+    }
+
+    if (showHint) {
+      canvas.save();
+      canvas.translate(dx, dy);
+      canvas.scale(scale);
+      final hint = Paint()
+        ..color = const Color(0x478F3E25)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 3.5
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+      for (final path in expectedStrokes) {
+        canvas.drawPath(path, hint);
+      }
+      canvas.restore();
     }
   }
 
