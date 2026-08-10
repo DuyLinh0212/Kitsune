@@ -80,7 +80,7 @@ KitsunePlatform/
 
 | Nền tảng | Link | Trạng thái |
 |---|---|---|
-| 🌍 Web App (User) | [kitsune-linh13.vercel.app](https://kitsune-linh13.vercel.app) | ✅ Live |
+| 🌍 Web App (User) | [Kitsune](http://kitsune-pi-sepia.vercel.app/) | ✅ Live |
 | 📱 Android App | [Tải bản mới nhất tại GitHub Releases](https://github.com/DuyLinh0212/Kitsune/releases/latest) | ✅ Live |
 
 ---
