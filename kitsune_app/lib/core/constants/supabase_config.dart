@@ -29,7 +29,7 @@ class SupabaseConfig {
       'Id,Title,Meaning,Structure,JlptLevel,Explanation,GrammarExamples(Id,JapaneseText,Reading,MeaningVi,OrderIndex)';
 
   static const String srsCardSelect =
-      'Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate';
+      'Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate, LastReviewedAt';
 
   static const String kanjiComponentWithKanjiSelect =
       'VocabularyId, KanjiId, "Order", Kanji:KanjiId(Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi, Radical:RadicalId(RadicalCharacter, RadicalName))';
