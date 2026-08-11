@@ -111,6 +111,7 @@ interface DbCardRow {
   IntervalDays: number | null;
   Repetitions: number | null;
   NextReviewDate: string | null;
+  LastReviewedAt: string | null;
 }
 
 interface FolderRow {
@@ -158,6 +159,15 @@ const DAILY_GOAL_STORAGE_PREFIX = 'kitsune.srs.dailyGoal.';
 const DAILY_LEARNED_STORAGE_PREFIX = 'kitsune.srs.learnedCards.';
 const BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
   0: 0,
+  1: 30 * 60 * 1000,
+  2: 8 * 60 * 60 * 1000,
+  3: 2 * 24 * 60 * 60 * 1000,
+  4: 5 * 24 * 60 * 60 * 1000,
+  5: 10 * 24 * 60 * 60 * 1000,
+  6: 21 * 24 * 60 * 60 * 1000,
+  7: 60 * 24 * 60 * 60 * 1000,
+};
+const LEGACY_BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
   1: 60 * 60 * 1000,
   2: 24 * 60 * 60 * 1000,
   3: 3 * 24 * 60 * 60 * 1000,
@@ -302,7 +312,7 @@ export class SrsService {
     const userId = await this.getCurrentUserId(email);
     const { data, error } = await supabase
       .from('SRSCards')
-      .select('Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate')
+      .select('Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate, LastReviewedAt')
       .eq('Id', cardId)
       .eq('UserId', userId)
       .maybeSingle();
@@ -313,7 +323,8 @@ export class SrsService {
     const row = data as DbCardRow;
     const currentLevel = this.normalizeLevel(row.BoxLevel);
     const nextLevel = flashcard ? 1 : this.resolveNextLevel(currentLevel, correct);
-    const nextReviewDate = this.computeNextReviewDate(nextLevel);
+    const reviewedAt = new Date();
+    const nextReviewDate = this.computeNextReviewDate(nextLevel, reviewedAt.getTime());
 
     const patch: Record<string, unknown> = {
       BoxLevel: nextLevel,
@@ -321,6 +332,7 @@ export class SrsService {
       IntervalDays: this.intervalDays(nextLevel),
       Repetitions: this.resolveRepetitions(currentLevel, nextLevel, correct),
       NextReviewDate: nextReviewDate,
+      LastReviewedAt: reviewedAt.toISOString(),
     };
 
     const { error: updateError } = await supabase.from('SRSCards').update(patch).eq('Id', cardId).eq('UserId', userId);
@@ -334,7 +346,7 @@ export class SrsService {
       NewBoxLevel: nextLevel,
       OldEaseFactor: row.EaseFactor ?? 2.5,
       NewEaseFactor: 2.5,
-      ReviewedAt: new Date().toISOString(),
+      ReviewedAt: reviewedAt.toISOString(),
     });
     if (logError) console.warn('Không thể ghi log ôn tập SRS:', logError.message);
     if (flashcard) this.recordLocalNewCard(cardId);
@@ -432,7 +444,7 @@ export class SrsService {
 
     let query = supabase
       .from('SRSCards')
-      .select('Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate')
+      .select('Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate, LastReviewedAt')
       .eq('UserId', userId);
 
     if (vocabularyIds.length > 0 && kanjiIds.length > 0) {
@@ -637,7 +649,7 @@ export class SrsService {
     const vocab = row.VocabularyId != null ? vocabMap.get(row.VocabularyId) : null;
     const kanji = row.KanjiId != null ? kanjiMap.get(row.KanjiId) : null;
     const boxLevel = this.normalizeLevel(row.BoxLevel);
-    const nextReviewDate = row.NextReviewDate ?? new Date(now).toISOString();
+    const nextReviewDate = this.effectiveNextReviewDate(row, boxLevel, now);
     const isDue = new Date(nextReviewDate).getTime() <= now || boxLevel === 0;
 
     return {
@@ -798,9 +810,35 @@ export class SrsService {
     }
   }
 
-  private computeNextReviewDate(level: number): string {
+  private computeNextReviewDate(level: number, fromMs = Date.now()): string {
     const interval = BOX_LEVEL_INTERVALS_MS[level] ?? 0;
-    return new Date(Date.now() + interval).toISOString();
+    return new Date(fromMs + interval).toISOString();
+  }
+
+  private effectiveNextReviewDate(row: DbCardRow, level: number, now: number): string {
+    const storedValue = row.NextReviewDate ?? new Date(now).toISOString();
+    const shortenedInterval = BOX_LEVEL_INTERVALS_MS[level] ?? 0;
+    if (level === 0 || shortenedInterval <= 0) return storedValue;
+
+    const storedTime = Date.parse(storedValue);
+    if (!Number.isFinite(storedTime)) {
+      return storedValue;
+    }
+
+    if (!row.LastReviewedAt) {
+      const latestCurrentScheduleTime = now + shortenedInterval;
+      if (storedTime <= latestCurrentScheduleTime) return storedValue;
+
+      const legacyInterval = LEGACY_BOX_LEVEL_INTERVALS_MS[level] ?? shortenedInterval;
+      const shortenedLegacyTime = storedTime - legacyInterval + shortenedInterval;
+      return new Date(shortenedLegacyTime).toISOString();
+    }
+
+    const lastReviewedTime = Date.parse(row.LastReviewedAt);
+    if (!Number.isFinite(lastReviewedTime)) return storedValue;
+
+    const shortenedTime = lastReviewedTime + shortenedInterval;
+    return shortenedTime < storedTime ? new Date(shortenedTime).toISOString() : storedValue;
   }
 
   private intervalDays(level: number): number {

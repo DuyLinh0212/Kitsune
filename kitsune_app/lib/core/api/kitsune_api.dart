@@ -1212,8 +1212,11 @@ class KitsuneApi {
       final vocab = vId != null ? vocabMap[vId] : null;
       final kanji = kId != null ? kanjiMap[kId] : null;
       final boxLevel = SrsEngine.normalizeLevel(row['BoxLevel'] as int?);
-      final nextReviewDate = (row['NextReviewDate'] as String?) ??
-          DateTime.now().toIso8601String();
+      final nextReviewDate = SrsEngine.effectiveNextReviewDate(
+        level: boxLevel,
+        storedNextReviewDate: row['NextReviewDate'] as String?,
+        lastReviewedAt: row['LastReviewedAt'] as String?,
+      );
       final isDue =
           DateTime.parse(nextReviewDate).millisecondsSinceEpoch <= nowMs ||
               boxLevel == 0;
