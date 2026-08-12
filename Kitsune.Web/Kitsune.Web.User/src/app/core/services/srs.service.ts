@@ -278,7 +278,7 @@ export class SrsService {
     const cards = this.mapCards(context);
     const overview = this.buildOverview(context.folder, cards, context.todayNewLearned);
     const flashcards = cards.filter((card) => card.boxLevel === 0);
-    const quizCards = cards.filter((card) => card.boxLevel > 0 && card.isDue);
+    const quizCards = cards.filter((card) => this.isScheduledReviewDue(card.boxLevel, card.nextReviewDate));
 
     return {
       folderId: resolvedFolderId,
@@ -650,7 +650,7 @@ export class SrsService {
     const kanji = row.KanjiId != null ? kanjiMap.get(row.KanjiId) : null;
     const boxLevel = this.normalizeLevel(row.BoxLevel);
     const nextReviewDate = this.effectiveNextReviewDate(row, boxLevel, now);
-    const isDue = new Date(nextReviewDate).getTime() <= now || boxLevel === 0;
+    const isDue = boxLevel === 0 || this.isScheduledReviewDue(boxLevel, nextReviewDate, now);
 
     return {
       id: row.Id,
@@ -681,7 +681,7 @@ export class SrsService {
   private buildOverview(folder: FolderRow, cards: SRSCardDto[], todayNewLearned: number): FolderSrsOverview {
     const totalCards = cards.length;
     const newCards = cards.filter((card) => card.boxLevel === 0).length;
-    const dueCards = cards.filter((card) => card.boxLevel > 0 && card.isDue).length;
+    const dueCards = cards.filter((card) => this.isScheduledReviewDue(card.boxLevel, card.nextReviewDate)).length;
     const learnedCards = totalCards - newCards;
     const masteredCards = cards.filter((card) => card.boxLevel >= 7).length;
     const nextDueAt = this.findNextDue(cards);
@@ -701,7 +701,7 @@ export class SrsService {
 
   private findNextDue(cards: SRSCardDto[]): string | null {
     const future = cards
-      .filter((card) => !card.isDue && card.nextReviewDate)
+      .filter((card) => card.boxLevel > 0 && !this.isScheduledReviewDue(card.boxLevel, card.nextReviewDate) && card.nextReviewDate)
       .sort((a, b) => new Date(a.nextReviewDate).getTime() - new Date(b.nextReviewDate).getTime());
     return future[0]?.nextReviewDate ?? null;
   }
@@ -714,6 +714,12 @@ export class SrsService {
     const levelBias = card.boxLevel === 0 ? 0 : 1000 + card.boxLevel * 100;
     const dueBias = new Date(card.nextReviewDate).getTime() / 1000000;
     return levelBias + dueBias;
+  }
+
+  private isScheduledReviewDue(boxLevel: number, nextReviewDate: string, now = Date.now()): boolean {
+    if (boxLevel <= 0) return false;
+    const dueAt = Date.parse(nextReviewDate);
+    return Number.isFinite(dueAt) && dueAt <= now;
   }
 
   private belongsToFolder(

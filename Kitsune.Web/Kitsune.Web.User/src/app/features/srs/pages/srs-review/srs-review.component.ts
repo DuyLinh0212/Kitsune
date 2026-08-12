@@ -270,10 +270,32 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     }
   }
 
-  startStudy(): void {
-    const session = this.activeSession();
-    if (!session) return;
-    this.showStudyOverlay.set(true);
+  async startStudy(): Promise<void> {
+    const folderId = this.activeFolderId();
+    if (!folderId || this.isSubmitting()) return;
+
+    this.isSubmitting.set(true);
+    try {
+      const session = await firstValueFrom(this.srsService.getFolderSession(folderId));
+      if (!session) {
+        this.showToast('error', 'Không thể tải lượt ôn tập của thư mục này.');
+        return;
+      }
+
+      this.activeSession.set(session);
+      this.resetSession(session);
+      if (session.flashcards.length === 0 && session.quizCards.length === 0) {
+        this.showToast('success', 'Chưa có thẻ nào đến hạn. Hãy quay lại khi đồng hồ đếm ngược kết thúc.');
+        return;
+      }
+
+      this.showStudyOverlay.set(true);
+    } catch (error) {
+      console.error(error);
+      this.showToast('error', 'Không thể làm mới lượt ôn tập. Vui lòng thử lại.');
+    } finally {
+      this.isSubmitting.set(false);
+    }
   }
 
   closeStudy(): void {
@@ -619,7 +641,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       overview,
       cards,
       flashcards: cards.filter((card) => card.boxLevel === 0),
-      quizCards: cards.filter((card) => card.boxLevel > 0 && card.isDue),
+      quizCards: cards.filter((card) => this.isScheduledReviewDue(card)),
     };
     this.activeSession.set(updatedSession);
 
@@ -646,9 +668,9 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   ): FolderSrsOverview {
     const totalCards = cards.length;
     const newCards = cards.filter((card) => card.boxLevel === 0).length;
-    const dueCards = cards.filter((card) => card.boxLevel > 0 && card.isDue).length;
+    const dueCards = cards.filter((card) => this.isScheduledReviewDue(card)).length;
     const futureCards = cards
-      .filter((card) => !card.isDue)
+      .filter((card) => card.boxLevel > 0 && !this.isScheduledReviewDue(card))
       .sort((left, right) => new Date(left.nextReviewDate).getTime() - new Date(right.nextReviewDate).getTime());
 
     return {
@@ -661,6 +683,12 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       todayNewLearned,
       nextDueAt: futureCards[0]?.nextReviewDate ?? null,
     };
+  }
+
+  private isScheduledReviewDue(card: Pick<SRSCardDto, 'boxLevel' | 'nextReviewDate'>): boolean {
+    if (card.boxLevel <= 0) return false;
+    const dueAt = Date.parse(card.nextReviewDate);
+    return Number.isFinite(dueAt) && dueAt <= Date.now();
   }
 
   private buildQuestion(card: SRSCardDto, pool: SRSCardDto[]): QuizQuestion {

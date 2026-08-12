@@ -38,6 +38,7 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
   Size _viewBox = const Size(109, 109);
   List<List<Offset>> _strokes = [];
   List<Offset>? _activeStroke;
+  int? _activePointerId;
   Size _drawingSize = Size.zero;
   int _loadToken = 0;
 
@@ -67,6 +68,7 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
       _expectedStrokes = const [];
       _strokes = [];
       _activeStroke = null;
+      _activePointerId = null;
     });
 
     if (character.isEmpty) {
@@ -175,6 +177,29 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
   void _cancelStroke() {
     final active = _activeStroke;
     if (active != null) _finishStroke(active.last);
+  }
+
+  void _handlePointerDown(PointerDownEvent event) {
+    if (_activePointerId != null) return;
+    _activePointerId = event.pointer;
+    _beginStroke(event.localPosition);
+  }
+
+  void _handlePointerMove(PointerMoveEvent event) {
+    if (event.pointer != _activePointerId) return;
+    _extendStroke(event.localPosition);
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    if (event.pointer != _activePointerId) return;
+    _finishStroke(event.localPosition);
+    _activePointerId = null;
+  }
+
+  void _handlePointerCancel(PointerCancelEvent event) {
+    if (event.pointer != _activePointerId) return;
+    _cancelStroke();
+    _activePointerId = null;
   }
 
   void _clear() {
@@ -411,23 +436,24 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
                                       GestureRecognizerFactoryWithHandlers<
                                           _DrawingGestureRecognizer>(
                                     _DrawingGestureRecognizer.new,
-                                    (recognizer) {
-                                      recognizer
-                                        ..onStart = _beginStroke
-                                        ..onUpdate = _extendStroke
-                                        ..onEnd = _finishStroke
-                                        ..onCancel = _cancelStroke;
-                                    },
+                                    (_) {},
                                   ),
                                 },
-                                child: CustomPaint(
-                                  painter: _KanjiDrawingPainter(
-                                    strokes: _activeStroke == null
-                                        ? _strokes
-                                        : [..._strokes, _activeStroke!],
-                                    expectedStrokes: _expectedStrokes,
-                                    viewBox: _viewBox,
-                                    showHint: _showHint,
+                                child: Listener(
+                                  behavior: HitTestBehavior.opaque,
+                                  onPointerDown: _handlePointerDown,
+                                  onPointerMove: _handlePointerMove,
+                                  onPointerUp: _handlePointerUp,
+                                  onPointerCancel: _handlePointerCancel,
+                                  child: CustomPaint(
+                                    painter: _KanjiDrawingPainter(
+                                      strokes: _activeStroke == null
+                                          ? _strokes
+                                          : [..._strokes, _activeStroke!],
+                                      expectedStrokes: _expectedStrokes,
+                                      viewBox: _viewBox,
+                                      showHint: _showHint,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -504,32 +530,8 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
   }
 }
 
-/// Captures drawing pointers before the enclosing scroll view can claim them.
-class _DrawingGestureRecognizer extends EagerGestureRecognizer {
-  ValueChanged<Offset>? onStart;
-  ValueChanged<Offset>? onUpdate;
-  ValueChanged<Offset>? onEnd;
-  VoidCallback? onCancel;
-
-  @override
-  void addAllowedPointer(PointerDownEvent event) {
-    super.addAllowedPointer(event);
-    onStart?.call(event.localPosition);
-  }
-
-  @override
-  void handleEvent(PointerEvent event) {
-    if (event is PointerMoveEvent) {
-      onUpdate?.call(event.localPosition);
-    } else if (event is PointerUpEvent) {
-      onEnd?.call(event.localPosition);
-      stopTrackingPointer(event.pointer);
-    } else if (event is PointerCancelEvent) {
-      onCancel?.call();
-      stopTrackingPointer(event.pointer);
-    }
-  }
-}
+/// Claims the gesture arena so the enclosing SRS ListView cannot scroll while drawing.
+class _DrawingGestureRecognizer extends EagerGestureRecognizer {}
 
 class _ParsedStrokes {
   const _ParsedStrokes({required this.strokes, required this.viewBox});

@@ -42,6 +42,18 @@ class SrsEngine {
     return DateTime.now().add(interval).toIso8601String();
   }
 
+  /// Returns true only when a learned card's stored review timestamp has arrived.
+  /// A malformed or absent timestamp is never treated as immediately due.
+  static bool isScheduledReviewDue({
+    required int level,
+    required String nextReviewDate,
+    DateTime? now,
+  }) {
+    if (level <= 0) return false;
+    final dueAt = DateTime.tryParse(nextReviewDate);
+    return dueAt != null && !dueAt.isAfter(now ?? DateTime.now());
+  }
+
   static String effectiveNextReviewDate({
     required int level,
     required String? storedNextReviewDate,

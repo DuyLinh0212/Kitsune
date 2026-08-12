@@ -864,7 +864,12 @@ class KitsuneApi {
     final overview = _buildSrsOverview(context);
     final cards = _mapSrsCards(context);
     final flashcards = cards.where((c) => c.boxLevel == 0).toList();
-    final quizCards = cards.where((c) => c.boxLevel > 0 && c.isDue).toList();
+    final quizCards = cards
+        .where((card) => SrsEngine.isScheduledReviewDue(
+              level: card.boxLevel,
+              nextReviewDate: card.nextReviewDate,
+            ))
+        .toList();
 
     return FolderSrsSession(
       folderId: resolvedId,
@@ -1174,11 +1179,22 @@ class KitsuneApi {
     final cards = _mapSrsCards(context);
     final total = cards.length;
     final newCards = cards.where((c) => c.boxLevel == 0).length;
-    final dueCards = cards.where((c) => c.boxLevel > 0 && c.isDue).length;
+    final dueCards = cards
+        .where((card) => SrsEngine.isScheduledReviewDue(
+              level: card.boxLevel,
+              nextReviewDate: card.nextReviewDate,
+            ))
+        .length;
     final masteredCards = cards.where((c) => c.boxLevel >= 7).length;
 
     final future = cards
-        .where((c) => !c.isDue && c.nextReviewDate.isNotEmpty)
+        .where((card) =>
+            card.boxLevel > 0 &&
+            !SrsEngine.isScheduledReviewDue(
+              level: card.boxLevel,
+              nextReviewDate: card.nextReviewDate,
+            ) &&
+            card.nextReviewDate.isNotEmpty)
         .toList()
       ..sort((a, b) => a.nextReviewDate.compareTo(b.nextReviewDate));
 
@@ -1217,9 +1233,12 @@ class KitsuneApi {
         storedNextReviewDate: row['NextReviewDate'] as String?,
         lastReviewedAt: row['LastReviewedAt'] as String?,
       );
-      final isDue =
-          DateTime.parse(nextReviewDate).millisecondsSinceEpoch <= nowMs ||
-              boxLevel == 0;
+      final isDue = boxLevel == 0 ||
+          SrsEngine.isScheduledReviewDue(
+            level: boxLevel,
+            nextReviewDate: nextReviewDate,
+            now: DateTime.fromMillisecondsSinceEpoch(nowMs),
+          );
 
       if (vocab == null && kanji == null) continue;
 
