@@ -7,17 +7,7 @@
 .drawing-review__count { flex: none; border-radius: 999px; background: var(--paper-deep); color: var(--accent-seal); padding: 6px 10px; font-size: 12px; font-weight: 800; }
 .drawing-review__canvas-wrap { position: relative; overflow: hidden; height: clamp(210px, 31vh, 300px); border: 1px solid var(--line-delicate); border-radius: 16px; background: #fffdf8; box-shadow: inset 0 0 0 8px rgba(148, 98, 52, .035); }
 .drawing-review__canvas-wrap--hint { background: #fffaf2; }
-.drawing-review__canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  touch-action: none;
-  overscroll-behavior: contain;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-  cursor: crosshair;
-}
+.drawing-review__canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
 .drawing-review__state { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; color: var(--ink-secondary); background: rgba(255, 253, 248, .84); text-align: center; font-size: 13px; font-weight: 700; }
 .drawing-review__state--error { color: #b42318; }
 .drawing-review__actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
