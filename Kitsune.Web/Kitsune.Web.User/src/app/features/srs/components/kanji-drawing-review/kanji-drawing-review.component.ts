@@ -55,6 +55,7 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
   private viewBox: SvgViewBox = { x: 0, y: 0, width: 109, height: 109 };
   private userStrokes: DrawingStroke[] = [];
   private activeStroke: DrawingStroke | null = null;
+  private activeTouchId: number | null = null;
   private requestToken = 0;
 
   ngAfterViewInit(): void {
@@ -70,10 +71,12 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
   }
 
   onPointerDown(event: PointerEvent): void {
+    if (!this.supportsPointerEvents()) return;
     if (this.disabled || this.isLoading() || this.error()) return;
     const canvas = this.canvas;
     if (!canvas) return;
 
+    this.claimGesture(event);
     canvas.setPointerCapture(event.pointerId);
     this.activeStroke = { points: [this.pointerPoint(event)] };
     this.feedback.set(null);
@@ -81,24 +84,67 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
   }
 
   onPointerMove(event: PointerEvent): void {
+    if (!this.supportsPointerEvents()) return;
     if (!this.activeStroke || this.disabled) return;
+    this.claimGesture(event);
     this.activeStroke.points.push(this.pointerPoint(event));
     this.redraw();
   }
 
   onPointerUp(event: PointerEvent): void {
+    if (!this.supportsPointerEvents()) return;
     const canvas = this.canvas;
     if (!this.activeStroke || !canvas) return;
 
+    this.claimGesture(event);
     this.activeStroke.points.push(this.pointerPoint(event));
-    if (this.activeStroke.points.length > 2) {
-      this.userStrokes.push(this.activeStroke);
-      this.drawnStrokeCount.set(this.userStrokes.length);
-    }
-    this.activeStroke = null;
+    this.finishActiveStroke();
     if (canvas.hasPointerCapture(event.pointerId)) {
       canvas.releasePointerCapture(event.pointerId);
     }
+    this.redraw();
+  }
+
+  onTouchStart(event: TouchEvent): void {
+    if (this.supportsPointerEvents()) return;
+    if (this.disabled || this.isLoading() || this.error() || this.activeStroke) return;
+    const touch = event.changedTouches.item(0);
+    if (!touch) return;
+
+    this.claimGesture(event);
+    this.activeTouchId = touch.identifier;
+    this.activeStroke = { points: [this.touchPoint(touch)] };
+    this.feedback.set(null);
+    this.redraw();
+  }
+
+  onTouchMove(event: TouchEvent): void {
+    if (this.supportsPointerEvents() || !this.activeStroke || this.disabled) return;
+    const touch = this.findActiveTouch(event);
+    if (!touch) return;
+
+    this.claimGesture(event);
+    this.activeStroke.points.push(this.touchPoint(touch));
+    this.redraw();
+  }
+
+  onTouchEnd(event: TouchEvent): void {
+    if (this.supportsPointerEvents() || !this.activeStroke) return;
+    const touch = this.findActiveTouch(event);
+    if (touch) this.activeStroke.points.push(this.touchPoint(touch));
+
+    this.claimGesture(event);
+    this.finishActiveStroke();
+    this.activeTouchId = null;
+    this.redraw();
+  }
+
+  onTouchCancel(event: TouchEvent): void {
+    if (this.supportsPointerEvents() || !this.activeStroke) return;
+
+    this.claimGesture(event);
+    this.activeStroke = null;
+    this.activeTouchId = null;
     this.redraw();
   }
 
@@ -390,11 +436,44 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
   }
 
   private pointerPoint(event: PointerEvent): DrawingPoint {
+    return this.clientPoint(event.clientX, event.clientY);
+  }
+
+  private touchPoint(touch: Touch): DrawingPoint {
+    return this.clientPoint(touch.clientX, touch.clientY);
+  }
+
+  private clientPoint(clientX: number, clientY: number): DrawingPoint {
     const rect = this.canvas?.getBoundingClientRect();
     return {
-      x: event.clientX - (rect?.left ?? 0),
-      y: event.clientY - (rect?.top ?? 0),
+      x: clientX - (rect?.left ?? 0),
+      y: clientY - (rect?.top ?? 0),
     };
+  }
+
+  private findActiveTouch(event: TouchEvent): Touch | null {
+    for (let index = 0; index < event.changedTouches.length; index += 1) {
+      const touch = event.changedTouches.item(index);
+      if (touch?.identifier === this.activeTouchId) return touch;
+    }
+    return null;
+  }
+
+  private finishActiveStroke(): void {
+    if (this.activeStroke && this.activeStroke.points.length > 2) {
+      this.userStrokes.push(this.activeStroke);
+      this.drawnStrokeCount.set(this.userStrokes.length);
+    }
+    this.activeStroke = null;
+  }
+
+  private supportsPointerEvents(): boolean {
+    return typeof window !== 'undefined' && 'PointerEvent' in window;
+  }
+
+  private claimGesture(event: Event): void {
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
   }
 
   private resizeCanvas(): void {
