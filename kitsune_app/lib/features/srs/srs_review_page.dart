@@ -338,12 +338,35 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       return;
     }
 
-    if (_session!.flashcards.isEmpty && _session!.quizCards.isEmpty) {
-      _showMessage('Folder này hiện chưa có thẻ đến lượt học.');
-      return;
-    }
+    setState(() => _isSubmitting = true);
+    try {
+      final session = await ref
+          .read(kitsuneApiProvider)
+          .getFolderSession(folderId: _selectedFolderId);
+      if (!mounted) return;
+      if (session == null) {
+        _showMessage('Không thể tải lượt ôn tập của thư mục này.');
+        return;
+      }
 
-    setState(() => _showStudyOverlay = true);
+      setState(() {
+        _session = session;
+        _resetStudyState(session);
+      });
+      if (session.flashcards.isEmpty && session.quizCards.isEmpty) {
+        _showMessage(
+            'Chưa có thẻ nào đến hạn. Hãy quay lại khi đồng hồ đếm ngược kết thúc.');
+        return;
+      }
+
+      setState(() => _showStudyOverlay = true);
+    } catch (error) {
+      _showError(error);
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 
   Future<void> _markFlashcardLearned() async {
@@ -556,8 +579,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       overview: overview,
       cards: cards,
       flashcards: cards.where((card) => card.boxLevel == 0).toList(),
-      quizCards:
-          cards.where((card) => card.boxLevel > 0 && card.isDue).toList(),
+      quizCards: cards.where(_isScheduledReviewDue).toList(),
     );
     _dashboardFolders = _dashboardFolders.map((item) {
       if (item.folder.id != session.folderId) return item;
@@ -579,7 +601,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     int todayNewLearned,
   ) {
     final future = cards
-        .where((card) => !card.isDue && card.nextReviewDate.isNotEmpty)
+        .where((card) =>
+            card.boxLevel > 0 &&
+            !_isScheduledReviewDue(card) &&
+            card.nextReviewDate.isNotEmpty)
         .toList()
       ..sort((a, b) => a.nextReviewDate.compareTo(b.nextReviewDate));
     final newCards = cards.where((card) => card.boxLevel == 0).length;
@@ -588,13 +613,19 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       folderName: base.folderName,
       totalCards: cards.length,
       newCards: newCards,
-      dueCards: cards.where((card) => card.boxLevel > 0 && card.isDue).length,
+      dueCards: cards.where(_isScheduledReviewDue).length,
       learnedCards: cards.length - newCards,
       masteredCards: cards.where((card) => card.boxLevel >= 7).length,
       todayNewLearned: todayNewLearned,
       nextDueAt: future.isEmpty ? null : future.first.nextReviewDate,
       canSwitchFolder: base.canSwitchFolder,
     );
+  }
+
+  bool _isScheduledReviewDue(SRSCardDto card) {
+    if (card.boxLevel <= 0) return false;
+    final dueAt = DateTime.tryParse(card.nextReviewDate);
+    return dueAt != null && !dueAt.isAfter(DateTime.now());
   }
 
   _QuizPrompt _buildQuestion(SRSCardDto card, List<SRSCardDto> pool) {
