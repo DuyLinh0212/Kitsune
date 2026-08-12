@@ -285,7 +285,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       this.activeSession.set(session);
       this.resetSession(session);
       if (session.flashcards.length === 0 && session.quizCards.length === 0) {
-        this.showToast('success', 'Chưa có thẻ nào đến hạn. Hãy quay lại khi đồng hồ đếm ngược kết thúc.');
+        this.showToast('success', this.nextReviewWaitMessage(session.overview.nextDueAt));
         return;
       }
 
@@ -530,6 +530,11 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   reviewOnly(): void {
     const session = this.activeSession();
     if (!session) return;
+    if (session.quizCards.length === 0) {
+      this.closeStudy();
+      this.showToast('success', this.nextReviewWaitMessage(session.overview.nextDueAt));
+      return;
+    }
     this.selectedLimit.set(session.quizCards.length);
     this.dueQueue.set([...session.quizCards]);
     this.newQueue.set([]);
@@ -689,6 +694,19 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     if (card.boxLevel <= 0) return false;
     const dueAt = Date.parse(card.nextReviewDate);
     return Number.isFinite(dueAt) && dueAt <= Date.now();
+  }
+
+  private nextReviewWaitMessage(nextDueAt: string | null): string {
+    const dueAt = nextDueAt ? Date.parse(nextDueAt) : NaN;
+    const remaining = dueAt - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0) {
+      return 'Chưa có thẻ nào đến hạn để ôn tập.';
+    }
+
+    const hours = Math.floor(remaining / (1000 * 60 * 60));
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+    return `Chưa đến lượt ôn. Còn ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.`;
   }
 
   private buildQuestion(card: SRSCardDto, pool: SRSCardDto[]): QuizQuestion {

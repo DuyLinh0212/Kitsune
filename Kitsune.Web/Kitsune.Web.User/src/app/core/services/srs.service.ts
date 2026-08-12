@@ -167,16 +167,6 @@ const BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
   6: 21 * 24 * 60 * 60 * 1000,
   7: 60 * 24 * 60 * 60 * 1000,
 };
-const LEGACY_BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
-  1: 60 * 60 * 1000,
-  2: 24 * 60 * 60 * 1000,
-  3: 3 * 24 * 60 * 60 * 1000,
-  4: 7 * 24 * 60 * 60 * 1000,
-  5: 14 * 24 * 60 * 60 * 1000,
-  6: 30 * 24 * 60 * 60 * 1000,
-  7: 90 * 24 * 60 * 60 * 1000,
-};
-
 @Injectable({ providedIn: 'root' })
 export class SrsService {
   getDailyGoal(): number | null {
@@ -822,29 +812,12 @@ export class SrsService {
   }
 
   private effectiveNextReviewDate(row: DbCardRow, level: number, now: number): string {
-    const storedValue = row.NextReviewDate ?? new Date(now).toISOString();
-    const shortenedInterval = BOX_LEVEL_INTERVALS_MS[level] ?? 0;
-    if (level === 0 || shortenedInterval <= 0) return storedValue;
+    const storedValue = row.NextReviewDate ?? '';
+    if (!storedValue || !Number.isFinite(Date.parse(storedValue))) return '';
 
-    const storedTime = Date.parse(storedValue);
-    if (!Number.isFinite(storedTime)) {
-      return storedValue;
-    }
-
-    if (!row.LastReviewedAt) {
-      const latestCurrentScheduleTime = now + shortenedInterval;
-      if (storedTime <= latestCurrentScheduleTime) return storedValue;
-
-      const legacyInterval = LEGACY_BOX_LEVEL_INTERVALS_MS[level] ?? shortenedInterval;
-      const shortenedLegacyTime = storedTime - legacyInterval + shortenedInterval;
-      return new Date(shortenedLegacyTime).toISOString();
-    }
-
-    const lastReviewedTime = Date.parse(row.LastReviewedAt);
-    if (!Number.isFinite(lastReviewedTime)) return storedValue;
-
-    const shortenedTime = lastReviewedTime + shortenedInterval;
-    return shortenedTime < storedTime ? new Date(shortenedTime).toISOString() : storedValue;
+    // The persisted timestamp is the source of truth. Never make a card due
+    // earlier in the client merely because a schedule has since been shortened.
+    return storedValue;
   }
 
   private intervalDays(level: number): number {

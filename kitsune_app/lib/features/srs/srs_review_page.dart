@@ -225,6 +225,11 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   void _reviewOnly() {
     final session = _session;
     if (session == null) return;
+    if (session.quizCards.isEmpty) {
+      setState(() => _showStudyOverlay = false);
+      _showMessage(_nextReviewWaitMessage(session.overview.nextDueAt));
+      return;
+    }
     _dueQueue = List.from(session.quizCards);
     _newQueue = [];
     _startStudyingQueues();
@@ -354,8 +359,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         _resetStudyState(session);
       });
       if (session.flashcards.isEmpty && session.quizCards.isEmpty) {
-        _showMessage(
-            'Chưa có thẻ nào đến hạn. Hãy quay lại khi đồng hồ đếm ngược kết thúc.');
+        _showMessage(_nextReviewWaitMessage(session.overview.nextDueAt));
         return;
       }
 
@@ -626,6 +630,21 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     if (card.boxLevel <= 0) return false;
     final dueAt = DateTime.tryParse(card.nextReviewDate);
     return dueAt != null && !dueAt.isAfter(DateTime.now());
+  }
+
+  String _nextReviewWaitMessage(String? nextDueAt) {
+    final dueAt = nextDueAt == null ? null : DateTime.tryParse(nextDueAt);
+    if (dueAt == null) return 'Chưa có thẻ nào đến hạn để ôn tập.';
+
+    final remaining = dueAt.difference(DateTime.now());
+    if (remaining.isNegative || remaining == Duration.zero) {
+      return 'Chưa có thẻ nào đến hạn để ôn tập.';
+    }
+
+    final hours = remaining.inHours.toString().padLeft(2, '0');
+    final minutes = (remaining.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+    return 'Chưa đến lượt ôn. Còn $hours:$minutes:$seconds.';
   }
 
   _QuizPrompt _buildQuestion(SRSCardDto card, List<SRSCardDto> pool) {
