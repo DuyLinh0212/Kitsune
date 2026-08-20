@@ -70,7 +70,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (assignmentError) throw assignmentError;
     const roleIds = (assignments ?? []).map((assignment) => assignment.RoleId);
     if (roleIds.length === 0) throw new Error('Chỉ quản trị viên mới có thể dùng trợ lý AI.');
-    const { data: adminRole, error: roleError } = await supabase.from('Roles').select('Id').in('Id', roleIds).eq('RoleName', 'ADMIN').maybeSingle();
+    const { data: adminRole, error: roleError } = await supabase.from('Role').select('Id').in('Id', roleIds).eq('RoleName', 'ADMIN').maybeSingle();
     if (roleError) throw roleError;
     if (!adminRole) throw new Error('Chỉ quản trị viên mới có thể dùng trợ lý AI.');
 
