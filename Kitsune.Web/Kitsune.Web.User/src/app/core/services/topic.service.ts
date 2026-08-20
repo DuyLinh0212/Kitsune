@@ -136,6 +136,8 @@ export class TopicService {
       orderIndex: item.OrderIndex,
       word: item.Vocabulary?.Word ?? item.Kanji?.Character ?? '',
       pronunciation: item.Vocabulary?.Pronunciation ?? item.Kanji?.Onyomi ?? item.Kanji?.Kunyomi ?? null,
+      onyomi: item.Kanji?.Onyomi ?? null,
+      kunyomi: item.Kanji?.Kunyomi ?? null,
       meaning: item.Vocabulary?.Meaning ?? item.Kanji?.Meaning ?? '',
       exampleSentence: item.ExampleSentence,
       exampleTranslation: item.ExampleTranslation,

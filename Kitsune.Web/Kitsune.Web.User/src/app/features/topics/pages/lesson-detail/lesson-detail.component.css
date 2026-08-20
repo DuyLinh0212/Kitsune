@@ -24,6 +24,10 @@ h1 { margin: 0; font-size: clamp(2.6rem, 7vw, 5rem); line-height: 1; letter-spac
 .speak--active { color: #fff; border-color: #d85b3f; background: #d85b3f; }
 .study-card h2 { margin: 0; font-size: clamp(4rem, 12vw, 8rem); font-weight: 400; line-height: 1; }
 .reading { margin: 14px 0 0; color: #d85b3f; font-size: 1.25rem; }
+.kanji-readings { display: grid; grid-template-columns: repeat(2, minmax(110px, 1fr)); gap: 8px; width: min(100%, 380px); margin: 16px 0 0; text-align: left; }
+.kanji-readings div { padding: 8px 10px; border: 1px solid #d8cbe9; background: #f6f2fc; }
+.kanji-readings dt { color: #71648d; font-size: .66rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.kanji-readings dd { margin: 4px 0 0; color: #3d3565; font-size: .92rem; font-weight: 800; }
 .meaning { font-size: 1.45rem; }
 blockquote { display: grid; gap: 7px; width: min(100%, 560px); margin: 18px 0 0; padding: 18px; border-left: 3px solid #5e7b63; background: #f3ecdf; text-align: left; }
 blockquote span { color: #746a77; }
@@ -39,4 +43,5 @@ blockquote span { color: #746a77; }
 .status--error { color: #8d2f28; background: #f9dfd7; }
 button:focus-visible, a:focus-visible { outline: 3px solid rgba(216, 91, 63, .3); outline-offset: 3px; }
 @media (max-width: 620px) { .study-card { grid-template-columns: 1fr; } .study-card aside { display: flex; align-items: baseline; gap: 8px; padding: 16px 20px; } .study-card aside p { margin: 0 0 0 auto; writing-mode: initial; } .study-card article { min-height: 330px; padding: 42px 20px; } .lesson-actions { grid-template-columns: 1fr 1fr; } .item-dots { grid-column: 1 / -1; grid-row: 1; } }
+@media (max-width: 420px) { .kanji-readings { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .page-progress i { transition: none; } }

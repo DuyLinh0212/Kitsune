@@ -25,6 +25,15 @@ interface MemoryCard {
   matched: boolean;
 }
 
+interface BubbleOption {
+  item: GameVocabulary;
+  left: number;
+  size: number;
+  durationSeconds: number;
+  delaySeconds: number;
+  drift: number;
+}
+
 @Component({
   selector: 'app-minigame-hub',
   standalone: true,
@@ -58,7 +67,19 @@ export class MinigameHubComponent implements OnDestroy {
   readonly selectedMemoryKeys = signal<string[]>([]);
   readonly kanaSelection = signal<string[]>([]);
   readonly currentWord = computed(() => this.vocabulary()[this.currentIndex() % Math.max(1, this.vocabulary().length)] ?? null);
-  readonly bubbleOptions = computed(() => this.pickOptions(8));
+  readonly bubbleOptions = computed<BubbleOption[]>(() => {
+    const layouts = [
+      { left: 5, size: 106, durationSeconds: 8.8, delaySeconds: -1.8, drift: 22 },
+      { left: 17, size: 142, durationSeconds: 11.4, delaySeconds: -7.1, drift: -18 },
+      { left: 30, size: 92, durationSeconds: 7.9, delaySeconds: -3.5, drift: 28 },
+      { left: 42, size: 158, durationSeconds: 12.6, delaySeconds: -9.4, drift: -25 },
+      { left: 57, size: 116, durationSeconds: 9.6, delaySeconds: -5.9, drift: 16 },
+      { left: 68, size: 98, durationSeconds: 8.4, delaySeconds: -2.6, drift: -20 },
+      { left: 78, size: 154, durationSeconds: 11.8, delaySeconds: -8.2, drift: 24 },
+      { left: 89, size: 122, durationSeconds: 10.2, delaySeconds: -4.7, drift: -15 },
+    ];
+    return this.pickOptions(8).map((item, index) => ({ item, ...layouts[index] }));
+  });
   readonly listeningOptions = computed(() => this.pickOptions(4).map((item) => item.meaning));
   readonly kanaOptions = computed(() => {
     const chars = [...(this.currentWord()?.pronunciation ?? '')];
