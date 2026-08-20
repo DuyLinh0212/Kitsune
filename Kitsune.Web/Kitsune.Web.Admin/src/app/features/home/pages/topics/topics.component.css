@@ -31,6 +31,22 @@ textarea { min-height: 76px; resize: vertical; }
 .lesson-status { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin: -5px 0 14px; padding: 10px 12px; color: #65748f; background: #f7f9fc; border-radius: 9px; font-size: .82rem; }
 .lesson-form { grid-template-columns: 1fr 100px; }
 .lesson-form h3, .lesson-form textarea { grid-column: 1 / -1; }
+.catalog-picker { margin-top: 22px; padding: 18px; border: 1px solid #c7d5ec; border-radius: 13px; background: linear-gradient(145deg, #f7faff 0%, #fff 58%); box-shadow: inset 4px 0 #2852a0; }
+.catalog-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.catalog-heading p { margin: 0 0 4px; color: #4d72bf; font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.catalog-heading h3 { margin: 0; }
+.catalog-note { max-width: 660px; margin: 9px 0 14px; color: #65748f; font-size: .86rem; line-height: 1.5; }
+.kanji-automation { display: grid; grid-template-columns: auto auto auto; gap: 5px; align-items: center; min-width: 128px; padding: 8px 10px; color: #2852a0; background: #eaf1ff; border-radius: 10px; text-align: center; }
+.kanji-automation strong { font-size: 1.25rem; }
+.kanji-automation small { grid-column: 1 / -1; color: #4f6490; font-size: .66rem; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.catalog-type { display: inline-grid; grid-template-columns: repeat(2, 1fr); padding: 3px; border: 1px solid #cfd8e6; border-radius: 10px; background: #edf2f9; }
+.catalog-type button { min-width: 110px; min-height: 36px; padding: 0 13px; border: 0; border-radius: 7px; color: #667590; background: transparent; font-weight: 800; cursor: pointer; }
+.catalog-type button.active { color: #fff; background: #2852a0; box-shadow: 0 4px 10px rgba(40,82,160,.2); }
+.catalog-search { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin: 11px 0 0; padding: 0; border: 0; }
+.catalog-search button { min-height: 42px; padding: 0 16px; border: 0; border-radius: 9px; color: #fff; background: #2852a0; font-weight: 800; cursor: pointer; }
+.catalog-search button:disabled { opacity: .5; cursor: wait; }
+.catalog-results { max-height: 390px; }
+.catalog-results .item-kind { justify-self: start; margin-bottom: 2px; padding: 2px 6px; color: #46649b; background: #edf3ff; border-radius: 999px; font-size: .62rem; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
 .folder-import { margin-top: 22px; padding-top: 20px; border-top: 1px solid #e3e8f1; }
 .folder-import h3 { margin: 0 0 14px; }
 .import-toolbar { display: flex; justify-content: space-between; margin: 12px 0 8px; }
@@ -52,4 +68,5 @@ textarea { min-height: 76px; resize: vertical; }
 .ai-preview strong, .ai-preview small { display: block; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(47,90,172,.2); outline-offset: 2px; }
 @media (max-width: 1150px) { .workspace { grid-template-columns: 240px 1fr; } .ai-panel { grid-column: 1 / -1; position: static; } }
-@media (max-width: 760px) { .topics-admin { padding: 12px; } .workspace { grid-template-columns: 1fr; } .topic-heading, .lesson-status { align-items: stretch; flex-direction: column; } .lesson-tabs, .item-grid { grid-template-columns: 1fr 1fr; } .lesson-form { grid-template-columns: 1fr; } .lesson-form textarea { grid-column: auto; } }
+@media (max-width: 760px) { .topics-admin { padding: 12px; } .workspace { grid-template-columns: 1fr; } .topic-heading, .lesson-status, .catalog-heading { align-items: stretch; flex-direction: column; } .lesson-tabs, .item-grid { grid-template-columns: 1fr 1fr; } .lesson-form, .catalog-search { grid-template-columns: 1fr; } .lesson-form textarea { grid-column: auto; } .kanji-automation { align-self: flex-start; } }
+@media (max-width: 480px) { .lesson-tabs, .item-grid { grid-template-columns: 1fr; } .catalog-type { display: grid; } .catalog-type button { min-width: 0; } }

@@ -10,20 +10,23 @@
       <div class="header-meta">
         <span>{{ lesson.estimatedMinutes }} phút</span>
         <span>{{ lesson.items.length }} mục học</span>
-        <a [routerLink]="['/srs']" [queryParams]="{ lessonId: lesson.id }">Ôn bài này bằng SRS →</a>
       </div>
       <div class="page-progress"><i [style.width.%]="progressPercent()"></i></div>
     </header>
 
     @if (activeItem(); as item) {
-      <section class="study-card">
+      <section class="study-card" [class.study-card--kanji]="item.kanjiId" [class.study-card--vocabulary]="item.vocabularyId">
         <aside>
           <span>{{ activeIndex() + 1 }}</span>
           <small>/ {{ lesson.items.length }}</small>
-          <p>{{ item.kanjiId ? '漢字 · Kanji' : '語彙 · Từ vựng' }}</p>
+          <p>{{ item.kanjiId ? 'KANJI' : 'TỪ VỰNG' }}</p>
         </aside>
         <article>
-          <button type="button" class="speak" (click)="speak()" aria-label="Phát âm từ hiện tại">♪</button>
+          <div class="item-type" [class.item-type--kanji]="item.kanjiId">
+            <strong>{{ item.kanjiId ? '漢' : '語' }}</strong>
+            <span>{{ item.kanjiId ? 'Kanji' : 'Từ vựng' }}</span>
+          </div>
+          <button type="button" class="speak" [class.speak--active]="tts.isSpeaking(item.word)" (click)="speak()" aria-label="Phát âm từ hiện tại">{{ tts.isSpeaking(item.word) ? '■' : '♪' }}</button>
           <h2>{{ item.word }}</h2>
           @if (item.pronunciation) { <p class="reading">{{ item.pronunciation }}</p> }
           <p class="meaning">{{ item.meaning }}</p>

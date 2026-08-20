@@ -4,7 +4,7 @@ import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angula
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AdminTopic, AiTopicPlan, FolderLearningItem, FolderOption, TopicAdminService } from '../../../../core/services/topic-admin.service';
+import { AdminTopic, AiTopicPlan, CatalogItemType, FolderLearningItem, FolderOption, TopicAdminService } from '../../../../core/services/topic-admin.service';
 
 @Component({
   selector: 'app-topic-management',
@@ -20,11 +20,15 @@ export class TopicManagementComponent implements OnInit {
   readonly topics = signal<AdminTopic[]>([]);
   readonly folders = signal<FolderOption[]>([]);
   readonly folderItems = signal<FolderLearningItem[]>([]);
+  readonly catalogItems = signal<FolderLearningItem[]>([]);
+  readonly catalogItemType = signal<CatalogItemType>('vocabulary');
   readonly selectedTopicId = signal<number | null>(null);
   readonly selectedLessonId = signal<number | null>(null);
   readonly selectedFolderId = signal<number | null>(null);
-  readonly selectedKeys = signal<Set<string>>(new Set());
+  readonly selectedFolderKeys = signal<Set<string>>(new Set());
+  readonly selectedCatalogKeys = signal<Set<string>>(new Set());
   readonly loading = signal(true);
+  readonly catalogLoading = signal(false);
   readonly busy = signal(false);
   readonly message = signal('');
   readonly aiPlan = signal<AiTopicPlan | null>(null);
@@ -39,16 +43,22 @@ export class TopicManagementComponent implements OnInit {
   lessonMinutes = 10;
   aiTopic = '';
   aiLessonCount = 5;
+  catalogQuery = '';
 
   ngOnInit(): void { this.reload(); }
 
   reload(): void {
     this.loading.set(true);
+    const preferredTopicId = this.selectedTopicId();
+    const preferredLessonId = this.selectedLessonId();
     this.service.getTopics().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (topics) => {
         this.topics.set(topics);
-        this.selectedTopicId.set(this.selectedTopicId() ?? topics[0]?.id ?? null);
-        this.selectedLessonId.set(this.activeTopic()?.lessons[0]?.id ?? null);
+        const topicId = topics.some((topic) => topic.id === preferredTopicId) ? preferredTopicId : topics[0]?.id ?? null;
+        this.selectedTopicId.set(topicId);
+        const activeTopic = topics.find((topic) => topic.id === topicId);
+        const lessonId = activeTopic?.lessons.some((lesson) => lesson.id === preferredLessonId) ? preferredLessonId : activeTopic?.lessons[0]?.id ?? null;
+        this.selectedLessonId.set(lessonId);
         this.loading.set(false);
       },
       error: () => { this.message.set('Không thể tải Topics. Hãy chạy migration 005.'); this.loading.set(false); },
@@ -60,6 +70,12 @@ export class TopicManagementComponent implements OnInit {
     this.selectedTopicId.set(topicId);
     const topic = this.topics().find((entry) => entry.id === topicId);
     this.selectedLessonId.set(topic?.lessons[0]?.id ?? null);
+    this.resetCatalogPicker();
+  }
+
+  selectLesson(lessonId: number): void {
+    this.selectedLessonId.set(lessonId);
+    this.resetCatalogPicker();
   }
 
   createTopic(): void {
@@ -118,7 +134,7 @@ export class TopicManagementComponent implements OnInit {
   loadFolderItems(value: string): void {
     const folderId = Number(value);
     this.selectedFolderId.set(Number.isFinite(folderId) && folderId > 0 ? folderId : null);
-    this.selectedKeys.set(new Set());
+    this.selectedFolderKeys.set(new Set());
     if (!this.selectedFolderId()) { this.folderItems.set([]); return; }
     this.service.getFolderItems(folderId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (items) => this.folderItems.set(items),
@@ -127,42 +143,99 @@ export class TopicManagementComponent implements OnInit {
   }
 
   toggleItem(key: string): void {
-    this.selectedKeys.update((keys) => { const next = new Set(keys); next.has(key) ? next.delete(key) : next.add(key); return next; });
+    this.selectedFolderKeys.update((keys) => { const next = new Set(keys); next.has(key) ? next.delete(key) : next.add(key); return next; });
   }
 
   toggleAll(): void {
-    this.selectedKeys.set(this.selectedKeys().size === this.folderItems().length ? new Set() : new Set(this.folderItems().map((item) => item.key)));
+    this.selectedFolderKeys.set(this.selectedFolderKeys().size === this.folderItems().length ? new Set() : new Set(this.folderItems().map((item) => item.key)));
   }
 
   importSelected(): void {
     const lessonId = this.selectedLessonId();
     const folderId = this.selectedFolderId();
     if (!lessonId || !folderId || this.busy()) return;
-    const selected = this.folderItems().filter((item) => this.selectedKeys().has(item.key));
+    const selected = this.folderItems().filter((item) => this.selectedFolderKeys().has(item.key));
     if (!selected.length) { this.message.set('Hãy chọn ít nhất một từ hoặc Kanji.'); return; }
     this.busy.set(true);
     this.service.importFolderItems(lessonId, folderId, selected).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (count) => { this.busy.set(false); this.selectedKeys.set(new Set()); this.message.set(`Đã chuyển ${count} mục vào bài học.`); this.reload(); },
+      next: (count) => { this.busy.set(false); this.selectedFolderKeys.set(new Set()); this.message.set(`Đã thêm ${count} mục, gồm cả Kanji tự động từ từ vựng.`); this.reload(); },
       error: () => { this.busy.set(false); this.message.set('Không thể chuyển mục; có thể mục đã tồn tại trong bài.'); },
+    });
+  }
+
+  setCatalogItemType(itemType: CatalogItemType): void {
+    if (this.catalogItemType() === itemType) return;
+    this.catalogItemType.set(itemType);
+    this.catalogItems.set([]);
+    this.selectedCatalogKeys.set(new Set());
+    if (this.catalogQuery.trim()) this.searchCatalog();
+  }
+
+  searchCatalog(): void {
+    if (!this.activeLesson()) { this.message.set('Hãy chọn một bài học trước.'); return; }
+    if (!this.catalogQuery.trim() || this.catalogLoading()) return;
+    this.catalogLoading.set(true);
+    this.selectedCatalogKeys.set(new Set());
+    this.service.searchCatalog(this.catalogItemType(), this.catalogQuery).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (items) => {
+        this.catalogItems.set(items);
+        this.catalogLoading.set(false);
+        if (!items.length) this.message.set('Không tìm thấy học liệu phù hợp.');
+      },
+      error: () => { this.catalogLoading.set(false); this.message.set('Không thể tìm trong kho học liệu.'); },
+    });
+  }
+
+  toggleCatalogItem(key: string): void {
+    this.selectedCatalogKeys.update((keys) => { const next = new Set(keys); next.has(key) ? next.delete(key) : next.add(key); return next; });
+  }
+
+  toggleAllCatalogItems(): void {
+    this.selectedCatalogKeys.set(this.selectedCatalogKeys().size === this.catalogItems().length
+      ? new Set()
+      : new Set(this.catalogItems().map((item) => item.key)));
+  }
+
+  addCatalogItems(): void {
+    const lessonId = this.selectedLessonId();
+    if (!lessonId || this.busy()) return;
+    const selected = this.catalogItems().filter((item) => this.selectedCatalogKeys().has(item.key));
+    if (!selected.length) { this.message.set('Hãy chọn ít nhất một từ vựng hoặc Kanji.'); return; }
+    this.busy.set(true);
+    this.service.addCatalogItems(lessonId, selected).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (count) => {
+        this.busy.set(false);
+        this.selectedCatalogKeys.set(new Set());
+        this.message.set(count > 0 ? `Đã thêm ${count} mục; Kanji trong từ vựng đã được gắn tự động và không trùng.` : 'Các mục đã có sẵn trong bài học.');
+        this.reload();
+      },
+      error: () => { this.busy.set(false); this.message.set('Không thể thêm học liệu vào bài học.'); },
     });
   }
 
   generateAi(): void {
     if (!this.aiTopic.trim() || this.busy()) return;
-    this.busy.set(true); this.aiPlan.set(null); this.message.set('Gemini đang đối chiếu kho từ vựng…');
-    this.service.generatePlan(this.aiTopic, this.aiLessonCount).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (plan) => { this.aiPlan.set(plan); this.busy.set(false); this.message.set('Đã tạo bản nháp. Kiểm tra trước khi lưu.'); },
-      error: () => { this.busy.set(false); this.message.set('Không thể gọi AI. Hãy deploy Edge Function và cấu hình GEMINI_API_KEY.'); },
+    this.busy.set(true); this.aiPlan.set(null); this.message.set('Gemini đang tạo Topic, Lessons và đối chiếu Kanji…');
+    this.service.generateAndSaveTopic(this.aiTopic, this.aiLessonCount).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: ({ topic, plan }) => {
+        this.aiPlan.set(plan);
+        this.selectedTopicId.set(topic.id);
+        this.selectedLessonId.set(topic.lessons[0]?.id ?? null);
+        this.busy.set(false);
+        this.message.set(`Đã tạo chủ đề “${topic.title}” cùng ${topic.lessons.length} bài học ở trạng thái nháp.`);
+        this.reload();
+      },
+      error: (error: unknown) => { this.busy.set(false); this.message.set(this.readErrorMessage(error, 'Không thể tạo và lưu lộ trình AI.')); },
     });
   }
 
-  saveAi(): void {
-    const plan = this.aiPlan();
-    if (!plan || !this.aiTopic.trim() || this.busy()) return;
-    this.busy.set(true);
-    this.service.savePlan(this.aiTopic, plan).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: () => { this.busy.set(false); this.aiPlan.set(null); this.message.set('Đã lưu lộ trình AI ở trạng thái nháp.'); this.reload(); },
-      error: () => { this.busy.set(false); this.message.set('Lưu lộ trình AI chưa hoàn tất. Kiểm tra dữ liệu và thử lại.'); },
-    });
+  private resetCatalogPicker(): void {
+    this.catalogItems.set([]);
+    this.selectedCatalogKeys.set(new Set());
+  }
+
+  private readErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message.trim()) return error.message;
+    return fallback;
   }
 }

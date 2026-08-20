@@ -6,16 +6,22 @@ header > p { margin: 40px 0 8px; color: #d85b3f; font: 700 .76rem ui-monospace, 
 h1, h2 { font-family: Georgia, 'Times New Roman', serif; }
 h1 { margin: 0; font-size: clamp(2.6rem, 7vw, 5rem); line-height: 1; letter-spacing: -.05em; }
 .header-meta { display: flex; flex-wrap: wrap; gap: 12px 22px; align-items: center; margin: 20px 0; color: #756b78; }
-.header-meta a { margin-left: auto; padding: 10px 15px; color: #fff; background: #3d3565; text-decoration: none; }
 .page-progress { height: 5px; background: #e8ddcb; }
 .page-progress i { display: block; height: 100%; background: #d85b3f; transition: width .25s ease; }
 .study-card { display: grid; grid-template-columns: 140px 1fr; min-height: 390px; margin: 42px 0 22px; border: 1px solid #d8cbb8; background: #fffdf7; box-shadow: 10px 10px 0 #e8ddcb; }
 .study-card aside { padding: 28px; color: #fff; background: #3d3565; }
+.study-card--kanji aside { background: #3d3565; }
+.study-card--vocabulary aside { background: #486651; }
 .study-card aside > span { font: 400 3.8rem/1 Georgia, serif; }
 .study-card aside small { color: #cfc7e2; }
-.study-card aside p { margin-top: 160px; font-size: .75rem; letter-spacing: .1em; writing-mode: vertical-rl; }
+.study-card aside p { margin-top: 160px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,.35); font-size: .72rem; font-weight: 900; letter-spacing: .16em; }
 .study-card article { position: relative; display: grid; align-content: center; justify-items: center; padding: 50px; text-align: center; }
+.item-type { display: inline-flex; gap: 8px; align-items: center; margin-bottom: 22px; padding: 6px 11px 6px 7px; color: #33503c; background: #e4eee6; border: 1px solid #bfd1c2; border-radius: 999px; font-size: .74rem; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; }
+.item-type strong { display: grid; place-items: center; width: 26px; height: 26px; color: #fff; background: #486651; border-radius: 50%; font-size: 1rem; }
+.item-type--kanji { color: #3d3565; background: #eeeaf8; border-color: #cec6e3; }
+.item-type--kanji strong { background: #3d3565; }
 .speak { position: absolute; top: 22px; right: 22px; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid #d8cbb8; color: #3d3565; background: transparent; border-radius: 50%; cursor: pointer; }
+.speak--active { color: #fff; border-color: #d85b3f; background: #d85b3f; }
 .study-card h2 { margin: 0; font-size: clamp(4rem, 12vw, 8rem); font-weight: 400; line-height: 1; }
 .reading { margin: 14px 0 0; color: #d85b3f; font-size: 1.25rem; }
 .meaning { font-size: 1.45rem; }

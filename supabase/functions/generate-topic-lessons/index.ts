@@ -16,6 +16,7 @@ interface CatalogVocabulary {
   Word: string;
   Pronunciation: string | null;
   Meaning: string;
+  KanjiIds: number[];
 }
 
 interface CatalogKanji {
@@ -46,6 +47,8 @@ interface GeminiModel {
 const preferredGeminiModels = [
   'models/gemini-3.1-flash-lite',
 ];
+const minimumVocabularyPerLesson = 20;
+const maximumVocabularyPerLesson = 30;
 
 async function getGeminiErrorMessage(response: Response): Promise<string> {
   const responseText = await response.text();
@@ -109,20 +112,39 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (roleError) throw roleError;
     if (!adminRole) throw new Error('Chỉ quản trị viên mới có thể dùng trợ lý AI.');
 
-    const [{ data: vocabularies, error: vocabularyError }, { data: kanji, error: kanjiError }] = await Promise.all([
+    const [
+      { data: vocabularies, error: vocabularyError },
+      { data: kanji, error: kanjiError },
+      { data: components, error: componentError },
+    ] = await Promise.all([
       supabase.from('Vocabularies').select('Id, Word, Pronunciation, Meaning').limit(500),
       supabase.from('Kanji').select('Id, Character, AmHanViet, Meaning').limit(350),
+      supabase.from('KanjiComponents').select('VocabularyId, KanjiId').order('Order').limit(5000),
     ]);
     if (vocabularyError) throw vocabularyError;
     if (kanjiError) throw kanjiError;
+    if (componentError) throw componentError;
 
-    const vocabularyCatalog = (vocabularies ?? []) as CatalogVocabulary[];
+    const kanjiByVocabulary = new Map<number, number[]>();
+    for (const component of components ?? []) {
+      const ids = kanjiByVocabulary.get(component.VocabularyId) ?? [];
+      if (!ids.includes(component.KanjiId)) ids.push(component.KanjiId);
+      kanjiByVocabulary.set(component.VocabularyId, ids);
+    }
+    const vocabularyCatalog = (vocabularies ?? []).map((entry) => ({
+      ...entry,
+      KanjiIds: kanjiByVocabulary.get(entry.Id) ?? [],
+    })) as CatalogVocabulary[];
     const kanjiCatalog = (kanji ?? []) as CatalogKanji[];
+    if (vocabularyCatalog.length < minimumVocabularyPerLesson) {
+      throw new Error(`Kho dữ liệu cần ít nhất ${minimumVocabularyPerLesson} từ vựng để tạo một bài học.`);
+    }
     const prompt = [
       `Tạo lộ trình tiếng Nhật về chủ đề "${topic}" gồm đúng ${lessonCount} bài học.`,
-      'Chỉ chọn ID có trong catalog. Phân bổ từ dễ đến khó, không lặp ID giữa các bài.',
-      'Mỗi bài có title, description, estimatedMinutes, vocabularyIds và kanjiIds.',
-      'Trả về JSON thuần theo schema {"topicDescription":string,"lessons":[{"title":string,"description":string,"estimatedMinutes":number,"vocabularyIds":number[],"kanjiIds":number[]}]} mà không dùng markdown.',
+      `Mỗi bài bắt buộc chọn từ ${minimumVocabularyPerLesson} đến ${maximumVocabularyPerLesson} vocabularyIds khác nhau, phù hợp trực tiếp với chủ đề của bài.`,
+      'Chỉ chọn ID có trong catalog, phân bổ từ dễ đến khó và ưu tiên không lặp từ vựng giữa các bài.',
+      'KanjiIds phải chứa toàn bộ KanjiIds thuộc các từ vựng đã chọn, cộng thêm Kanji liên quan nếu cần, và tuyệt đối không lặp ID trong cùng bài.',
+      'Mỗi bài có title, description, estimatedMinutes, vocabularyIds và kanjiIds. Chỉ trả về JSON theo schema được cung cấp.',
       `VOCABULARY_CATALOG=${JSON.stringify(vocabularyCatalog)}`,
       `KANJI_CATALOG=${JSON.stringify(kanjiCatalog)}`,
     ].join('\n');
@@ -135,7 +157,40 @@ Deno.serve(async (request: Request): Promise<Response> => {
         headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { responseMimeType: 'application/json', temperature: 0.35 },
+          generationConfig: {
+            responseMimeType: 'application/json',
+            maxOutputTokens: 32768,
+            responseJsonSchema: {
+              type: 'object',
+              additionalProperties: false,
+              required: ['topicDescription', 'lessons'],
+              properties: {
+                topicDescription: { type: 'string' },
+                lessons: {
+                  type: 'array',
+                  minItems: lessonCount,
+                  maxItems: lessonCount,
+                  items: {
+                    type: 'object',
+                    additionalProperties: false,
+                    required: ['title', 'description', 'estimatedMinutes', 'vocabularyIds', 'kanjiIds'],
+                    properties: {
+                      title: { type: 'string' },
+                      description: { type: 'string' },
+                      estimatedMinutes: { type: 'integer', minimum: 1, maximum: 180 },
+                      vocabularyIds: {
+                        type: 'array',
+                        minItems: minimumVocabularyPerLesson,
+                        maxItems: maximumVocabularyPerLesson,
+                        items: { type: 'integer' },
+                      },
+                      kanjiIds: { type: 'array', maxItems: 120, items: { type: 'integer' } },
+                    },
+                  },
+                },
+              },
+            },
+          },
         }),
       },
     );
@@ -154,15 +209,39 @@ Deno.serve(async (request: Request): Promise<Response> => {
     }
     const vocabularyIds = new Set(vocabularyCatalog.map((entry) => entry.Id));
     const kanjiIds = new Set(kanjiCatalog.map((entry) => entry.Id));
+    const orderedVocabularyIds = vocabularyCatalog.map((entry) => entry.Id);
+    const usedVocabularyIds = new Set<number>();
     const safePlan = {
       topicDescription: typeof generated.topicDescription === 'string' ? generated.topicDescription : '',
-      lessons: generated.lessons.map((lesson, index) => ({
-        title: typeof lesson.title === 'string' && lesson.title.trim() ? lesson.title.trim() : `Bài ${index + 1}`,
-        description: typeof lesson.description === 'string' ? lesson.description.trim() : '',
-        estimatedMinutes: Math.min(180, Math.max(1, Math.floor(lesson.estimatedMinutes ?? 10))),
-        vocabularyIds: [...new Set((lesson.vocabularyIds ?? []).filter((id) => Number.isInteger(id) && vocabularyIds.has(id)))],
-        kanjiIds: [...new Set((lesson.kanjiIds ?? []).filter((id) => Number.isInteger(id) && kanjiIds.has(id)))],
-      })),
+      lessons: generated.lessons.map((lesson, index) => {
+        const safeVocabularyIds = [...new Set((lesson.vocabularyIds ?? []).filter((id) => Number.isInteger(id) && vocabularyIds.has(id)))]
+          .filter((id) => !usedVocabularyIds.has(id))
+          .slice(0, maximumVocabularyPerLesson);
+        for (const vocabularyId of orderedVocabularyIds) {
+          if (safeVocabularyIds.length >= minimumVocabularyPerLesson) break;
+          if (usedVocabularyIds.has(vocabularyId) || safeVocabularyIds.includes(vocabularyId)) continue;
+          safeVocabularyIds.push(vocabularyId);
+        }
+        for (const vocabularyId of orderedVocabularyIds) {
+          if (safeVocabularyIds.length >= minimumVocabularyPerLesson) break;
+          if (!safeVocabularyIds.includes(vocabularyId)) safeVocabularyIds.push(vocabularyId);
+        }
+        if (safeVocabularyIds.length < minimumVocabularyPerLesson) {
+          throw new Error(`Bài ${index + 1} không thể đạt tối thiểu ${minimumVocabularyPerLesson} từ vựng.`);
+        }
+        for (const vocabularyId of safeVocabularyIds) usedVocabularyIds.add(vocabularyId);
+        const safeKanjiIds = new Set((lesson.kanjiIds ?? []).filter((id) => Number.isInteger(id) && kanjiIds.has(id)));
+        for (const vocabularyId of safeVocabularyIds) {
+          for (const kanjiId of kanjiByVocabulary.get(vocabularyId) ?? []) safeKanjiIds.add(kanjiId);
+        }
+        return {
+          title: typeof lesson.title === 'string' && lesson.title.trim() ? lesson.title.trim() : `Bài ${index + 1}`,
+          description: typeof lesson.description === 'string' ? lesson.description.trim() : '',
+          estimatedMinutes: Math.min(180, Math.max(1, Math.floor(lesson.estimatedMinutes ?? 10))),
+          vocabularyIds: safeVocabularyIds,
+          kanjiIds: [...safeKanjiIds],
+        };
+      }),
     };
 
     return new Response(JSON.stringify(safePlan), {
