@@ -38,6 +38,41 @@ interface GeneratedPlan {
   lessons?: GeneratedLesson[];
 }
 
+interface GeminiModel {
+  name: string;
+  supportedGenerationMethods?: string[];
+}
+
+const preferredGeminiModels = [
+  'models/gemini-3.7-flash',
+];
+
+async function getGeminiErrorMessage(response: Response): Promise<string> {
+  const responseText = await response.text();
+  try {
+    const payload = JSON.parse(responseText) as { error?: { message?: string } };
+    if (payload.error?.message) return payload.error.message;
+  } catch {
+    // The fallback below preserves a non-JSON provider response for diagnostics.
+  }
+  return responseText.slice(0, 280) || 'Không có nội dung phản hồi từ Gemini.';
+}
+
+async function resolveGeminiModel(apiKey: string): Promise<string> {
+  const response = await fetch('https://generativelanguage.googleapis.com/v1beta/models', {
+    headers: { 'x-goog-api-key': apiKey },
+  });
+  if (!response.ok) {
+    throw new Error(`Không thể đọc danh sách model Gemini (${response.status}): ${await getGeminiErrorMessage(response)}`);
+  }
+
+  const payload = await response.json() as { models?: GeminiModel[] };
+  const availableModels = (payload.models ?? []).filter((model) => model.supportedGenerationMethods?.includes('generateContent'));
+  const selectedModel = preferredGeminiModels.find((name) => availableModels.some((model) => model.name === name));
+  if (!selectedModel) throw new Error('API key Gemini không có quyền dùng Gemini 3.7 Flash. Hãy tạo key có quyền truy cập model này trong Google AI Studio.');
+  return selectedModel;
+}
+
 Deno.serve(async (request: Request): Promise<Response> => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -92,11 +127,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
       `KANJI_CATALOG=${JSON.stringify(kanjiCatalog)}`,
     ].join('\n');
 
+    const geminiModel = await resolveGeminiModel(geminiApiKey);
     const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(geminiApiKey)}`,
+      `https://generativelanguage.googleapis.com/v1beta/${geminiModel}:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
         body: JSON.stringify({
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: { responseMimeType: 'application/json', temperature: 0.35 },
@@ -104,7 +140,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
       },
     );
     if (!geminiResponse.ok) {
-      throw new Error(`Gemini trả về lỗi ${geminiResponse.status}.`);
+      throw new Error(`Gemini trả về lỗi ${geminiResponse.status}: ${await getGeminiErrorMessage(geminiResponse)}`);
     }
     const geminiPayload = await geminiResponse.json() as {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
