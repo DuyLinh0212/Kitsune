@@ -1,6 +1,5 @@
--- Kitsune.Web/sql/005_topics_lessons_minigames.sql
--- Run manually in the Supabase SQL editor. Keeps VocabularyFolder intact while
--- v3 content is copied into topic/lesson membership and SRS becomes lesson-scoped.
+-- v3: Topic → Lesson learning catalog, lesson-scoped SRS, and minigame scores.
+-- Keeps VocabularyFolder intact for personal collections and Admin imports.
 
 create table if not exists "Topics" (
   "Id" bigint generated always as identity primary key,
@@ -56,8 +55,7 @@ create table if not exists "UserLessonProgress" (
   unique ("UserId", "LessonId")
 );
 
--- A card can be reused across lessons while its scheduling history remains global.
--- This join makes queue loading lesson-scoped without duplicating legacy cards.
+-- Scheduling is shared by logical card; this table only scopes it to a lesson item.
 create table if not exists "SrsCardLessons" (
   "Id" bigint generated always as identity primary key,
   "UserId" int8 not null references "Users"("Id") on delete cascade,

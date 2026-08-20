@@ -12,13 +12,12 @@ Kitsune v3 chuyển hành trình học chính sang **Chủ đề → Bài học 
 
 ## Kiến trúc dữ liệu
 
-Migration `Kitsune.Web/sql/005_topics_lessons_minigames.sql` bổ sung `Topics`, `Lessons`, `LessonItems`, `UserLessonProgress`, `SrsCardLessons` và `MinigameSessions` cùng index/RLS. `VocabularyFolder` vẫn được giữ để nhập dữ liệu và tương thích trong giai đoạn chuyển đổi.
+Migration `supabase/migrations/20260820154000_topics_lessons_minigames.sql` bổ sung `Topics`, `Lessons`, `LessonItems`, `UserLessonProgress`, `SrsCardLessons` và `MinigameSessions` cùng index/RLS. Migration đã được push lên Supabase ngày 2026-08-20. `VocabularyFolder` vẫn được giữ để nhập dữ liệu và tương thích trong giai đoạn chuyển đổi.
 
 ## Triển khai vận hành
 
-1. Chạy migration `005_topics_lessons_minigames.sql` trong Supabase SQL Editor.
-2. Đặt secret `GEMINI_API_KEY` cho Supabase Edge Functions.
-3. Deploy function `generate-topic-lessons`.
-4. Tạo/publish ít nhất một Topic và Lesson trong Admin để người dùng bắt đầu học.
+1. Đặt secret `GEMINI_API_KEY` cho Supabase Edge Functions.
+2. Deploy function `generate-topic-lessons`.
+3. Tạo/publish ít nhất một Topic và Lesson trong Admin để người dùng bắt đầu học.
 
 Không lưu Gemini API key trong repository. Nếu một khóa từng xuất hiện trong tài liệu hoặc lịch sử Git, hãy thu hồi và tạo khóa mới trước khi deploy.
