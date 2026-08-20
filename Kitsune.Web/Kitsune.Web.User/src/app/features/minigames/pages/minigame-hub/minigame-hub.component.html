@@ -34,8 +34,8 @@
       @if (game.type === 'BUBBLE_POP' && currentWord(); as target) {
         <div class="prompt"><span>Tìm từ có nghĩa</span><h2>{{ target.meaning }}</h2></div>
         <div class="bubble-field">
-          @for (item of bubbleOptions(); track item.id; let index = $index) {
-            <button type="button" class="bubble" [style.--i]="index" (click)="chooseBubble(item)">{{ item.word }}</button>
+          @for (bubble of bubbleOptions(); track bubble.item.id) {
+            <button type="button" class="bubble" [style.--left]="bubble.left + '%'" [style.--size]="bubble.size + 'px'" [style.--duration]="bubble.durationSeconds + 's'" [style.--delay]="bubble.delaySeconds + 's'" [style.--drift]="bubble.drift + 'px'" (click)="chooseBubble(bubble.item)">{{ bubble.item.word }}</button>
           }
         </div>
       } @else if (game.type === 'KANA_PATH' && currentWord(); as target) {

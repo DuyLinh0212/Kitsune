@@ -170,6 +170,10 @@ interface LessonSrsRow {
   Title: string;
 }
 
+interface LessonProgressRow {
+  CompletedItemCount: number;
+}
+
 const ACTIVE_FOLDER_STORAGE_KEY = 'kitsune.srs.activeFolderId';
 const ACTIVE_LESSON_STORAGE_KEY = 'kitsune.srs.activeLessonId';
 const DAILY_GOAL_STORAGE_PREFIX = 'kitsune.srs.dailyGoal.';
@@ -354,14 +358,18 @@ export class SrsService {
     if (!email) return null;
     const userId = await this.getCurrentUserId(email);
 
-    const [{ data: lessonData, error: lessonError }, { data: itemData, error: itemError }] = await Promise.all([
+    const [{ data: lessonData, error: lessonError }, { data: itemData, error: itemError }, { data: progressData, error: progressError }] = await Promise.all([
       supabase.from('Lessons').select('Id, Title').eq('Id', lessonId).single(),
       supabase.from('LessonItems').select('Id, LessonId, VocabularyId, KanjiId, ExampleSentence, ExampleTranslation').eq('LessonId', lessonId).order('OrderIndex'),
+      supabase.from('UserLessonProgress').select('CompletedItemCount').eq('UserId', userId).eq('LessonId', lessonId).maybeSingle(),
     ]);
     if (lessonError) throw lessonError;
     if (itemError) throw itemError;
+    if (progressError) throw progressError;
     const lesson = lessonData as LessonSrsRow;
     const items = (itemData ?? []) as LessonSrsItemRow[];
+    const completedItemCount = Math.min((progressData as LessonProgressRow | null)?.CompletedItemCount ?? 0, items.length);
+    const studiedItemIds = new Set(items.slice(0, completedItemCount).map((item) => item.Id));
     const vocabularyIds = items.map((item) => item.VocabularyId).filter((id): id is number => id != null);
     const kanjiIds = items.map((item) => item.KanjiId).filter((id): id is number => id != null);
 
@@ -389,16 +397,32 @@ export class SrsService {
         UserId: userId,
         VocabularyId: item.VocabularyId,
         KanjiId: item.KanjiId,
-        BoxLevel: 0,
+        BoxLevel: studiedItemIds.has(item.Id) ? 1 : 0,
         EaseFactor: 2.5,
-        IntervalDays: 0,
-        Repetitions: 0,
+        IntervalDays: studiedItemIds.has(item.Id) ? 1 : 0,
+        Repetitions: studiedItemIds.has(item.Id) ? 1 : 0,
         NextReviewDate: now,
+        LastReviewedAt: studiedItemIds.has(item.Id) ? now : null,
       });
       existingKeys.add(key);
     }
     if (inserts.length) {
       const { error } = await supabase.from('SRSCards').insert(inserts);
+      if (error) throw error;
+      cards = await this.loadFolderCards(userId, vocabularyIds, kanjiIds);
+    }
+
+    const studiedCardIds = items.flatMap((item) => {
+      if (!studiedItemIds.has(item.Id)) return [];
+      const card = cards.find((entry) => this.cardKey(entry.VocabularyId, entry.KanjiId) === this.cardKey(item.VocabularyId, item.KanjiId));
+      return card && this.normalizeLevel(card.BoxLevel) === 0 ? [card.Id] : [];
+    });
+    if (studiedCardIds.length) {
+      const { error } = await supabase
+        .from('SRSCards')
+        .update({ BoxLevel: 1, EaseFactor: 2.5, IntervalDays: 1, Repetitions: 1, NextReviewDate: now, LastReviewedAt: now })
+        .in('Id', studiedCardIds)
+        .eq('UserId', userId);
       if (error) throw error;
       cards = await this.loadFolderCards(userId, vocabularyIds, kanjiIds);
     }

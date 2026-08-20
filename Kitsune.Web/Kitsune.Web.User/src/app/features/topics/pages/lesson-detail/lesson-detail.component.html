@@ -29,6 +29,12 @@
           <button type="button" class="speak" [class.speak--active]="tts.isSpeaking(item.word)" (click)="speak()" aria-label="Phát âm từ hiện tại">{{ tts.isSpeaking(item.word) ? '■' : '♪' }}</button>
           <h2>{{ item.word }}</h2>
           @if (item.pronunciation) { <p class="reading">{{ item.pronunciation }}</p> }
+          @if (item.kanjiId) {
+            <dl class="kanji-readings">
+              <div><dt>Âm On</dt><dd>{{ item.onyomi || '—' }}</dd></div>
+              <div><dt>Âm Kun</dt><dd>{{ item.kunyomi || '—' }}</dd></div>
+            </dl>
+          }
           <p class="meaning">{{ item.meaning }}</p>
           @if (item.exampleSentence) {
             <blockquote>

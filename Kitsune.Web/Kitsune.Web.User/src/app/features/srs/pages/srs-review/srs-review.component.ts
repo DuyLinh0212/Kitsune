@@ -524,6 +524,13 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (session.flashcards.length === 0) {
+      this.selectedLimit.set(session.quizCards.length);
+      this.dueQueue.set([...session.quizCards]);
+      this.phase.set('prompt_review');
+      return;
+    }
+
     this.phase.set('setup_quantity');
   }
   
