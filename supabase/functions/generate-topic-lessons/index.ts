@@ -44,7 +44,7 @@ interface GeminiModel {
 }
 
 const preferredGeminiModels = [
-  'models/gemini-3.7-flash',
+  'models/gemini-3.1-flash-lite',
 ];
 
 async function getGeminiErrorMessage(response: Response): Promise<string> {
@@ -69,7 +69,7 @@ async function resolveGeminiModel(apiKey: string): Promise<string> {
   const payload = await response.json() as { models?: GeminiModel[] };
   const availableModels = (payload.models ?? []).filter((model) => model.supportedGenerationMethods?.includes('generateContent'));
   const selectedModel = preferredGeminiModels.find((name) => availableModels.some((model) => model.name === name));
-  if (!selectedModel) throw new Error('API key Gemini không có quyền dùng Gemini 3.7 Flash. Hãy tạo key có quyền truy cập model này trong Google AI Studio.');
+  if (!selectedModel) throw new Error('API key Gemini không có quyền dùng Gemini 3.1 Flash-Lite. Hãy tạo key có quyền truy cập model này trong Google AI Studio.');
   return selectedModel;
 }
 
