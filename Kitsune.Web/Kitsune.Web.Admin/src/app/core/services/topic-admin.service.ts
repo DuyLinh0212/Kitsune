@@ -46,11 +46,20 @@ export interface AiLessonPlan {
 export interface AiTopicPlan { topicDescription: string; lessons: AiLessonPlan[]; }
 export interface AiTopicCreation { topic: AdminTopic; plan: AiTopicPlan; }
 
+interface LessonItemRow {
+  Id: number;
+  VocabularyId: number | null;
+  KanjiId: number | null;
+  Vocabulary: { Word: string; Pronunciation: string | null; Meaning: string } | null;
+  Kanji: { Character: string; AmHanViet: string | null; Meaning: string } | null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class TopicAdminService {
   getTopics(): Observable<AdminTopic[]> { return from(this.loadTopics()); }
   getFolders(): Observable<FolderOption[]> { return from(this.loadFolders()); }
   getFolderItems(folderId: number): Observable<FolderLearningItem[]> { return from(this.loadFolderItems(folderId)); }
+  getLessonItems(lessonId: number): Observable<FolderLearningItem[]> { return from(this.loadLessonItems(lessonId)); }
   searchCatalog(itemType: CatalogItemType, query: string): Observable<FolderLearningItem[]> {
     return from(this.loadCatalogItems(itemType, query));
   }
@@ -258,9 +267,60 @@ export class TopicAdminService {
 
   private async invokeAi(topic: string, lessonCount: number): Promise<AiTopicPlan> {
     const { data, error } = await supabase.functions.invoke<AiTopicPlan>('generate-topic-lessons', { body: { topic: topic.trim(), lessonCount } });
-    if (error) throw error;
+    if (error) throw await this.readFunctionError(error);
     if (!data?.lessons?.length) throw new Error('AI không trả về bài học hợp lệ.');
     return data;
+  }
+
+  private async loadLessonItems(lessonId: number): Promise<FolderLearningItem[]> {
+    const { data, error } = await supabase
+      .from('LessonItems')
+      .select('Id, VocabularyId, KanjiId, OrderIndex, Vocabulary:VocabularyId(Word, Pronunciation, Meaning), Kanji:KanjiId(Character, AmHanViet, Meaning)')
+      .eq('LessonId', lessonId)
+      .order('OrderIndex');
+    if (error) throw error;
+
+    return ((data ?? []) as unknown as LessonItemRow[]).flatMap((item): FolderLearningItem[] => {
+      if (item.VocabularyId !== null && item.Vocabulary) {
+        return [{
+          key: `lesson-item-${item.Id}`,
+          itemType: 'vocabulary' as const,
+          vocabularyId: item.VocabularyId,
+          kanjiId: null,
+          word: item.Vocabulary.Word,
+          pronunciation: item.Vocabulary.Pronunciation ?? '',
+          meaning: item.Vocabulary.Meaning,
+        }];
+      }
+      if (item.KanjiId !== null && item.Kanji) {
+        return [{
+          key: `lesson-item-${item.Id}`,
+          itemType: 'kanji' as const,
+          vocabularyId: null,
+          kanjiId: item.KanjiId,
+          word: item.Kanji.Character,
+          pronunciation: item.Kanji.AmHanViet ?? '',
+          meaning: item.Kanji.Meaning,
+        }];
+      }
+      return [];
+    });
+  }
+
+  private async readFunctionError(error: unknown): Promise<Error> {
+    const context = (error as { context?: unknown } | null)?.context;
+    if (context && typeof (context as Response).clone === 'function') {
+      const response = context as Response;
+      try {
+        const payload = await response.clone().json() as { error?: unknown; message?: unknown };
+        const detail = typeof payload.error === 'string' ? payload.error : typeof payload.message === 'string' ? payload.message : '';
+        if (detail.trim()) return new Error(detail.trim());
+      } catch {
+        const detail = await response.clone().text().catch(() => '');
+        if (detail.trim()) return new Error(detail.trim());
+      }
+    }
+    return error instanceof Error ? error : new Error('Edge Function không trả về nội dung lỗi hợp lệ.');
   }
 
   private async generateAndPersistAiPlan(topicTitle: string, lessonCount: number): Promise<AiTopicCreation> {

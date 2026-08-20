@@ -20,6 +20,7 @@ export class TopicManagementComponent implements OnInit {
   readonly topics = signal<AdminTopic[]>([]);
   readonly folders = signal<FolderOption[]>([]);
   readonly folderItems = signal<FolderLearningItem[]>([]);
+  readonly lessonItems = signal<FolderLearningItem[]>([]);
   readonly catalogItems = signal<FolderLearningItem[]>([]);
   readonly catalogItemType = signal<CatalogItemType>('vocabulary');
   readonly selectedTopicId = signal<number | null>(null);
@@ -28,12 +29,17 @@ export class TopicManagementComponent implements OnInit {
   readonly selectedFolderKeys = signal<Set<string>>(new Set());
   readonly selectedCatalogKeys = signal<Set<string>>(new Set());
   readonly loading = signal(true);
+  readonly lessonItemsLoading = signal(false);
+  readonly lessonItemsError = signal('');
   readonly catalogLoading = signal(false);
   readonly busy = signal(false);
   readonly message = signal('');
+  readonly aiError = signal('');
   readonly aiPlan = signal<AiTopicPlan | null>(null);
   readonly activeTopic = computed(() => this.topics().find((topic) => topic.id === this.selectedTopicId()) ?? null);
   readonly activeLesson = computed(() => this.activeTopic()?.lessons.find((lesson) => lesson.id === this.selectedLessonId()) ?? null);
+  readonly lessonVocabularyCount = computed(() => this.lessonItems().filter((item) => item.itemType === 'vocabulary').length);
+  readonly lessonKanjiCount = computed(() => this.lessonItems().filter((item) => item.itemType === 'kanji').length);
 
   topicTitle = '';
   topicDescription = '';
@@ -59,6 +65,7 @@ export class TopicManagementComponent implements OnInit {
         const activeTopic = topics.find((topic) => topic.id === topicId);
         const lessonId = activeTopic?.lessons.some((lesson) => lesson.id === preferredLessonId) ? preferredLessonId : activeTopic?.lessons[0]?.id ?? null;
         this.selectedLessonId.set(lessonId);
+        this.loadSelectedLessonItems(lessonId);
         this.loading.set(false);
       },
       error: () => { this.message.set('Không thể tải Topics. Hãy chạy migration 005.'); this.loading.set(false); },
@@ -70,11 +77,13 @@ export class TopicManagementComponent implements OnInit {
     this.selectedTopicId.set(topicId);
     const topic = this.topics().find((entry) => entry.id === topicId);
     this.selectedLessonId.set(topic?.lessons[0]?.id ?? null);
+    this.loadSelectedLessonItems(this.selectedLessonId());
     this.resetCatalogPicker();
   }
 
   selectLesson(lessonId: number): void {
     this.selectedLessonId.set(lessonId);
+    this.loadSelectedLessonItems(lessonId);
     this.resetCatalogPicker();
   }
 
@@ -94,7 +103,7 @@ export class TopicManagementComponent implements OnInit {
     this.service.createLesson(topic.id, this.lessonTitle, this.lessonDescription, this.lessonMinutes, topic.lessons.length).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (lesson) => {
         this.topics.update((topics) => topics.map((entry) => entry.id === topic.id ? { ...entry, lessons: [...entry.lessons, lesson] } : entry));
-        this.selectedLessonId.set(lesson.id); this.lessonTitle = ''; this.lessonDescription = ''; this.busy.set(false); this.message.set('Đã tạo bài học nháp.');
+        this.selectedLessonId.set(lesson.id); this.loadSelectedLessonItems(lesson.id); this.lessonTitle = ''; this.lessonDescription = ''; this.busy.set(false); this.message.set('Đã tạo bài học nháp.');
       },
       error: () => { this.busy.set(false); this.message.set('Không thể tạo bài học.'); },
     });
@@ -215,23 +224,50 @@ export class TopicManagementComponent implements OnInit {
 
   generateAi(): void {
     if (!this.aiTopic.trim() || this.busy()) return;
-    this.busy.set(true); this.aiPlan.set(null); this.message.set('Gemini đang tạo Topic, Lessons và đối chiếu Kanji…');
+    this.busy.set(true); this.aiPlan.set(null); this.aiError.set(''); this.message.set('Gemini đang tạo Topic, Lessons và đối chiếu Kanji…');
     this.service.generateAndSaveTopic(this.aiTopic, this.aiLessonCount).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: ({ topic, plan }) => {
         this.aiPlan.set(plan);
+        this.aiError.set('');
         this.selectedTopicId.set(topic.id);
         this.selectedLessonId.set(topic.lessons[0]?.id ?? null);
         this.busy.set(false);
         this.message.set(`Đã tạo chủ đề “${topic.title}” cùng ${topic.lessons.length} bài học ở trạng thái nháp.`);
         this.reload();
       },
-      error: (error: unknown) => { this.busy.set(false); this.message.set(this.readErrorMessage(error, 'Không thể tạo và lưu lộ trình AI.')); },
+      error: (error: unknown) => {
+        this.busy.set(false);
+        this.message.set('');
+        this.aiError.set(`Không thể tạo lộ trình AI: ${this.readErrorMessage(error, 'Không nhận được nội dung lỗi từ máy chủ.')}`);
+      },
     });
   }
 
   private resetCatalogPicker(): void {
     this.catalogItems.set([]);
     this.selectedCatalogKeys.set(new Set());
+  }
+
+  private loadSelectedLessonItems(lessonId: number | null): void {
+    this.lessonItems.set([]);
+    this.lessonItemsError.set('');
+    if (lessonId === null) {
+      this.lessonItemsLoading.set(false);
+      return;
+    }
+    this.lessonItemsLoading.set(true);
+    this.service.getLessonItems(lessonId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (items) => {
+        if (this.selectedLessonId() !== lessonId) return;
+        this.lessonItems.set(items);
+        this.lessonItemsLoading.set(false);
+      },
+      error: () => {
+        if (this.selectedLessonId() !== lessonId) return;
+        this.lessonItemsError.set('Không thể tải nội dung bài học. Hãy thử chọn lại bài này.');
+        this.lessonItemsLoading.set(false);
+      },
+    });
   }
 
   private readErrorMessage(error: unknown, fallback: string): string {

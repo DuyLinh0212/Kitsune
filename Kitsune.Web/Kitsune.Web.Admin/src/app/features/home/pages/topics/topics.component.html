@@ -5,6 +5,7 @@
     <div><p>Content studio · v3.0.0</p><h1>Topics & Lessons</h1><span>Tạo lộ trình, chọn học liệu từ kho và chuẩn bị SRS theo bài học.</span></div>
   </header>
   @if (message()) { <p class="notice">{{ message() }}</p> }
+  @if (aiError()) { <p class="notice notice--error"><strong>AI chưa tạo được lộ trình.</strong><span>{{ aiError() }}</span><small>Kiểm tra nội dung phía trên rồi thử lại; lỗi tạm thời của Gemini sẽ được tự thử lại.</small></p> }
 
   <section class="workspace">
     <aside>
@@ -46,6 +47,29 @@
               {{ selectedLesson.isPublished ? 'Đưa bài về nháp' : 'Xuất bản bài học' }}
             </button>
           </div>
+
+          <section class="lesson-contents" aria-live="polite">
+            <div class="lesson-contents__heading">
+              <div><p>Nội dung bài học</p><h3>Từ đã thêm vào {{ selectedLesson.title }}</h3></div>
+              <span>{{ lessonVocabularyCount() }} từ vựng · {{ lessonKanjiCount() }} Kanji</span>
+            </div>
+            @if (lessonItemsLoading()) {
+              <p class="lesson-contents__state">Đang tải học liệu…</p>
+            } @else if (lessonItemsError()) {
+              <p class="lesson-contents__state lesson-contents__state--error">{{ lessonItemsError() }}</p>
+            } @else if (lessonItems().length) {
+              <div class="lesson-contents__grid">
+                @for (item of lessonItems(); track item.key; let index = $index) {
+                  <article class="lesson-content-card" [class.lesson-content-card--kanji]="item.itemType === 'kanji'">
+                    <small><span>{{ index + 1 }}</span>{{ item.itemType === 'vocabulary' ? 'Từ vựng' : 'Kanji' }}</small>
+                    <strong>{{ item.word }}</strong><span>{{ item.pronunciation || '—' }}</span><em>{{ item.meaning }}</em>
+                  </article>
+                }
+              </div>
+            } @else {
+              <p class="lesson-contents__state">Bài học này chưa có từ vựng hoặc Kanji. Hãy thêm học liệu từ kho bên dưới.</p>
+            }
+          </section>
         }
 
         <form class="lesson-form" (ngSubmit)="createLesson()">

@@ -44,6 +44,13 @@ interface GeminiModel {
   supportedGenerationMethods?: string[];
 }
 
+class GeminiRequestError extends Error {
+  constructor(readonly status: number, message: string) {
+    super(message);
+    this.name = 'GeminiRequestError';
+  }
+}
+
 const preferredGeminiModels = [
   'models/gemini-3.1-flash-lite',
 ];
@@ -74,6 +81,34 @@ async function resolveGeminiModel(apiKey: string): Promise<string> {
   const selectedModel = preferredGeminiModels.find((name) => availableModels.some((model) => model.name === name));
   if (!selectedModel) throw new Error('API key Gemini không có quyền dùng Gemini 3.1 Flash-Lite. Hãy tạo key có quyền truy cập model này trong Google AI Studio.');
   return selectedModel;
+}
+
+async function requestGeminiPlan(apiKey: string, model: string, prompt: string): Promise<Response> {
+  const retryDelays = [700, 1600];
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/${model}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            maxOutputTokens: 32768,
+          },
+        }),
+      },
+    );
+    if (response.ok) return response;
+    if ((response.status === 429 || response.status === 503) && attempt < retryDelays.length) {
+      await response.body?.cancel().catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, retryDelays[attempt]));
+      continue;
+    }
+    throw new GeminiRequestError(response.status, `Gemini trả về lỗi ${response.status}: ${await getGeminiErrorMessage(response)}`);
+  }
+  throw new GeminiRequestError(503, 'Gemini đang bận sau nhiều lần thử. Vui lòng thử lại sau ít phút.');
 }
 
 Deno.serve(async (request: Request): Promise<Response> => {
@@ -150,53 +185,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     ].join('\n');
 
     const geminiModel = await resolveGeminiModel(geminiApiKey);
-    const geminiResponse = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/${geminiModel}:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiApiKey },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            responseMimeType: 'application/json',
-            maxOutputTokens: 32768,
-            responseJsonSchema: {
-              type: 'object',
-              additionalProperties: false,
-              required: ['topicDescription', 'lessons'],
-              properties: {
-                topicDescription: { type: 'string' },
-                lessons: {
-                  type: 'array',
-                  minItems: lessonCount,
-                  maxItems: lessonCount,
-                  items: {
-                    type: 'object',
-                    additionalProperties: false,
-                    required: ['title', 'description', 'estimatedMinutes', 'vocabularyIds', 'kanjiIds'],
-                    properties: {
-                      title: { type: 'string' },
-                      description: { type: 'string' },
-                      estimatedMinutes: { type: 'integer', minimum: 1, maximum: 180 },
-                      vocabularyIds: {
-                        type: 'array',
-                        minItems: minimumVocabularyPerLesson,
-                        maxItems: maximumVocabularyPerLesson,
-                        items: { type: 'integer' },
-                      },
-                      kanjiIds: { type: 'array', maxItems: 120, items: { type: 'integer' } },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        }),
-      },
-    );
-    if (!geminiResponse.ok) {
-      throw new Error(`Gemini trả về lỗi ${geminiResponse.status}: ${await getGeminiErrorMessage(geminiResponse)}`);
-    }
+    const geminiResponse = await requestGeminiPlan(geminiApiKey, geminiModel, prompt);
     const geminiPayload = await geminiResponse.json() as {
       candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
     };
@@ -249,8 +238,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Không thể tạo lộ trình bằng AI.';
+    console.error('[generate-topic-lessons]', message);
     return new Response(JSON.stringify({ error: message }), {
-      status: 400,
+      status: error instanceof GeminiRequestError ? error.status : 400,
       headers: { ...corsHeaders, 'Content-Type': 'application/json; charset=utf-8' },
     });
   }
