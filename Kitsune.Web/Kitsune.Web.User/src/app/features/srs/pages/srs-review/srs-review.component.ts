@@ -1,9 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { FolderDto, FolderService } from '../../../../core/services/folder.service';
+import { TopicService } from '../../../../core/services/topic.service';
 import {
   FolderSrsOverview,
   FolderSrsSession,
@@ -16,7 +16,12 @@ import { TtsService } from '../../../../core/services/tts.service';
 import { KanjiDrawingReviewComponent } from '../../components/kanji-drawing-review/kanji-drawing-review.component';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
-interface DashboardFolder extends FolderDto, FolderSrsOverview {}
+interface DashboardFolder extends FolderSrsOverview {
+  id: number;
+  name: string;
+  description: string | null;
+  vocabCount: number;
+}
 
 interface QuizQuestion {
   mode: SrsMode;
@@ -26,6 +31,7 @@ interface QuizQuestion {
   helper: string;
   options: string[];
   correctAnswer: string;
+  answerDetail?: string;
 }
 
 interface SessionStats {
@@ -54,7 +60,8 @@ interface LevelBucket {
   styleUrl: './srs-review.component.css',
 })
 export class SrsReviewComponent implements OnInit, OnDestroy {
-  private readonly folderService = inject(FolderService);
+  private readonly topicService = inject(TopicService);
+  private readonly route = inject(ActivatedRoute);
   private readonly srsService = inject(SrsService);
   readonly ttsService = inject(TtsService);
 
@@ -77,6 +84,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   readonly isCardFlipped = signal(false);
   readonly showStudyOverlay = signal(false);
   readonly showFolderDropdown = signal(false);
+  readonly showLevelDetails = signal(false);
 
   // ─── Quiz state ─────────────────────────────────────────────────────────────
   readonly quizQueue = signal<SRSCardDto[]>([]);
@@ -197,20 +205,26 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   async loadDashboard(): Promise<void> {
     this.isLoading.set(true);
     try {
-      const folders = await firstValueFrom(this.folderService.getFolders());
+      const folders = await firstValueFrom(this.topicService.getLessons());
       const dashboards = await Promise.all(
         folders.map(async (folder) => {
           try {
-            const overview = await firstValueFrom(this.srsService.getFolderOverview(folder.id));
+            const overview = await firstValueFrom(this.srsService.getLessonOverview(folder.id));
             return {
-              ...folder,
+              id: folder.id,
+              name: folder.title,
+              description: folder.description,
+              vocabCount: folder.itemCount,
               ...overview,
             } satisfies DashboardFolder;
           } catch {
             return {
-              ...folder,
+              id: folder.id,
+              name: folder.title,
+              description: folder.description,
+              vocabCount: folder.itemCount,
               folderId: folder.id,
-              folderName: folder.name,
+              folderName: folder.title,
               totalCards: 0,
               newCards: 0,
               dueCards: 0,
@@ -225,7 +239,11 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
       this.dashboardFolders.set(dashboards);
 
-      const preferredFolderId = this.srsService.getActiveFolderId() ?? dashboards[0]?.folderId ?? null;
+      const requestedLessonId = Number(this.route.snapshot.queryParamMap.get('lessonId'));
+      const preferredFolderId = (Number.isFinite(requestedLessonId) && requestedLessonId > 0 ? requestedLessonId : null)
+        ?? this.srsService.getActiveLessonId()
+        ?? dashboards[0]?.folderId
+        ?? null;
       if (preferredFolderId) {
         await this.openFolder(preferredFolderId, false);
       } else {
@@ -233,7 +251,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       }
     } catch (error) {
       console.error(error);
-      this.showToast('error', 'Không thể tải danh sách folder cho SRS.');
+      this.showToast('error', 'Không thể tải danh sách bài học cho SRS. Hãy áp dụng migration v3.0.0.');
     } finally {
       this.isLoading.set(false);
     }
@@ -245,8 +263,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.isSwitchingFolder.set(folderId);
     try {
       const session = userInitiated
-        ? await firstValueFrom(this.srsService.activateFolder(folderId))
-        : await firstValueFrom(this.srsService.getFolderSession(folderId));
+        ? await firstValueFrom(this.srsService.activateLesson(folderId))
+        : await firstValueFrom(this.srsService.getLessonSession(folderId));
 
       if (!session) {
         this.activeFolderId.set(folderId);
@@ -263,7 +281,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       const message =
         error instanceof Error && error.message
           ? error.message
-          : 'Không thể mở folder này cho SRS.';
+          : 'Không thể mở bài học này cho SRS.';
       this.showToast('error', message);
     } finally {
       this.isSwitchingFolder.set(null);
@@ -276,9 +294,9 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
     this.isSubmitting.set(true);
     try {
-      const session = await firstValueFrom(this.srsService.getFolderSession(folderId));
+      const session = await firstValueFrom(this.srsService.getLessonSession(folderId));
       if (!session) {
-        this.showToast('error', 'Không thể tải lượt ôn tập của thư mục này.');
+        this.showToast('error', 'Không thể tải lượt ôn tập của bài học này.');
         return;
       }
 
@@ -304,6 +322,10 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
   toggleFolderDropdown(): void {
     this.showFolderDropdown.update((v) => !v);
+  }
+
+  toggleLevelDetails(): void {
+    this.showLevelDetails.update((visible) => !visible);
   }
 
   async selectFolder(folderId: number): Promise<void> {
@@ -395,11 +417,12 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       this.applyLocalProgress(progress);
       this.answerFeedback.set({
         correct: isCorrect,
-        message: isCorrect
+        message: (isCorrect
           ? '✓ Chính xác! Thẻ này đã được lên lịch cho lần ôn tiếp theo.'
           : question.kind === 'drawing'
             ? '✗ Nét viết chưa khớp. Thẻ sẽ quay lại cuối hàng để bạn luyện lại.'
-            : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}". Thẻ sẽ quay lại cuối hàng.`,
+            : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}". Thẻ sẽ quay lại cuối hàng.`)
+          + (question.answerDetail ? `\n${question.answerDetail}` : ''),
       });
       this.stats.update((stats) => ({
         flashCompleted: stats.flashCompleted,
@@ -782,21 +805,28 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       }
 
       if (mode === 'WORD_FROM_MEAN' || mode === 'FILL_BLANK') {
-        // We handle FILL_BLANK exactly like WORD_FROM_MEAN now (multiple choice)
         const fallbacks = ['家族', '家', '人', '時間', 'カレンダー', '本', '学校', '言語'];
         const options = this.buildOptions(
           card.word,
           pool.filter((item) => item.type === 'vocabulary').map((item) => item.word),
           fallbacks
         );
+        const hasSentence = mode === 'FILL_BLANK' && !!card.exampleSentence;
+        const sentence = card.exampleSentence ?? '';
+        const blankSentence = hasSentence
+          ? (sentence.includes(card.word) ? sentence.replace(card.word, '＿＿＿＿') : `${sentence} ＿＿＿＿`)
+          : card.meaning;
         return {
-          mode: mode === 'FILL_BLANK' ? 'WORD_FROM_MEAN' : mode,
+          mode,
           kind: 'mc',
-          prompt: card.meaning,
-          promptLabel: 'Chọn từ tiếng Nhật đúng',
-          helper: card.pronunciation ? `Gợi ý: ${card.pronunciation}` : 'Ưu tiên đúng chính tả.',
+          prompt: blankSentence,
+          promptLabel: hasSentence ? 'Chọn từ điền vào chỗ trống' : 'Chọn từ tiếng Nhật đúng',
+          helper: hasSentence ? 'Chọn từ phù hợp với ngữ cảnh.' : (card.pronunciation ? `Gợi ý: ${card.pronunciation}` : 'Ưu tiên đúng chính tả.'),
           options,
           correctAnswer: card.word,
+          answerDetail: hasSentence
+            ? `Câu đầy đủ: ${sentence}${card.exampleTranslation ? ` · ${card.exampleTranslation}` : ''}`
+            : undefined,
         };
       }
     }
@@ -954,7 +984,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
     const refreshed = await Promise.all(
       folders.map(async (folder) => {
-        const overview = await firstValueFrom(this.srsService.getFolderOverview(folder.folderId));
+        const overview = await firstValueFrom(this.srsService.getLessonOverview(folder.folderId));
         return { ...folder, ...overview } satisfies DashboardFolder;
       })
     );

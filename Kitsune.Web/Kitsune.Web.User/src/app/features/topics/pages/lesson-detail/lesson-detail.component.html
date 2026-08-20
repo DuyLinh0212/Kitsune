@@ -1,0 +1,55 @@
+<!-- Kitsune.Web/Kitsune.Web.User/src/app/features/topics/pages/lesson-detail/lesson-detail.component.html -->
+<main class="lesson-page">
+  @if (isLoading()) {
+    <p class="status">Đang chuẩn bị bài học…</p>
+  } @else if (lesson(); as lesson) {
+    <header>
+      <a routerLink="/topics">← Bản đồ chủ đề</a>
+      <p>{{ lesson.topicTitle }} · Bài {{ lesson.orderIndex + 1 }}</p>
+      <h1>{{ lesson.title }}</h1>
+      <div class="header-meta">
+        <span>{{ lesson.estimatedMinutes }} phút</span>
+        <span>{{ lesson.items.length }} mục học</span>
+        <a [routerLink]="['/srs']" [queryParams]="{ lessonId: lesson.id }">Ôn bài này bằng SRS →</a>
+      </div>
+      <div class="page-progress"><i [style.width.%]="progressPercent()"></i></div>
+    </header>
+
+    @if (activeItem(); as item) {
+      <section class="study-card">
+        <aside>
+          <span>{{ activeIndex() + 1 }}</span>
+          <small>/ {{ lesson.items.length }}</small>
+          <p>{{ item.kanjiId ? '漢字 · Kanji' : '語彙 · Từ vựng' }}</p>
+        </aside>
+        <article>
+          <button type="button" class="speak" (click)="speak()" aria-label="Phát âm từ hiện tại">♪</button>
+          <h2>{{ item.word }}</h2>
+          @if (item.pronunciation) { <p class="reading">{{ item.pronunciation }}</p> }
+          <p class="meaning">{{ item.meaning }}</p>
+          @if (item.exampleSentence) {
+            <blockquote>
+              <strong>{{ item.exampleSentence }}</strong>
+              @if (item.exampleTranslation) { <span>{{ item.exampleTranslation }}</span> }
+            </blockquote>
+          }
+        </article>
+      </section>
+
+      <nav class="lesson-actions" aria-label="Điều hướng bài học">
+        <button type="button" (click)="previous()" [disabled]="activeIndex() === 0">← Trước</button>
+        <div class="item-dots">
+          @for (entry of lesson.items; track entry.id; let index = $index) {
+            <i [class.item-dot--active]="index === activeIndex()" [class.item-dot--done]="index < activeIndex()"></i>
+          }
+        </div>
+        <button type="button" class="next" (click)="next()" [disabled]="isSaving()">
+          {{ activeIndex() === lesson.items.length - 1 ? 'Hoàn thành' : 'Đã nhớ · Tiếp' }} →
+        </button>
+      </nav>
+    } @else {
+      <p class="status">Bài học chưa có nội dung.</p>
+    }
+  }
+  @if (errorMessage()) { <p class="status status--error">{{ errorMessage() }}</p> }
+</main>

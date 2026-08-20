@@ -1,4 +1,5 @@
-import { Component, signal, input, output, inject, OnInit, computed } from '@angular/core';
+import { Component, signal, input, output, inject, OnInit, computed, DestroyRef } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, NavigationEnd, RouterLink } from '@angular/router';
 import { UserStatsService } from '../../../core/services/user-stats.service';
 import { CommonModule } from '@angular/common';
@@ -24,6 +25,7 @@ export interface NavItem {
 })
 export class SidebarComponent implements OnInit {
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly userStatsService = inject(UserStatsService);
   public readonly themeService = inject(ThemeService);
 
@@ -46,6 +48,8 @@ export class SidebarComponent implements OnInit {
     { id: 6, label: 'My Quizzes', icon: 'users', route: '/my-quizzes', matchPrefix: '/my-quizzes' },
     { id: 13, label: 'Đề kiểm tra', icon: 'exam', route: '/exams', matchPrefix: '/exams' },
     { id: 7, label: 'SRS Review', icon: 'trending-up', route: '/srs', matchPrefix: '/srs' },
+    { id: 14, label: 'Học theo chủ đề', icon: 'map', route: '/topics', matchPrefix: '/topics' },
+    { id: 15, label: 'Minigame', icon: 'game', route: '/minigames', matchPrefix: '/minigames' },
     { id: 8, label: 'Posts', icon: 'message-circle', route: '/posts', matchPrefix: '/posts' },
     { id: 9, label: 'Leaderboard', icon: 'bar-chart', route: '/leaderboard', matchPrefix: '/leaderboard' },
     { id: 10, label: 'Messages', icon: 'mail', route: '/messages', matchPrefix: '/messages' },
@@ -53,7 +57,10 @@ export class SidebarComponent implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      takeUntilDestroyed(this.destroyRef)
+    ).subscribe((e) => {
       this.currentUrl.set(e.urlAfterRedirects);
     });
   }
@@ -74,6 +81,8 @@ export class SidebarComponent implements OnInit {
       clock: `<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`,
       users: `<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>`,
       'trending-up': `<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>`,
+      map: `<polygon points="1 6 8 2 16 6 23 2 23 18 16 22 8 18 1 22 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/>`,
+      game: `<path d="M6 12h4M8 10v4"/><circle cx="16" cy="11" r="1"/><circle cx="19" cy="14" r="1"/><path d="M7 6h10a5 5 0 014.7 6.7l-1.5 4.2a2.2 2.2 0 01-3.7.8L14.8 16H9.2l-1.7 1.7a2.2 2.2 0 01-3.7-.8l-1.5-4.2A5 5 0 017 6z"/>`,
       'message-circle': `<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>`,
       'bar-chart': `<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>`,
       mail: `<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/>`,

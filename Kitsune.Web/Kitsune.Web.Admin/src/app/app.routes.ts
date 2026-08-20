@@ -8,6 +8,7 @@ export const routes: Routes = [
   { path: 'kanji', canActivate: [adminAuthGuard], loadComponent: () => import('./features/home/pages/kanji/kanji.component').then((m) => m.KanjiManagementComponent) },
   { path: 'vocabulary', canActivate: [adminAuthGuard], loadComponent: () => import('./features/home/pages/vocabulary/vocabulary.component').then((m) => m.VocabularyComponent) },
   { path: 'grammar', canActivate: [adminAuthGuard], loadComponent: () => import('./features/home/pages/grammar/grammar.component').then((m) => m.GrammarManagementComponent) },
+  { path: 'topics', canActivate: [adminAuthGuard], loadComponent: () => import('./features/home/pages/topics/topics.component').then((m) => m.TopicManagementComponent) },
   { path: 'exams', canActivate: [adminAuthGuard], loadComponent: () => import('./features/admin/pages/exams/exam-management.component').then((m) => m.ExamManagementComponent) },
   { path: 'exams/create', canActivate: [adminAuthGuard], loadComponent: () => import('./features/admin/pages/exams/exam-create.component').then((m) => m.ExamCreateComponent) },
   { path: 'users', canActivate: [adminAuthGuard], loadComponent: () => import('./features/admin/pages/users/user-management.component').then((m) => m.UserManagementComponent) },

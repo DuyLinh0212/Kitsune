@@ -50,6 +50,11 @@ export const routes: Routes = [
       // SRS Review
       { path: 'srs', loadComponent: () => import('./features/srs/pages/srs-review/srs-review.component').then((m) => m.SrsReviewComponent) },
 
+      // Topic learning and v3 minigames
+      { path: 'topics', loadComponent: () => import('./features/topics/pages/topic-list/topic-list.component').then((m) => m.TopicListComponent) },
+      { path: 'topics/lessons/:lessonId', loadComponent: () => import('./features/topics/pages/lesson-detail/lesson-detail.component').then((m) => m.LessonDetailComponent) },
+      { path: 'minigames', loadComponent: () => import('./features/minigames/pages/minigame-hub/minigame-hub.component').then((m) => m.MinigameHubComponent) },
+
       // Posts
       { path: 'posts', loadComponent: () => import('./features/posts/pages/post-list/post-list.component').then((m) => m.PostListComponent) },
       { path: 'posts/:id', loadComponent: () => import('./features/posts/pages/post-detail/post-detail.component').then((m) => m.PostDetailComponent) },

@@ -4,7 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/constants/app_constants.dart';
-import 'package:kitsune_app/core/models/folder.dart';
+import 'package:kitsune_app/core/models/topic.dart';
 import 'package:kitsune_app/core/services/srs_notification_service.dart';
 import 'package:kitsune_app/core/models/quiz.dart';
 import 'package:kitsune_app/core/models/srs.dart';
@@ -14,7 +14,6 @@ import 'package:kitsune_app/core/ui/kitsune_ui.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/features/kanji/widgets/kanji_drawing_review.dart';
 import 'package:kitsune_app/providers/dashboard_provider.dart';
-import 'package:kitsune_app/providers/folder_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 enum _StudyPhase { idle, setupQuantity, promptReview, flashcard, quiz, summary }
@@ -41,11 +40,11 @@ class _QuizPrompt {
 
 class _DashboardFolder {
   const _DashboardFolder({
-    required this.folder,
+    required this.lesson,
     required this.overview,
   });
 
-  final FolderDto folder;
+  final LessonDto lesson;
   final FolderSrsOverview overview;
 }
 
@@ -63,6 +62,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   bool _isSubmitting = false;
   bool _showStudyOverlay = false;
   bool _isCardFlipped = false;
+  bool _showLevelDetails = false;
   int? _selectedFolderId;
   FolderSrsSession? _session;
   List<_DashboardFolder> _dashboardFolders = const [];
@@ -111,20 +111,22 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   Future<void> _loadDashboard() async {
     setState(() => _isLoading = true);
     try {
-      final folders = await ref.read(foldersProvider.future);
       final repo = ref.read(kitsuneApiProvider);
+      final folders = (await repo.getTopicsWithLessons())
+          .expand((topic) => topic.lessons)
+          .toList();
       final dashboards = <_DashboardFolder>[];
       for (final folder in folders) {
         try {
-          final overview = await repo.getFolderOverview(folder.id);
-          dashboards.add(_DashboardFolder(folder: folder, overview: overview));
+          final overview = await repo.getLessonSrsOverview(folder.id);
+          dashboards.add(_DashboardFolder(lesson: folder, overview: overview));
         } catch (_) {
           dashboards.add(
             _DashboardFolder(
-              folder: folder,
+              lesson: folder,
               overview: FolderSrsOverview(
                 folderId: folder.id,
-                folderName: folder.name,
+                folderName: folder.title,
                 totalCards: 0,
                 newCards: 0,
                 dueCards: 0,
@@ -139,13 +141,13 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         }
       }
 
-      final preferredFolderId = await repo.getActiveFolderId() ??
-          (dashboards.isNotEmpty ? dashboards.first.folder.id : null);
+      final preferredFolderId = await repo.getActiveLessonId() ??
+          (dashboards.isNotEmpty ? dashboards.first.lesson.id : null);
 
       FolderSrsSession? session;
       final dailyGoal = await repo.getDailySrsGoal();
       if (preferredFolderId != null) {
-        session = await repo.getFolderSession(folderId: preferredFolderId);
+        session = await repo.getLessonSrsSession(lessonId: preferredFolderId);
       }
 
       if (!mounted) {
@@ -282,8 +284,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       final repo = ref.read(kitsuneApiProvider);
       final dailyGoal = await repo.getDailySrsGoal();
       final session = activate
-          ? await repo.activateFolder(folderId)
-          : await repo.getFolderSession(folderId: folderId);
+          ? await repo.activateLesson(folderId)
+          : await repo.getLessonSrsSession(lessonId: folderId);
 
       if (!mounted) {
         return;
@@ -308,17 +310,17 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   Future<void> _refreshOverview(int folderId) async {
     final repo = ref.read(kitsuneApiProvider);
     try {
-      final overview = await repo.getFolderOverview(folderId);
+      final overview = await repo.getLessonSrsOverview(folderId);
       if (!mounted) {
         return;
       }
 
       setState(() {
         _dashboardFolders = _dashboardFolders.map((item) {
-          if (item.folder.id != folderId) {
+          if (item.lesson.id != folderId) {
             return item;
           }
-          return _DashboardFolder(folder: item.folder, overview: overview);
+          return _DashboardFolder(lesson: item.lesson, overview: overview);
         }).toList();
       });
       await _scheduleNextReview(_dashboardFolders);
@@ -347,10 +349,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     try {
       final session = await ref
           .read(kitsuneApiProvider)
-          .getFolderSession(folderId: _selectedFolderId);
+          .getLessonSrsSession(lessonId: _selectedFolderId);
       if (!mounted) return;
       if (session == null) {
-        _showMessage('Không thể tải lượt ôn tập của thư mục này.');
+        _showMessage('Không thể tải lượt ôn tập của bài học này.');
         return;
       }
 
@@ -586,9 +588,9 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       quizCards: cards.where(_isScheduledReviewDue).toList(),
     );
     _dashboardFolders = _dashboardFolders.map((item) {
-      if (item.folder.id != session.folderId) return item;
+      if (item.lesson.id != session.folderId) return item;
       return _DashboardFolder(
-        folder: item.folder,
+        lesson: item.lesson,
         overview: _buildLocalOverview(
           item.overview,
           cards,
@@ -934,7 +936,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       return null;
     }
     for (final item in _dashboardFolders) {
-      if (item.folder.id == id) {
+      if (item.lesson.id == id) {
         return item;
       }
     }
@@ -1019,7 +1021,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           KitsuneHeroCard(
             title: 'Sổ tay ôn tập với 6 chế độ câu hỏi như bên web.',
             subtitle:
-                'Chọn folder, xem phân bố cấp độ, rồi mở lượt học khi có thẻ mới hoặc thẻ đến hạn.',
+                'Chọn bài học, xem phân bố cấp độ, rồi mở lượt học khi có thẻ mới hoặc thẻ đến hạn.',
             accent: KitsuneColors.secondary,
             trailing: Container(
               width: 96,
@@ -1098,17 +1100,17 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
             ),
           const SizedBox(height: AppTheme.space16),
           const KitsuneSectionHeader(
-            title: 'Folder SRS',
-            subtitle: 'Đổi folder ở đây và giữ nhịp ôn riêng cho từng bộ học.',
+            title: 'Bài học SRS',
+            subtitle: 'Đổi bài học ở đây và giữ nhịp ôn theo đúng lộ trình.',
             accent: KitsuneColors.stamp,
           ),
           const SizedBox(height: AppTheme.space12),
           if (_dashboardFolders.isEmpty)
             const KitsuneEmptyState(
-              icon: Icons.folder_open_rounded,
-              title: 'Chưa có folder nào',
+              icon: Icons.route_rounded,
+              title: 'Chưa có bài học nào',
               message:
-                  'Tạo folder và thêm từ vựng trước khi bắt đầu một lượt SRS.',
+                  'Admin cần xuất bản Topic và Lesson trước khi bắt đầu SRS.',
             )
           else
             ..._dashboardFolders.asMap().entries.map((entry) {
@@ -1116,7 +1118,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
               final item = entry.value;
               final color = KitsuneColors
                   .folderColors[index % KitsuneColors.folderColors.length];
-              final isActive = _selectedFolderId == item.folder.id;
+              final isActive = _selectedFolderId == item.lesson.id;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -1126,7 +1128,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                       : KitsuneColors.surface,
                   onTap: _isSubmitting
                       ? null
-                      : () => _openFolder(item.folder.id, activate: true),
+                      : () => _openFolder(item.lesson.id, activate: true),
                   child: Row(
                     children: [
                       Container(
@@ -1136,7 +1138,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                           color: color.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(18),
                         ),
-                        child: Icon(Icons.folder_rounded, color: color),
+                        child: Icon(Icons.route_rounded, color: color),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1147,7 +1149,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    item.folder.name,
+                                    item.lesson.title,
                                     style:
                                         Theme.of(context).textTheme.titleLarge,
                                   ),
@@ -1245,25 +1247,38 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           }).toList(),
         ),
         const SizedBox(height: AppTheme.space10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: buckets.map((bucket) {
-            return Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: KitsuneColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: KitsuneColors.surfaceBorder),
-              ),
-              child: Text(
-                '${bucket.label}: ${bucket.kanjiCount} Kanji · ${bucket.vocabularyCount} từ',
-                style:
-                    const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-              ),
-            );
-          }).toList(),
+        OutlinedButton.icon(
+          onPressed: () =>
+              setState(() => _showLevelDetails = !_showLevelDetails),
+          icon: Icon(
+              _showLevelDetails ? Icons.remove_rounded : Icons.add_rounded),
+          label: Text(_showLevelDetails
+              ? 'Ẩn chi tiết từng cấp'
+              : 'Xem chi tiết từng cấp'),
         ),
+        if (_showLevelDetails) ...[
+          const SizedBox(height: AppTheme.space10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: buckets.map((bucket) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: KitsuneColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: KitsuneColors.surfaceBorder),
+                ),
+                child: Text(
+                  '${bucket.label}: ${bucket.kanjiCount} Kanji · ${bucket.vocabularyCount} từ',
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ],
     );
   }
@@ -1961,7 +1976,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
             KitsuneHeroCard(
               title: 'Bạn vừa khóa thêm một nhịp nhỏ.',
               subtitle:
-                  'Đã đi qua flashcard và quiz 6 mode. Bạn có thể ôn tiếp hoặc quay lại dashboard để đổi folder.',
+                  'Đã đi qua flashcard và quiz 7 mode. Bạn có thể ôn tiếp hoặc quay lại dashboard để đổi bài học.',
               accent: KitsuneColors.secondary,
               trailing: Container(
                 width: 92,

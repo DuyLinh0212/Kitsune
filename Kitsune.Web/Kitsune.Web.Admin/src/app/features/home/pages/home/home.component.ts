@@ -86,6 +86,7 @@ export class HomeComponent implements OnInit, OnDestroy {
         { label: 'Từ vựng', iconId: 'icon-book', route: '/vocabulary', hasChevron: true },
         { label: 'Kanji', iconId: 'icon-kanji', route: '/kanji', hasChevron: true },
         { label: 'Ngữ pháp', iconId: 'icon-grammar', route: '/grammar', hasChevron: true },
+        { label: 'Topics & Lessons', iconId: 'icon-book', route: '/topics', hasChevron: true },
         { label: 'Đề kiểm tra', iconId: 'icon-report', route: '/exams', hasChevron: true },
         { label: 'Bài tập & Quiz', iconId: 'icon-quiz', hasChevron: true },
         { label: 'Chủ đề diễn đàn', iconId: 'icon-chat', hasChevron: true }

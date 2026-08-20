@@ -3,7 +3,7 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:dio/dio.dart' show Options;
+import 'package:dio/dio.dart' show Options, RequestOptions, Response;
 import 'package:kitsune_app/core/constants/app_constants.dart';
 import 'package:kitsune_app/core/constants/supabase_config.dart';
 import 'package:kitsune_app/core/models/dashboard.dart';
@@ -17,6 +17,7 @@ import 'package:kitsune_app/core/models/user.dart';
 import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/srs/srs_engine.dart';
+import 'package:kitsune_app/core/models/topic.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Single entry point for every Supabase REST/Storage/Auth call the app makes.
@@ -834,6 +835,20 @@ class KitsuneApi {
     }
   }
 
+  Future<int?> getActiveLessonId() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('kitsune.srs.activeLessonId');
+  }
+
+  Future<void> setActiveLessonId(int? lessonId) async {
+    final prefs = await SharedPreferences.getInstance();
+    if (lessonId == null) {
+      await prefs.remove('kitsune.srs.activeLessonId');
+    } else {
+      await prefs.setInt('kitsune.srs.activeLessonId', lessonId);
+    }
+  }
+
   Future<int?> getDailySrsGoal() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt(
@@ -898,8 +913,9 @@ class KitsuneApi {
 
   Future<FolderSrsSession> activateFolder(int folderId) async {
     final session = await getFolderSession(folderId: folderId);
-    if (session == null)
+    if (session == null) {
       throw Exception('Không thể khởi tạo SRS cho thư mục này');
+    }
     await setActiveFolderId(folderId);
     return session;
   }
@@ -910,6 +926,116 @@ class KitsuneApi {
 
   Future<SrsCardProgressUpdate> submitQuizAnswer(int cardId, bool correct) {
     return _updateSrsCardProgress(cardId, correct: correct, isFlashcard: false);
+  }
+
+  Future<_SrsContext> _loadLessonSrsContext(int lessonId, int userId) async {
+    final responses = await Future.wait([
+      client.dio.get(client.table('Lessons'), queryParameters: {
+        'select': 'Id,Title',
+        'Id': 'eq.$lessonId',
+        'limit': '1',
+      }),
+      client.dio.get(client.table('LessonItems'), queryParameters: {
+        'select': 'Id,VocabularyId,KanjiId',
+        'LessonId': 'eq.$lessonId',
+        'order': 'OrderIndex.asc',
+      }),
+    ]);
+    final lessonRows = responses[0].data as List<dynamic>;
+    if (lessonRows.isEmpty) throw Exception('Không tìm thấy bài học');
+    final lesson = lessonRows.first as Map<String, dynamic>;
+    final items =
+        (responses[1].data as List<dynamic>).cast<Map<String, dynamic>>();
+    final vocabularyIds = items
+        .map((row) => (row['VocabularyId'] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+    final kanjiIds = items
+        .map((row) => (row['KanjiId'] as num?)?.toInt())
+        .whereType<int>()
+        .toList();
+
+    final contentResponses = await Future.wait([
+      vocabularyIds.isEmpty
+          ? Future.value(
+              Response(data: <dynamic>[], requestOptions: RequestOptions()))
+          : client.dio.get(client.table('Vocabularies'), queryParameters: {
+              'select': 'Id,Word,Pronunciation,Meaning,FolderId,SpecificData',
+              'Id': 'in.(${vocabularyIds.join(',')})',
+            }),
+      kanjiIds.isEmpty
+          ? Future.value(
+              Response(data: <dynamic>[], requestOptions: RequestOptions()))
+          : client.dio.get(client.table('Kanji'), queryParameters: {
+              'select': SupabaseConfig.kanjiSelect,
+              'Id': 'in.(${kanjiIds.join(',')})',
+            }),
+    ]);
+    final vocabs = (contentResponses[0].data as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    final kanjiRows = (contentResponses[1].data as List<dynamic>)
+        .cast<Map<String, dynamic>>();
+    final components = kanjiRows
+        .map((kanji) => <String, dynamic>{
+              'VocabularyId': 0,
+              'KanjiId': kanji['Id'],
+              'Kanji': kanji,
+            })
+        .toList();
+    final cards = await _loadFolderSrsCards(userId, vocabularyIds, kanjiIds);
+    final cardIds = cards.map((row) => (row['Id'] as num).toInt()).toList();
+    final details = await Future.wait([
+      _loadKanjiExamples(kanjiIds),
+      _loadTodayNewLearned(cardIds),
+      _loadWrongReviewCounts(cardIds),
+    ]);
+    return _SrsContext(
+      folderId: lessonId,
+      folderName: lesson['Title'] as String,
+      userId: userId,
+      vocabs: vocabs,
+      kanjiComponents: components,
+      kanjiExamples: details[0] as Map<int, List<SrsVocabularyExample>>,
+      todayNewLearned: details[1] as int,
+      wrongReviewCounts: details[2] as Map<int, int>,
+      cards: cards,
+    );
+  }
+
+  Future<void> _linkLessonCards(
+      int lessonId, int userId, List<Map<String, dynamic>> cards) async {
+    final response =
+        await client.dio.get(client.table('LessonItems'), queryParameters: {
+      'select': 'Id,VocabularyId,KanjiId',
+      'LessonId': 'eq.$lessonId',
+    });
+    final items = (response.data as List<dynamic>).cast<Map<String, dynamic>>();
+    String key(int? vocabularyId, int? kanjiId) =>
+        '${vocabularyId ?? 'v'}:${kanjiId ?? 'k'}';
+    final cardByKey = <String, Map<String, dynamic>>{
+      for (final card in cards)
+        key((card['VocabularyId'] as num?)?.toInt(),
+            (card['KanjiId'] as num?)?.toInt()): card,
+    };
+    final links = <Map<String, dynamic>>[];
+    for (final item in items) {
+      final card = cardByKey[key((item['VocabularyId'] as num?)?.toInt(),
+          (item['KanjiId'] as num?)?.toInt())];
+      if (card != null) {
+        links.add({
+          'UserId': userId,
+          'CardId': card['Id'],
+          'LessonItemId': item['Id']
+        });
+      }
+    }
+    if (links.isEmpty) return;
+    await client.dio.post(
+      client.table('SrsCardLessons'),
+      queryParameters: {'on_conflict': 'UserId,LessonItemId'},
+      options: Options(headers: {'Prefer': 'resolution=merge-duplicates'}),
+      data: links,
+    );
   }
 
   Future<_SrsContext> _loadSrsContext(int folderId, int userId) async {
@@ -1991,6 +2117,218 @@ class KitsuneApi {
 
   String _formatDate(DateTime dt) =>
       '${dt.year}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}';
+
+  // ── Topics, lessons and v3 minigames ───────────────────────────────────────
+
+  Future<List<TopicDto>> getTopicsWithLessons() async {
+    final userId = await getCurrentUserId();
+    final responses = await Future.wait([
+      client.dio.get(client.table('Topics'), queryParameters: {
+        'select': 'Id,Title,Description,JlptLevel',
+        'IsPublished': 'eq.true',
+        'order': 'CreatedAt.asc',
+      }),
+      client.dio.get(client.table('Lessons'), queryParameters: {
+        'select': 'Id,TopicId,Title,Description,OrderIndex,EstimatedMinutes',
+        'IsPublished': 'eq.true',
+        'order': 'OrderIndex.asc',
+      }),
+      client.dio.get(client.table('LessonItems'), queryParameters: {
+        'select': 'LessonId',
+      }),
+      client.dio.get(client.table('UserLessonProgress'), queryParameters: {
+        'select': 'LessonId,CompletedItemCount',
+        'UserId': 'eq.$userId',
+      }),
+    ]);
+    final topics =
+        (responses[0].data as List<dynamic>).cast<Map<String, dynamic>>();
+    final lessons =
+        (responses[1].data as List<dynamic>).cast<Map<String, dynamic>>();
+    final itemRows =
+        (responses[2].data as List<dynamic>).cast<Map<String, dynamic>>();
+    final progressRows =
+        (responses[3].data as List<dynamic>).cast<Map<String, dynamic>>();
+    final itemCounts = <int, int>{};
+    for (final row in itemRows) {
+      final id = (row['LessonId'] as num).toInt();
+      itemCounts[id] = (itemCounts[id] ?? 0) + 1;
+    }
+    final progress = <int, int>{
+      for (final row in progressRows)
+        (row['LessonId'] as num).toInt():
+            (row['CompletedItemCount'] as num?)?.toInt() ?? 0,
+    };
+    return topics.map((topic) {
+      final topicId = (topic['Id'] as num).toInt();
+      final topicLessons = lessons
+          .where((lesson) => (lesson['TopicId'] as num).toInt() == topicId)
+          .map((lesson) {
+        final lessonId = (lesson['Id'] as num).toInt();
+        return LessonDto(
+          id: lessonId,
+          topicId: topicId,
+          title: lesson['Title'] as String,
+          description: lesson['Description'] as String? ?? '',
+          orderIndex: (lesson['OrderIndex'] as num?)?.toInt() ?? 0,
+          estimatedMinutes: (lesson['EstimatedMinutes'] as num?)?.toInt() ?? 10,
+          itemCount: itemCounts[lessonId] ?? 0,
+          completedItemCount: progress[lessonId] ?? 0,
+        );
+      }).toList();
+      return TopicDto(
+        id: topicId,
+        title: topic['Title'] as String,
+        description: topic['Description'] as String? ?? '',
+        jlptLevel: (topic['JlptLevel'] as num?)?.toInt(),
+        lessons: topicLessons,
+      );
+    }).toList();
+  }
+
+  Future<FolderSrsSession?> getLessonSrsSession({int? lessonId}) async {
+    final resolvedId = lessonId ?? await getActiveLessonId();
+    if (resolvedId == null || client.userEmail == null) {
+      return null;
+    }
+    final userId = await getCurrentUserId();
+    var context = await _loadLessonSrsContext(resolvedId, userId);
+    final insertedCards = await _ensureSrsCards(context);
+    if (insertedCards) {
+      context = await _loadLessonSrsContext(resolvedId, userId);
+    }
+    await _linkLessonCards(resolvedId, userId, context.cards);
+    final cards = _mapSrsCards(context);
+    return FolderSrsSession(
+      folderId: resolvedId,
+      folderName: context.folderName,
+      overview: _buildSrsOverview(context),
+      cards: cards,
+      flashcards: cards.where((card) => card.boxLevel == 0).toList(),
+      quizCards: cards
+          .where((card) => SrsEngine.isScheduledReviewDue(
+              level: card.boxLevel, nextReviewDate: card.nextReviewDate))
+          .toList(),
+    );
+  }
+
+  Future<FolderSrsOverview> getLessonSrsOverview(int lessonId) async {
+    final session = await getLessonSrsSession(lessonId: lessonId);
+    if (session == null) {
+      throw Exception('Không tìm thấy session SRS của bài học');
+    }
+    return session.overview;
+  }
+
+  Future<FolderSrsSession> activateLesson(int lessonId) async {
+    final session = await getLessonSrsSession(lessonId: lessonId);
+    if (session == null) throw Exception('Không thể khởi tạo SRS cho bài học');
+    await setActiveLessonId(lessonId);
+    return session;
+  }
+
+  Future<LessonDto> getLessonDetail(int lessonId) async {
+    final responses = await Future.wait([
+      client.dio.get(client.table('Lessons'), queryParameters: {
+        'select': 'Id,TopicId,Title,Description,OrderIndex,EstimatedMinutes',
+        'Id': 'eq.$lessonId',
+        'limit': '1',
+      }),
+      client.dio.get(client.table('LessonItems'), queryParameters: {
+        'select':
+            'Id,LessonId,VocabularyId,KanjiId,OrderIndex,ExampleSentence,ExampleTranslation,Vocabulary:VocabularyId(Word,Pronunciation,Meaning),Kanji:KanjiId(Character,Onyomi,Kunyomi,Meaning)',
+        'LessonId': 'eq.$lessonId',
+        'order': 'OrderIndex.asc',
+      }),
+    ]);
+    final lessonRows = responses[0].data as List<dynamic>;
+    if (lessonRows.isEmpty) throw Exception('Không tìm thấy bài học');
+    final lesson = lessonRows.first as Map<String, dynamic>;
+    final rows =
+        (responses[1].data as List<dynamic>).cast<Map<String, dynamic>>();
+    final items = rows.map((row) {
+      final vocab = row['Vocabulary'] as Map<String, dynamic>?;
+      final kanji = row['Kanji'] as Map<String, dynamic>?;
+      return LessonItemDto(
+        id: (row['Id'] as num).toInt(),
+        vocabularyId: (row['VocabularyId'] as num?)?.toInt(),
+        kanjiId: (row['KanjiId'] as num?)?.toInt(),
+        word: vocab?['Word'] as String? ?? kanji?['Character'] as String? ?? '',
+        pronunciation: vocab?['Pronunciation'] as String? ??
+            kanji?['Onyomi'] as String? ??
+            kanji?['Kunyomi'] as String? ??
+            '',
+        meaning:
+            vocab?['Meaning'] as String? ?? kanji?['Meaning'] as String? ?? '',
+        exampleSentence: row['ExampleSentence'] as String?,
+        exampleTranslation: row['ExampleTranslation'] as String?,
+      );
+    }).toList();
+    return LessonDto(
+      id: lessonId,
+      topicId: (lesson['TopicId'] as num).toInt(),
+      title: lesson['Title'] as String,
+      description: lesson['Description'] as String? ?? '',
+      orderIndex: (lesson['OrderIndex'] as num?)?.toInt() ?? 0,
+      estimatedMinutes: (lesson['EstimatedMinutes'] as num?)?.toInt() ?? 10,
+      itemCount: items.length,
+      items: items,
+    );
+  }
+
+  Future<void> saveLessonProgress(
+      int lessonId, int completedItemCount, int totalItems,
+      {int? lastItemId}) async {
+    final userId = await getCurrentUserId();
+    final now = DateTime.now().toUtc().toIso8601String();
+    await client.dio.post(
+      client.table('UserLessonProgress'),
+      queryParameters: {'on_conflict': 'UserId,LessonId'},
+      options: Options(headers: {'Prefer': 'resolution=merge-duplicates'}),
+      data: {
+        'UserId': userId,
+        'LessonId': lessonId,
+        'CompletedItemCount': completedItemCount.clamp(0, totalItems),
+        'LastItemId': lastItemId,
+        'LastStudiedAt': now,
+        'CompletedAt':
+            totalItems > 0 && completedItemCount >= totalItems ? now : null,
+      },
+    );
+  }
+
+  Future<List<GameVocabularyDto>> getGameVocabulary({int limit = 30}) async {
+    final response =
+        await client.dio.get(client.table('Vocabularies'), queryParameters: {
+      'select': 'Id,Word,Pronunciation,Meaning',
+      'Pronunciation': 'not.is.null',
+      'limit': '${(limit * 3).clamp(20, 90)}',
+    });
+    final rows = (response.data as List<dynamic>).cast<Map<String, dynamic>>()
+      ..shuffle();
+    return rows
+        .take(limit)
+        .map((row) => GameVocabularyDto(
+              id: (row['Id'] as num).toInt(),
+              word: row['Word'] as String,
+              pronunciation: row['Pronunciation'] as String? ?? '',
+              meaning: row['Meaning'] as String,
+            ))
+        .toList();
+  }
+
+  Future<void> recordMinigame(String gameType, int score, int correct,
+      int wrong, int durationSeconds) async {
+    final userId = await getCurrentUserId();
+    await client.dio.post(client.table('MinigameSessions'), data: {
+      'UserId': userId,
+      'GameType': gameType,
+      'Score': score,
+      'CorrectCount': correct,
+      'WrongCount': wrong,
+      'DurationSeconds': durationSeconds,
+    });
+  }
 
   // ── Shared helpers ───────────────────────────────────────────────────────────
 

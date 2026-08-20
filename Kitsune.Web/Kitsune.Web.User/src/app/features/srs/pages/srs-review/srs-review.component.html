@@ -17,7 +17,7 @@
     ══════════════════════════════════════════════════════ -->
     <div class="srs-dashboard" [class.srs-dashboard--hidden]="showStudyOverlay()">
 
-      <!-- ── TOP BAR: Title + Folder Picker ─────────────── -->
+      <!-- ── TOP BAR: Title + Lesson Picker ─────────────── -->
       <div class="dash-topbar">
         <div class="dash-topbar__title">
           <p class="dash-eyebrow">Hệ thống ôn tập</p>
@@ -38,7 +38,7 @@
             @if (activeFolder(); as folder) {
               <span>{{ folder.folderName }}</span>
             } @else {
-              <span>Chọn folder</span>
+              <span>Chọn bài học</span>
             }
             <svg class="folder-picker__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="6 9 12 15 18 9"/>
@@ -53,7 +53,7 @@
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                   </svg>
-                  <span>Chưa có folder nào. <a routerLink="/folders">Tạo mới →</a></span>
+                  <span>Chưa có bài học nào. <a routerLink="/topics">Xem chủ đề →</a></span>
                 </div>
               }
               @for (folder of dashboardFolders(); track folder.folderId) {
@@ -94,7 +94,7 @@
           <div>
             <p class="chart-title">Phân bố cấp độ</p>
             @if (activeFolder(); as folder) {
-              <p class="chart-sub">{{ folder.folderName }} • {{ folder.totalCards }} thẻ tổng</p>
+              <p class="chart-sub">{{ folder.folderName }} • {{ folder.totalCards }} thẻ trong bài</p>
             }
           </div>
           <div class="chart-summary-pills">
@@ -135,22 +135,28 @@
           }
         </div>
 
-        <div class="level-details" aria-label="Chi tiết số thẻ theo cấp độ">
-          @for (bucket of levelDistribution(); track bucket.level) {
-            <div class="level-details__item">
-              <span class="level-details__dot" [style.background]="bucket.color"></span>
-              <span class="level-details__label">{{ bucket.label }}</span>
-              <strong>{{ bucket.count }} thẻ</strong>
-              <span>{{ bucket.kanjiCount }} Kanji · {{ bucket.vocabularyCount }} từ</span>
-            </div>
-          }
-        </div>
+        <button type="button" class="level-details-toggle" (click)="toggleLevelDetails()" [attr.aria-expanded]="showLevelDetails()">
+          {{ showLevelDetails() ? 'Ẩn chi tiết từng cấp' : 'Xem chi tiết từng cấp' }}
+          <span aria-hidden="true">{{ showLevelDetails() ? '−' : '+' }}</span>
+        </button>
+        @if (showLevelDetails()) {
+          <div class="level-details" aria-label="Chi tiết số thẻ theo cấp độ">
+            @for (bucket of levelDistribution(); track bucket.level) {
+              <div class="level-details__item">
+                <span class="level-details__dot" [style.background]="bucket.color"></span>
+                <span class="level-details__label">{{ bucket.label }}</span>
+                <strong>{{ bucket.count }} thẻ</strong>
+                <span>{{ bucket.kanjiCount }} Kanji · {{ bucket.vocabularyCount }} từ</span>
+              </div>
+            }
+          </div>
+        }
       </div>
 
       <!-- ── BOTTOM ACTION BAR ───────────────────────────── -->
       <div class="action-bar bento-card">
         @if (activeFolder(); as folder) {
-          <!-- Folder info -->
+          <!-- Lesson info -->
           <div class="action-bar__folder">
             <div class="action-bar__folder-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -221,7 +227,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
-            <p>Nhấn vào <strong>"Chọn folder"</strong> phía trên để bắt đầu</p>
+            <p>Nhấn vào <strong>"Chọn bài học"</strong> phía trên để bắt đầu</p>
           </div>
         }
       </div>
@@ -619,8 +625,8 @@
               <button type="button" class="summary-btn summary-btn--secondary" (click)="closeStudy()">
                 Về Dashboard
               </button>
-              <a class="summary-btn summary-btn--outline" [routerLink]="['/folders', activeFolderId()]">
-                Xem chi tiết folder
+              <a class="summary-btn summary-btn--outline" [routerLink]="['/topics/lessons', activeFolderId()]">
+                Xem lại bài học
               </a>
             </div>
           </div>

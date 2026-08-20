@@ -37,6 +37,8 @@ export interface SRSCardDto {
   strokeCount: number | null;
   radicalCharacter: string | null;
   radicalName: string | null;
+  exampleSentence: string | null;
+  exampleTranslation: string | null;
   boxLevel: number;
   wrongReviewCount: number;
   nextReviewDate: string;
@@ -154,7 +156,22 @@ interface KanjiExampleRow {
   Vocabulary: VocabRow | null;
 }
 
+interface LessonSrsItemRow {
+  Id: number;
+  LessonId: number;
+  VocabularyId: number | null;
+  KanjiId: number | null;
+  ExampleSentence: string | null;
+  ExampleTranslation: string | null;
+}
+
+interface LessonSrsRow {
+  Id: number;
+  Title: string;
+}
+
 const ACTIVE_FOLDER_STORAGE_KEY = 'kitsune.srs.activeFolderId';
+const ACTIVE_LESSON_STORAGE_KEY = 'kitsune.srs.activeLessonId';
 const DAILY_GOAL_STORAGE_PREFIX = 'kitsune.srs.dailyGoal.';
 const DAILY_LEARNED_STORAGE_PREFIX = 'kitsune.srs.learnedCards.';
 const BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
@@ -198,6 +215,39 @@ export class SrsService {
       return;
     }
     window.localStorage.setItem(ACTIVE_FOLDER_STORAGE_KEY, String(folderId));
+  }
+
+  getActiveLessonId(): number | null {
+    if (typeof window === 'undefined') return null;
+    const raw = window.localStorage.getItem(ACTIVE_LESSON_STORAGE_KEY);
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
+  }
+
+  setActiveLessonId(lessonId: number | null): void {
+    if (typeof window === 'undefined') return;
+    if (lessonId == null) {
+      window.localStorage.removeItem(ACTIVE_LESSON_STORAGE_KEY);
+      return;
+    }
+    window.localStorage.setItem(ACTIVE_LESSON_STORAGE_KEY, String(lessonId));
+  }
+
+  getLessonOverview(lessonId: number): Observable<FolderSrsOverview> {
+    return from(this.loadLessonSession(lessonId)).pipe(
+      map((session) => {
+        if (!session) throw new Error('Không tìm thấy lượt ôn tập cho bài học này.');
+        return session.overview;
+      })
+    );
+  }
+
+  getLessonSession(lessonId?: number): Observable<FolderSrsSession | null> {
+    return from(this.loadLessonSession(lessonId ?? this.getActiveLessonId() ?? undefined));
+  }
+
+  activateLesson(lessonId: number): Observable<FolderSrsSession> {
+    return from(this.activateLessonNow(lessonId));
   }
 
   getFolderOverview(folderId: number): Observable<FolderSrsOverview> {
@@ -288,6 +338,111 @@ export class SrsService {
 
     this.setActiveFolderId(folderId);
     return session;
+  }
+
+  private async activateLessonNow(lessonId: number): Promise<FolderSrsSession> {
+    const session = await this.loadLessonSession(lessonId);
+    if (!session) throw new Error('Không thể khởi tạo SRS cho bài học này.');
+    this.setActiveLessonId(lessonId);
+    return session;
+  }
+
+  private async loadLessonSession(lessonId?: number): Promise<FolderSrsSession | null> {
+    if (!lessonId) return null;
+    const { data: authData } = await supabase.auth.getUser();
+    const email = authData.user?.email;
+    if (!email) return null;
+    const userId = await this.getCurrentUserId(email);
+
+    const [{ data: lessonData, error: lessonError }, { data: itemData, error: itemError }] = await Promise.all([
+      supabase.from('Lessons').select('Id, Title').eq('Id', lessonId).single(),
+      supabase.from('LessonItems').select('Id, LessonId, VocabularyId, KanjiId, ExampleSentence, ExampleTranslation').eq('LessonId', lessonId).order('OrderIndex'),
+    ]);
+    if (lessonError) throw lessonError;
+    if (itemError) throw itemError;
+    const lesson = lessonData as LessonSrsRow;
+    const items = (itemData ?? []) as LessonSrsItemRow[];
+    const vocabularyIds = items.map((item) => item.VocabularyId).filter((id): id is number => id != null);
+    const kanjiIds = items.map((item) => item.KanjiId).filter((id): id is number => id != null);
+
+    const [{ data: vocabData, error: vocabError }, { data: kanjiData, error: kanjiError }] = await Promise.all([
+      vocabularyIds.length
+        ? supabase.from('Vocabularies').select('Id, Word, Pronunciation, Meaning, FolderId, SpecificData').in('Id', vocabularyIds)
+        : Promise.resolve({ data: [], error: null }),
+      kanjiIds.length
+        ? supabase.from('Kanji').select('Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi, Radical:RadicalId(RadicalCharacter, RadicalName)').in('Id', kanjiIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (vocabError) throw vocabError;
+    if (kanjiError) throw kanjiError;
+    const vocabs = (vocabData ?? []) as VocabRow[];
+    const kanji = (kanjiData ?? []) as unknown as KanjiRow[];
+
+    let cards = await this.loadFolderCards(userId, vocabularyIds, kanjiIds);
+    const existingKeys = new Set(cards.map((card) => this.cardKey(card.VocabularyId, card.KanjiId)));
+    const now = new Date().toISOString();
+    const inserts: Record<string, unknown>[] = [];
+    for (const item of items) {
+      const key = this.cardKey(item.VocabularyId, item.KanjiId);
+      if (existingKeys.has(key)) continue;
+      inserts.push({
+        UserId: userId,
+        VocabularyId: item.VocabularyId,
+        KanjiId: item.KanjiId,
+        BoxLevel: 0,
+        EaseFactor: 2.5,
+        IntervalDays: 0,
+        Repetitions: 0,
+        NextReviewDate: now,
+      });
+      existingKeys.add(key);
+    }
+    if (inserts.length) {
+      const { error } = await supabase.from('SRSCards').insert(inserts);
+      if (error) throw error;
+      cards = await this.loadFolderCards(userId, vocabularyIds, kanjiIds);
+    }
+
+    const cardByKey = new Map(cards.map((card) => [this.cardKey(card.VocabularyId, card.KanjiId), card]));
+    const links = items.flatMap((item) => {
+      const card = cardByKey.get(this.cardKey(item.VocabularyId, item.KanjiId));
+      return card ? [{ UserId: userId, CardId: card.Id, LessonItemId: item.Id }] : [];
+    });
+    if (links.length) {
+      const { error } = await supabase.from('SrsCardLessons').upsert(links, { onConflict: 'UserId,LessonItemId' });
+      if (error) throw error;
+    }
+
+    const cardIds = cards.map((card) => card.Id);
+    const [wrongReviewCounts, todayNewLearned, kanjiExamples] = await Promise.all([
+      this.loadWrongReviewCounts(cardIds),
+      this.loadTodayNewLearned(cardIds),
+      this.loadKanjiExamples(kanjiIds),
+    ]);
+    const vocabMap = new Map(vocabs.map((vocab) => [vocab.Id, vocab]));
+    const kanjiMap = new Map(kanji.map((entry) => [entry.Id, entry]));
+    const nowMs = Date.now();
+    const itemByKey = new Map(items.map((item) => [this.cardKey(item.VocabularyId, item.KanjiId), item]));
+    const mapped = cards
+      .filter((card) => (card.VocabularyId != null && vocabularyIds.includes(card.VocabularyId)) || (card.KanjiId != null && kanjiIds.includes(card.KanjiId)))
+      .map((card) => {
+        const mappedCard = this.mapRowToCard(card, vocabMap, kanjiMap, kanjiExamples, wrongReviewCounts, lessonId, nowMs);
+        const lessonItem = itemByKey.get(this.cardKey(card.VocabularyId, card.KanjiId));
+        return {
+          ...mappedCard,
+          exampleSentence: lessonItem?.ExampleSentence ?? null,
+          exampleTranslation: lessonItem?.ExampleTranslation ?? null,
+        };
+      });
+    const overview = this.buildOverview({ Id: lesson.Id, FolderName: lesson.Title }, mapped, todayNewLearned);
+    return {
+      folderId: lesson.Id,
+      folderName: lesson.Title,
+      overview,
+      cards: this.sortCards(mapped),
+      flashcards: this.sortCards(mapped.filter((card) => card.boxLevel === 0)),
+      quizCards: this.sortCards(mapped.filter((card) => this.isScheduledReviewDue(card.boxLevel, card.nextReviewDate))),
+    };
   }
 
   private async updateCardProgress(
@@ -660,6 +815,8 @@ export class SrsService {
       strokeCount: kanji?.StrokeCount ?? null,
       radicalCharacter: kanji?.Radical?.RadicalCharacter ?? null,
       radicalName: kanji?.Radical?.RadicalName ?? null,
+      exampleSentence: null,
+      exampleTranslation: null,
       boxLevel,
       wrongReviewCount: wrongReviewCounts.get(row.Id) ?? 0,
       nextReviewDate,

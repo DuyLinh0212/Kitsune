@@ -1,0 +1,88 @@
+<!-- Kitsune.Web/Kitsune.Web.Admin/src/app/features/home/pages/topics/topics.component.html -->
+<main class="topics-admin">
+  <header>
+    <a routerLink="/home">← Dashboard</a>
+    <div><p>Content studio · v3.0.0</p><h1>Topics & Lessons</h1><span>Tạo lộ trình, chuyển dữ liệu Folder và chuẩn bị SRS theo bài học.</span></div>
+  </header>
+  @if (message()) { <p class="notice">{{ message() }}</p> }
+
+  <section class="workspace">
+    <aside>
+      <div class="section-title"><span>Chủ đề</span><strong>{{ topics().length }}</strong></div>
+      @for (topic of topics(); track topic.id) {
+        <button type="button" [class.active]="topic.id === selectedTopicId()" (click)="selectTopic(topic.id)">
+          <strong>{{ topic.title }}</strong><small>{{ topic.lessons.length }} bài · {{ topic.isPublished ? 'Đã xuất bản' : 'Bản nháp' }}</small>
+        </button>
+      }
+      <form (ngSubmit)="createTopic()">
+        <h2>Chủ đề mới</h2>
+        <input name="topicTitle" [(ngModel)]="topicTitle" placeholder="Tên chủ đề" required />
+        <textarea name="topicDescription" [(ngModel)]="topicDescription" placeholder="Mô tả ngắn"></textarea>
+        <select name="topicJlpt" [(ngModel)]="topicJlpt"><option [ngValue]="null">Mọi trình độ</option>@for (level of [5,4,3,2,1]; track level) { <option [ngValue]="level">JLPT N{{ level }}</option> }</select>
+        <button class="primary" type="submit" [disabled]="busy()">Tạo bản nháp</button>
+      </form>
+    </aside>
+
+    <section class="lesson-column">
+      @if (activeTopic(); as topic) {
+        <div class="topic-heading">
+          <div><p>Chủ đề đang chọn</p><h2>{{ topic.title }}</h2><span>{{ topic.description }}</span></div>
+          <button type="button" class="publish-button" [class.published]="topic.isPublished" (click)="toggleTopicPublished()" [disabled]="busy()">
+            {{ topic.isPublished ? 'Đưa về nháp' : 'Xuất bản chủ đề' }}
+          </button>
+        </div>
+        <div class="lesson-tabs">
+          @for (lesson of topic.lessons; track lesson.id) {
+            <button type="button" [class.active]="lesson.id === selectedLessonId()" (click)="selectedLessonId.set(lesson.id)">
+              <span>{{ lesson.orderIndex + 1 }}</span><strong>{{ lesson.title }}</strong><small>{{ lesson.itemCount }} mục</small>
+            </button>
+          } @empty { <p>Chưa có bài học. Tạo bài đầu tiên bên dưới.</p> }
+        </div>
+
+        @if (activeLesson(); as selectedLesson) {
+          <div class="lesson-status">
+            <span>{{ selectedLesson.isPublished ? 'Bài học đang hiển thị cho người học' : 'Bài học vẫn là bản nháp' }}</span>
+            <button type="button" class="publish-button" [class.published]="selectedLesson.isPublished" (click)="toggleLessonPublished()" [disabled]="busy()">
+              {{ selectedLesson.isPublished ? 'Đưa bài về nháp' : 'Xuất bản bài học' }}
+            </button>
+          </div>
+        }
+
+        <form class="lesson-form" (ngSubmit)="createLesson()">
+          <h3>Thêm bài học</h3>
+          <input name="lessonTitle" [(ngModel)]="lessonTitle" placeholder="Tên bài học" required />
+          <input name="lessonMinutes" [(ngModel)]="lessonMinutes" type="number" min="1" max="180" aria-label="Số phút dự kiến" />
+          <textarea name="lessonDescription" [(ngModel)]="lessonDescription" placeholder="Mục tiêu bài học"></textarea>
+          <button class="primary" type="submit" [disabled]="busy()">Thêm bài</button>
+        </form>
+
+        @if (activeLesson(); as lesson) {
+          <section class="folder-import">
+            <div><p>Di dời dữ liệu tạm thời</p><h3>Chọn mục từ Folder → {{ lesson.title }}</h3></div>
+            <select [value]="selectedFolderId() ?? ''" (change)="loadFolderItems($any($event.target).value)"><option value="">Chọn Folder nguồn</option>@for (folder of folders(); track folder.id) { <option [value]="folder.id">{{ folder.name }}</option> }</select>
+            @if (folderItems().length) {
+              <div class="import-toolbar"><button type="button" (click)="toggleAll()">{{ selectedKeys().size === folderItems().length ? 'Bỏ chọn tất cả' : 'Chọn tất cả' }}</button><strong>{{ selectedKeys().size }} đã chọn</strong></div>
+              <div class="item-grid">
+                @for (item of folderItems(); track item.key) {
+                  <button type="button" [class.selected]="selectedKeys().has(item.key)" (click)="toggleItem(item.key)"><span>{{ item.word }}</span><small>{{ item.pronunciation }}</small><em>{{ item.meaning }}</em></button>
+                }
+              </div>
+              <button type="button" class="primary import-button" (click)="importSelected()" [disabled]="busy()">Chuyển mục đã chọn</button>
+            }
+          </section>
+        }
+      } @else if (!loading()) { <p class="empty">Hãy tạo chủ đề đầu tiên.</p> }
+    </section>
+
+    <aside class="ai-panel">
+      <p>Gemini assistant</p><h2>Phác thảo lộ trình</h2><span>AI chỉ chọn ID thực có trong database. API key nằm ở Edge Function secret.</span>
+      <label>Chủ đề<input [(ngModel)]="aiTopic" placeholder="Ví dụ: Môn học" /></label>
+      <label>Số lesson<input [(ngModel)]="aiLessonCount" type="number" min="1" max="20" /></label>
+      <button type="button" class="ai-button" (click)="generateAi()" [disabled]="busy()">Tạo bằng AI</button>
+      @if (aiPlan(); as plan) {
+        <div class="ai-preview"><p>{{ plan.topicDescription }}</p>@for (lesson of plan.lessons; track lesson.title; let index = $index) { <article><span>{{ index + 1 }}</span><div><strong>{{ lesson.title }}</strong><small>{{ lesson.vocabularyIds.length }} từ · {{ lesson.kanjiIds.length }} Kanji</small></div></article> }</div>
+        <button type="button" class="primary" (click)="saveAi()" [disabled]="busy()">Lưu toàn bộ bản nháp</button>
+      }
+    </aside>
+  </section>
+</main>

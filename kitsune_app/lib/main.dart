@@ -27,6 +27,7 @@ import 'package:kitsune_app/features/quizzes/quiz_list_page.dart';
 import 'package:kitsune_app/features/quizzes/quiz_play_page.dart';
 import 'package:kitsune_app/features/search/search_page.dart';
 import 'package:kitsune_app/features/srs/srs_review_page.dart';
+import 'package:kitsune_app/features/topics/topic_learning_page.dart';
 import 'package:kitsune_app/features/vocabulary/vocabulary_detail_page.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -262,6 +263,11 @@ const _navItems = [
     label: 'Tìm kiếm',
   ),
   _NavItem(
+    icon: Icons.route_outlined,
+    selectedIcon: Icons.route_rounded,
+    label: 'Chủ đề',
+  ),
+  _NavItem(
     icon: Icons.repeat_rounded,
     selectedIcon: Icons.auto_awesome_motion_rounded,
     label: 'Ôn tập',
@@ -284,6 +290,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
   late final List<Widget> _pages = const [
     HomePage(),
     SearchPage(),
+    TopicLearningPage(),
     SrsReviewPage(),
     GrammarPage(),
     ProfilePage(),
