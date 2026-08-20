@@ -431,7 +431,7 @@
 
 .level-details__dot { width: 8px; height: 8px; border-radius: 50%; }
 .level-details__label { color: var(--text-main); font-weight: 700; }
-.level-details__item strong { color: var(--text-main); font-size: 12px; }
+.level-details__item strong { color: var(--text-main); }
 .level-details__item > span:last-child { grid-column: 2 / -1; }
 
 .chart-legend-item {
