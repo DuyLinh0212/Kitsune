@@ -10,6 +10,7 @@
       <div class="header-meta">
         <span>{{ lesson.estimatedMinutes }} phút</span>
         <span>{{ lesson.items.length }} mục học</span>
+        <a [routerLink]="['/srs']" [queryParams]="{ lessonId: lesson.id }">Ôn bài này →</a>
       </div>
       <div class="page-progress"><i [style.width.%]="progressPercent()"></i></div>
     </header>

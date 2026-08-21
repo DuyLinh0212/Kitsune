@@ -39,6 +39,8 @@ interface GeneratedPlan {
   lessons?: GeneratedLesson[];
 }
 
+interface RetrievedCatalog { vocabularyIds?: number[]; }
+
 interface GeminiModel {
   name: string;
   supportedGenerationMethods?: string[];
@@ -111,6 +113,40 @@ async function requestGeminiPlan(apiKey: string, model: string, prompt: string):
   throw new GeminiRequestError(503, 'Gemini đang bận sau nhiều lần thử. Vui lòng thử lại sau ít phút.');
 }
 
+function parseGeminiJson<T>(text: string): T {
+  try { return JSON.parse(text) as T; } catch { /* Gemini may append prose after valid JSON. */ }
+  const start = text.search(/[\[{]/);
+  if (start < 0) throw new Error('Gemini không trả về JSON hợp lệ.');
+  const opening = text[start];
+  const closing = opening === '{' ? '}' : ']';
+  let depth = 0;
+  let quoted = false;
+  let escaped = false;
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') quoted = false;
+      continue;
+    }
+    if (char === '"') { quoted = true; continue; }
+    if (char === opening) depth += 1;
+    if (char === closing) {
+      depth -= 1;
+      if (depth === 0) return JSON.parse(text.slice(start, index + 1)) as T;
+    }
+  }
+  throw new Error('Gemini trả về JSON chưa hoàn chỉnh.');
+}
+
+async function getGeminiText(response: Response): Promise<string> {
+  const payload = await response.json() as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+  const text = payload.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) throw new Error('Gemini không trả về nội dung.');
+  return text;
+}
+
 Deno.serve(async (request: Request): Promise<Response> => {
   if (request.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -174,33 +210,39 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (vocabularyCatalog.length < minimumVocabularyPerLesson) {
       throw new Error(`Kho dữ liệu cần ít nhất ${minimumVocabularyPerLesson} từ vựng để tạo một bài học.`);
     }
+    const geminiModel = await resolveGeminiModel(geminiApiKey);
+    const retrievalPrompt = [
+      `Bạn là bộ truy hồi học liệu cho lộ trình tiếng Nhật chủ đề "${topic}".`,
+      `Chỉ chọn vocabularyIds có ý nghĩa trực tiếp cho chủ đề. Loại hoàn toàn từ không liên quan, kể cả từ phổ biến nhưng sai lĩnh vực.`,
+      `Cần tối đa ${Math.min(vocabularyCatalog.length, lessonCount * maximumVocabularyPerLesson)} ID để đủ ${lessonCount} bài; nếu kho không đủ từ liên quan, chỉ trả về số ID liên quan thực sự.`,
+      'Chỉ trả JSON: {"vocabularyIds":[number]}.',
+      `VOCABULARY_CATALOG=${JSON.stringify(vocabularyCatalog)}`,
+    ].join('\n');
+    const retrieved = parseGeminiJson<RetrievedCatalog>(await getGeminiText(await requestGeminiPlan(geminiApiKey, geminiModel, retrievalPrompt)));
+    const allVocabularyIds = new Set(vocabularyCatalog.map((entry) => entry.Id));
+    const retrievedIds = [...new Set((retrieved.vocabularyIds ?? []).filter((id) => Number.isInteger(id) && allVocabularyIds.has(id)))];
+    if (retrievedIds.length < minimumVocabularyPerLesson) {
+      throw new Error(`Kho học liệu chưa có đủ ${minimumVocabularyPerLesson} từ liên quan trực tiếp đến chủ đề “${topic}”.`);
+    }
+    const retrievedVocabularyCatalog = vocabularyCatalog.filter((entry) => retrievedIds.includes(entry.Id));
     const prompt = [
       `Tạo lộ trình tiếng Nhật về chủ đề "${topic}" gồm đúng ${lessonCount} bài học.`,
       `Mỗi bài bắt buộc chọn từ ${minimumVocabularyPerLesson} đến ${maximumVocabularyPerLesson} vocabularyIds khác nhau, phù hợp trực tiếp với chủ đề của bài.`,
-      'Chỉ chọn ID có trong catalog, phân bổ từ dễ đến khó và ưu tiên không lặp từ vựng giữa các bài.',
+      'Chỉ chọn ID có trong RETRIEVED_VOCABULARY_CATALOG. Không được bổ sung ID ngoài tập truy hồi này; phân bổ từ dễ đến khó và ưu tiên không lặp từ vựng giữa các bài.',
       'KanjiIds phải chứa toàn bộ KanjiIds thuộc các từ vựng đã chọn, cộng thêm Kanji liên quan nếu cần, và tuyệt đối không lặp ID trong cùng bài.',
       'Mỗi bài có title, description, estimatedMinutes, vocabularyIds và kanjiIds. Chỉ trả về JSON theo schema được cung cấp.',
-      `VOCABULARY_CATALOG=${JSON.stringify(vocabularyCatalog)}`,
+      `RETRIEVED_VOCABULARY_CATALOG=${JSON.stringify(retrievedVocabularyCatalog)}`,
       `KANJI_CATALOG=${JSON.stringify(kanjiCatalog)}`,
     ].join('\n');
 
-    const geminiModel = await resolveGeminiModel(geminiApiKey);
-    const geminiResponse = await requestGeminiPlan(geminiApiKey, geminiModel, prompt);
-    const geminiPayload = await geminiResponse.json() as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    };
-    const text = geminiPayload.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!text) throw new Error('Gemini không trả về kế hoạch bài học.');
-
-    const generated = JSON.parse(text) as GeneratedPlan;
+    const generated = parseGeminiJson<GeneratedPlan>(await getGeminiText(await requestGeminiPlan(geminiApiKey, geminiModel, prompt)));
     // Gemini occasionally returns one fewer or one extra lesson despite a strict prompt.
     // Keep the request deterministic for the admin: trim extras and let the catalog-backed
     // normalizer complete any missing lesson rather than rejecting an otherwise usable plan.
     const generatedLessons = Array.isArray(generated.lessons) ? generated.lessons.slice(0, lessonCount) : [];
     while (generatedLessons.length < lessonCount) generatedLessons.push({});
-    const vocabularyIds = new Set(vocabularyCatalog.map((entry) => entry.Id));
+    const vocabularyIds = new Set(retrievedVocabularyCatalog.map((entry) => entry.Id));
     const kanjiIds = new Set(kanjiCatalog.map((entry) => entry.Id));
-    const orderedVocabularyIds = vocabularyCatalog.map((entry) => entry.Id);
     const usedVocabularyIds = new Set<number>();
     const safePlan = {
       topicDescription: typeof generated.topicDescription === 'string' ? generated.topicDescription : '',
@@ -208,17 +250,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
         const safeVocabularyIds = [...new Set((lesson.vocabularyIds ?? []).filter((id) => Number.isInteger(id) && vocabularyIds.has(id)))]
           .filter((id) => !usedVocabularyIds.has(id))
           .slice(0, maximumVocabularyPerLesson);
-        for (const vocabularyId of orderedVocabularyIds) {
-          if (safeVocabularyIds.length >= minimumVocabularyPerLesson) break;
-          if (usedVocabularyIds.has(vocabularyId) || safeVocabularyIds.includes(vocabularyId)) continue;
-          safeVocabularyIds.push(vocabularyId);
-        }
-        for (const vocabularyId of orderedVocabularyIds) {
-          if (safeVocabularyIds.length >= minimumVocabularyPerLesson) break;
-          if (!safeVocabularyIds.includes(vocabularyId)) safeVocabularyIds.push(vocabularyId);
-        }
         if (safeVocabularyIds.length < minimumVocabularyPerLesson) {
-          throw new Error(`Bài ${index + 1} không thể đạt tối thiểu ${minimumVocabularyPerLesson} từ vựng.`);
+          throw new Error(`Gemini chưa chọn đủ ${minimumVocabularyPerLesson} từ liên quan cho Bài ${index + 1}. Hãy thử tạo lại.`);
         }
         for (const vocabularyId of safeVocabularyIds) usedVocabularyIds.add(vocabularyId);
         const safeKanjiIds = new Set((lesson.kanjiIds ?? []).filter((id) => Number.isInteger(id) && kanjiIds.has(id)));

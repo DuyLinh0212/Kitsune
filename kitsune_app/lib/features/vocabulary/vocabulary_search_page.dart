@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:kitsune_app/core/models/folder.dart';
 import 'package:kitsune_app/core/models/kanji.dart';
 import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
@@ -76,27 +75,6 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
     }
   }
 
-  Future<void> _openVocabularyFolderPicker(VocabularyDto vocab) async {
-    await _openFolderPicker(
-      title: 'Thêm từ vào thư mục',
-      subtitle: 'Lưu ${vocab.word} cùng các thành phần Kanji để ôn tập sau.',
-      onSelect: (folderId) async {
-        final api = ref.read(kitsuneApiProvider);
-        await api.addVocabularyDetailCopy(
-          folderId,
-          languageId: vocab.languageId,
-          word: vocab.word,
-          pronunciation: vocab.pronunciation,
-          meaning: vocab.meaning,
-          kanjiIds: vocab.kanjiComponents
-              .map((component) => component.kanjiId)
-              .toList(),
-        );
-        _showMessage('Đã thêm ${vocab.word} vào thư mục.');
-      },
-    );
-  }
-
   Future<void> _openKanjiPreview(int kanjiId) async {
     try {
       final kanji = await ref.read(kitsuneApiProvider).getKanjiById(kanjiId);
@@ -104,69 +82,10 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
 
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) => _KanjiQuickDialog(
-          kanji: kanji,
-          onAddToFolder: () {
-            Navigator.pop(dialogContext);
-            _openKanjiFolderPicker(kanji);
-          },
-        ),
+        builder: (_) => _KanjiQuickDialog(kanji: kanji),
       );
     } catch (_) {
       _showMessage('Không thể tải thông tin Kanji.');
-    }
-  }
-
-  Future<void> _openKanjiFolderPicker(KanjiDetailDto kanji) async {
-    await _openFolderPicker(
-      title: 'Thêm Kanji vào thư mục',
-      subtitle:
-          'Lưu ${kanji.character} như một thẻ Kanji riêng trong lộ trình học.',
-      onSelect: (folderId) async {
-        final api = ref.read(kitsuneApiProvider);
-        await api.addVocabularyCopy(
-          folderId,
-          kanji.character,
-          kanji.onyomi ?? kanji.kunyomi,
-          '${kanji.meaning} (${kanji.amHanViet})',
-          1,
-          kanjiId: kanji.id,
-        );
-        _showMessage('Đã thêm Kanji ${kanji.character} vào thư mục.');
-      },
-    );
-  }
-
-  Future<void> _openFolderPicker({
-    required String title,
-    required String subtitle,
-    required Future<void> Function(int folderId) onSelect,
-  }) async {
-    try {
-      final folders = await ref.read(kitsuneApiProvider).getFolders();
-      if (!mounted) return;
-
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        backgroundColor: Colors.transparent,
-        builder: (sheetContext) => _QuickFolderPickerSheet(
-          title: title,
-          subtitle: subtitle,
-          folders: folders,
-          onSelectFolder: (folderId) async {
-            Navigator.pop(sheetContext);
-            try {
-              await onSelect(folderId);
-            } catch (_) {
-              _showMessage(
-                  'Không thể thêm vào thư mục. Mục này có thể đã tồn tại.');
-            }
-          },
-        ),
-      );
-    } catch (_) {
-      _showMessage('Không thể tải danh sách thư mục.');
     }
   }
 
@@ -389,13 +308,6 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
                       ),
                 ),
               ),
-              IconButton(
-                tooltip: 'Thêm nhanh vào thư mục',
-                onPressed: () => _openVocabularyFolderPicker(vocab),
-                icon: const Icon(Icons.create_new_folder_outlined),
-                color: KitsuneColors.secondary,
-                visualDensity: VisualDensity.compact,
-              ),
               const Icon(
                 Icons.arrow_forward_rounded,
                 size: 16,
@@ -410,13 +322,9 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
 }
 
 class _KanjiQuickDialog extends StatelessWidget {
-  const _KanjiQuickDialog({
-    required this.kanji,
-    required this.onAddToFolder,
-  });
+  const _KanjiQuickDialog({required this.kanji});
 
   final KanjiDetailDto kanji;
-  final VoidCallback onAddToFolder;
 
   @override
   Widget build(BuildContext context) {
@@ -473,15 +381,6 @@ class _KanjiQuickDialog extends StatelessWidget {
                 const SizedBox(height: AppTheme.space6),
                 Text(kanji.mnemonic!, style: textTheme.bodyMedium),
               ],
-              const SizedBox(height: AppTheme.space24),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: onAddToFolder,
-                  icon: const Icon(Icons.create_new_folder_rounded),
-                  label: const Text('Thêm Kanji vào thư mục'),
-                ),
-              ),
             ],
           ),
         ),
@@ -565,75 +464,6 @@ class _KanjiInfoGrid extends StatelessWidget {
           ),
         );
       },
-    );
-  }
-}
-
-class _QuickFolderPickerSheet extends StatelessWidget {
-  const _QuickFolderPickerSheet({
-    required this.title,
-    required this.subtitle,
-    required this.folders,
-    required this.onSelectFolder,
-  });
-
-  final String title;
-  final String subtitle;
-  final List<FolderDto> folders;
-  final ValueChanged<int> onSelectFolder;
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-        child: KitsuneSurface(
-          radius: AppTheme.radiusLg,
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(title, style: Theme.of(context).textTheme.headlineSmall),
-              const SizedBox(height: AppTheme.space6),
-              Text(subtitle, style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: AppTheme.space16),
-              if (folders.isEmpty)
-                const KitsuneEmptyState(
-                  icon: Icons.folder_open_rounded,
-                  title: 'Chưa có thư mục nào',
-                  message:
-                      'Tạo thư mục từ tab Cá nhân hoặc trang Thư mục trước khi lưu mục này.',
-                )
-              else
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxHeight: 360),
-                  child: ListView.separated(
-                    shrinkWrap: true,
-                    itemCount: folders.length,
-                    separatorBuilder: (_, index) => const SizedBox(height: 8),
-                    itemBuilder: (_, index) {
-                      final folder = folders[index];
-                      return ListTile(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        tileColor: KitsuneColors.surfaceVariant,
-                        leading: const Icon(Icons.folder_rounded,
-                            color: KitsuneColors.secondary),
-                        title: Text(folder.name),
-                        subtitle: Text('${folder.vocabCount} mục'),
-                        trailing: const Icon(Icons.add_rounded),
-                        onTap: () => onSelectFolder(folder.id),
-                      );
-                    },
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

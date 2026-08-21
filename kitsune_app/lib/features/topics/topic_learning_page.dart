@@ -8,6 +8,7 @@ import 'package:kitsune_app/core/models/topic.dart';
 import 'package:kitsune_app/core/services/tts_service.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
+import 'package:kitsune_app/features/srs/srs_review_page.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class TopicLearningPage extends ConsumerStatefulWidget {
@@ -272,6 +273,22 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
         appBar: AppBar(
             backgroundColor: const Color(0xFFFBF7ED),
             title: const Text('Bài học'),
+            actions: [
+              IconButton(
+                tooltip: 'Ôn bài này',
+                icon: const Icon(Icons.refresh_rounded),
+                onPressed: () async {
+                  final navigator = Navigator.of(context);
+                  await ref
+                      .read(kitsuneApiProvider)
+                      .activateLesson(widget.lessonId);
+                  if (!mounted) return;
+                  await navigator.push(
+                    MaterialPageRoute(builder: (_) => const SrsReviewPage()),
+                  );
+                },
+              ),
+            ],
             elevation: 0),
         body: FutureBuilder<LessonDto>(
             future: _future,

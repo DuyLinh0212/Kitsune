@@ -142,41 +142,38 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         repo.getActiveLessonId(),
         repo.getDailySrsGoal(),
       ]);
-      final folders = (initialData[0] as List<TopicDto>)
+      final lessons = (initialData[0] as List<TopicDto>)
           .expand((topic) => topic.lessons)
           .toList();
-      final preferredFolderId = initialData[1] as int? ??
-          (folders.isNotEmpty ? folders.first.id : null);
+      final preferredFolderId =
+          initialData[1] as int? ?? cachedSession?.folderId;
       final dailyGoal = initialData[2] as int?;
-      final overviewsFuture = repo.getLessonSrsOverviews(folders);
       final sessionFuture = preferredFolderId == null
           ? Future<FolderSrsSession?>.value(null)
           : repo.getLessonSrsSession(lessonId: preferredFolderId);
-      final overviews = await overviewsFuture;
       final session = await sessionFuture;
-      final overviewByLesson = {
-        for (final overview in overviews) overview.folderId: overview,
-      };
-      final dashboards = folders
-          .map(
-            (lesson) => _DashboardFolder(
-              lesson: lesson,
-              overview: overviewByLesson[lesson.id] ??
-                  FolderSrsOverview(
-                    folderId: lesson.id,
-                    folderName: lesson.title,
-                    totalCards: 0,
-                    newCards: 0,
-                    dueCards: 0,
-                    learnedCards: 0,
-                    masteredCards: 0,
-                    todayNewLearned: 0,
-                    nextDueAt: null,
-                    canSwitchFolder: true,
-                  ),
-            ),
-          )
-          .toList();
+      final activeLesson = session == null
+          ? null
+          : lessons
+              .where((lesson) => lesson.id == session.folderId)
+              .firstOrNull;
+      final dashboards = session == null
+          ? const <_DashboardFolder>[]
+          : [
+              _DashboardFolder(
+                lesson: activeLesson ??
+                    LessonDto(
+                      id: session.folderId,
+                      topicId: 0,
+                      title: session.folderName,
+                      description: '',
+                      orderIndex: 0,
+                      estimatedMinutes: 0,
+                      itemCount: session.overview.totalCards,
+                    ),
+                overview: session.overview,
+              ),
+            ];
 
       if (!mounted) {
         return;
@@ -459,7 +456,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       }
       _lastAnswerCorrect = isCorrect;
       _feedbackMessage = isCorrect
-          ? 'Chính xác. Thẻ này đã được đẩy tới lần ôn tiếp theo.'
+          ? 'Chính xác. Đáp án: "${_currentQuestion!.correctAnswer}".'
           : _currentQuestion!.isDrawing
               ? 'Nét viết chưa khớp. Thẻ này sẽ quay lại cuối hàng để luyện lại.'
               : 'Chưa đúng. Đáp án đúng là "${_currentQuestion!.correctAnswer}".';
@@ -477,25 +474,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       if (session != null) {
         unawaited(repo.cacheLessonSrsSession(session));
       }
-      _feedbackTimer?.cancel();
-      _feedbackTimer = Timer(
-        Duration(milliseconds: isCorrect ? 850 : 1350),
-        () {
-          if (!mounted) {
-            return;
-          }
-          setState(() {
-            final current = _quizQueue.first;
-            final rest = _quizQueue.sublist(1);
-            _quizQueue = isCorrect ? rest : [...rest, current];
-            _selectedOption = null;
-            _lastAnswerCorrect = null;
-            _feedbackMessage = null;
-            _isSubmitting = false;
-          });
-          _syncPhase();
-        },
-      );
+      setState(() => _isSubmitting = false);
     } catch (error) {
       if (!mounted) {
         return;
@@ -503,6 +482,19 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       setState(() => _isSubmitting = false);
       _showError(error);
     }
+  }
+
+  void _continueAfterAnswer() {
+    if (_feedbackMessage == null || _isSubmitting || _quizQueue.isEmpty) return;
+    setState(() {
+      final current = _quizQueue.first;
+      final rest = _quizQueue.sublist(1);
+      _quizQueue = (_lastAnswerCorrect ?? false) ? rest : [...rest, current];
+      _selectedOption = null;
+      _lastAnswerCorrect = null;
+      _feedbackMessage = null;
+    });
+    _syncPhase();
   }
 
   void _syncPhase() {
@@ -1008,7 +1000,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Ôn tập SRS')),
+      appBar: AppBar(title: const Text('Ôn tập')),
       body: KitsuneBackdrop(
         child: _isLoading
             ? const KitsuneLoadingFox(message: 'Đang tải dữ liệu ôn tập...')
@@ -1032,7 +1024,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           KitsuneHeroCard(
             title: 'Sổ tay ôn tập với 6 chế độ câu hỏi như bên web.',
             subtitle:
-                'Chọn bài học, xem phân bố cấp độ, rồi mở lượt học khi có thẻ mới hoặc thẻ đến hạn.',
+                'Ôn đúng bài bạn đang học, với thẻ mới và thẻ đến hạn của bài đó.',
             accent: KitsuneColors.secondary,
             trailing: Container(
               width: 96,
@@ -1110,83 +1102,13 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
               ),
             ),
           const SizedBox(height: AppTheme.space16),
-          const KitsuneSectionHeader(
-            title: 'Bài học SRS',
-            subtitle: 'Đổi bài học ở đây và giữ nhịp ôn theo đúng lộ trình.',
-            accent: KitsuneColors.stamp,
-          ),
-          const SizedBox(height: AppTheme.space12),
           if (_dashboardFolders.isEmpty)
             const KitsuneEmptyState(
               icon: Icons.route_rounded,
-              title: 'Chưa có bài học nào',
+              title: 'Chọn bài học để ôn',
               message:
-                  'Admin cần xuất bản Topic và Lesson trước khi bắt đầu SRS.',
+                  'Mở một bài học trong Lộ trình, rồi chọn Ôn bài này để bắt đầu.',
             )
-          else
-            ..._dashboardFolders.asMap().entries.map((entry) {
-              final index = entry.key;
-              final item = entry.value;
-              final color = KitsuneColors
-                  .folderColors[index % KitsuneColors.folderColors.length];
-              final isActive = _selectedFolderId == item.lesson.id;
-
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: KitsuneSurface(
-                  color: isActive
-                      ? KitsuneColors.primarySurface
-                      : KitsuneColors.surface,
-                  onTap: _isSubmitting
-                      ? null
-                      : () => _openFolder(item.lesson.id, activate: true),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 54,
-                        height: 54,
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.14),
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Icon(Icons.route_rounded, color: color),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Text(
-                                    item.lesson.title,
-                                    style:
-                                        Theme.of(context).textTheme.titleLarge,
-                                  ),
-                                ),
-                                if (isActive)
-                                  const KitsuneActionBadge(
-                                    icon: Icons.check_circle_rounded,
-                                    label: 'Đang học',
-                                    color: KitsuneColors.primary,
-                                    isActive: true,
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: AppTheme.space4),
-                            Text(
-                              '${item.overview.newCards} moi • ${item.overview.dueCards} den han • ${item.overview.totalCards} the',
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            }),
         ],
       ),
     );
@@ -1957,6 +1879,12 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
             ),
           ),
           const SizedBox(height: AppTheme.space12),
+          ElevatedButton(
+            onPressed: _isSubmitting ? null : _continueAfterAnswer,
+            child: Text(
+                _isSubmitting ? 'Đang lưu kết quả…' : 'OK · Câu tiếp theo'),
+          ),
+          const SizedBox(height: AppTheme.space12),
         ],
         if (!question.isDrawing)
           ElevatedButton(
@@ -1965,13 +1893,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                     _isSubmitting
                 ? null
                 : _submitQuizAnswer,
-            child: _isSubmitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: KitsuneLoadingFox(size: 28),
-                  )
-                : const Text('Xác nhận đáp án'),
+            child: const Text('Xác nhận đáp án'),
           ),
       ],
     );

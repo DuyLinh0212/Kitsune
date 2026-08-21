@@ -14,8 +14,6 @@ import 'package:kitsune_app/features/auth/register_page.dart';
 import 'package:kitsune_app/features/exams/exam_list_page.dart';
 import 'package:kitsune_app/features/exams/exam_play_page.dart';
 import 'package:kitsune_app/features/exams/exam_result_page.dart';
-import 'package:kitsune_app/features/folders/folder_detail_page.dart';
-import 'package:kitsune_app/features/folders/folder_list_page.dart';
 import 'package:kitsune_app/features/home/home_page.dart';
 import 'package:kitsune_app/features/grammar/grammar_page.dart';
 import 'package:kitsune_app/features/kanji/kanji_detail_page.dart';
@@ -133,9 +131,6 @@ class KitsuneApp extends ConsumerWidget {
           case '/exams':
             page = const ExamListPage();
             break;
-          case '/folders':
-            page = const FolderListPage();
-            break;
           case '/quizzes':
             page = const QuizListPage();
             break;
@@ -154,10 +149,6 @@ class KitsuneApp extends ConsumerWidget {
             break;
           default:
             if (settings.name != null &&
-                settings.name!.startsWith('/folders/')) {
-              final id = int.tryParse(settings.name!.split('/').last) ?? 0;
-              page = FolderDetailPage(folderId: id);
-            } else if (settings.name != null &&
                 settings.name!.startsWith('/vocabulary/')) {
               final id = int.tryParse(settings.name!.split('/').last) ?? 0;
               page = VocabularyDetailPage(vocabularyId: id);

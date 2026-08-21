@@ -24,7 +24,13 @@
           <h1 class="dash-title">Bài cần ôn hôm nay</h1>
         </div>
 
-        <!-- Lesson picker -->
+        @if (activeFolder(); as lesson) {
+          <div class="folder-picker lesson-context"><span>Đang ôn bài</span><strong>{{ lesson.folderName }}</strong></div>
+        } @else {
+          <a class="folder-picker lesson-context" routerLink="/topics">Chọn một bài học để bắt đầu ôn tập</a>
+        }
+
+        @if (false) {
         <div class="folder-picker" [class.folder-picker--open]="showFolderDropdown()">
           <button
             type="button"
@@ -36,7 +42,7 @@
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
             @if (activeFolder(); as folder) {
-              <span>{{ folder.folderName }}</span>
+              <span>{{ folder?.folderName }}</span>
             } @else {
               <span>Chọn bài học</span>
             }
@@ -85,6 +91,7 @@
             <div class="folder-picker__backdrop" (click)="showFolderDropdown.set(false)"></div>
           }
         </div>
+        }
       </div>
 
       <!-- ── CHART SECTION ───────────────────────────────── -->
@@ -546,6 +553,11 @@
                   <div class="quiz-feedback" [class.quiz-feedback--correct]="fb.correct" [class.quiz-feedback--wrong]="!fb.correct">
                     {{ fb.message }}
                   </div>
+                  <div class="quiz-actions quiz-actions--feedback">
+                    <button type="button" class="quiz-submit-btn" [disabled]="isSubmitting()" (click)="continueAfterAnswer()">
+                      {{ isSubmitting() ? 'Đang lưu kết quả…' : 'OK · Câu tiếp theo' }}
+                    </button>
+                  </div>
                 }
 
                 <!-- Submit button -->
@@ -561,11 +573,7 @@
                     "
                     (click)="submitQuizAnswer()"
                   >
-                    @if (isSubmitting()) {
-                      <app-loading-fox [size]="24" />
-                    } @else {
-                      Xác nhận đáp án
-                    }
+                    Xác nhận đáp án
                   </button>
                 </div>
                 }
