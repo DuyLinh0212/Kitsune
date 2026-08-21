@@ -56,47 +56,6 @@
 }
 
 /* ===================================
-   PAGE HEADER
-   =================================== */
-.vocab-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 16px 32px;
-  box-sizing: border-box;
-}
-
-.vocab-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  margin-bottom: 24px;
-}
-
-.vocab-title {
-  font-family: var(--font-ui);
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--text-main);
-  margin: 0 0 4px;
-}
-
-.vocab-subtitle {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin: 0;
-}
-
-.result-badge {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--violet);
-  background: var(--violet-light);
-  padding: 6px 14px;
-  border-radius: 20px;
-  white-space: nowrap;
-}
-
-/* ===================================
    SEARCH BAR
    =================================== */
 .search-bar {
@@ -524,65 +483,6 @@
   font-size: 14px;
   font-weight: 500;
   color: var(--text-main);
-}
-
-/* Kanji Chips - Bento Grid */
-.kanji-chips {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.kanji-chip {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background: var(--surface);
-  border: 1px solid var(--border-light);
-  border-radius: var(--radius-md);
-  padding: 12px 16px;
-  min-width: 72px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
-  position: relative;
-  box-shadow: var(--shadow-soft);
-}
-
-.kanji-chip:hover {
-  background: var(--violet-light);
-  border-color: var(--violet);
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(141,64,36,0.1);
-}
-
-.kanji-chip__char {
-  font-size: 32px;
-  font-weight: 800;
-  color: var(--violet);
-  line-height: 1;
-  margin-bottom: 6px;
-  transition: color 0.2s;
-}
-.kanji-chip:hover .kanji-chip__char { color: var(--violet-dark); }
-
-.kanji-chip__hv {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-weight: 700;
-  letter-spacing: 0.3px;
-}
-
-.kanji-chip__hint {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  color: var(--violet);
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.kanji-chip:hover .kanji-chip__hint {
-  opacity: 1;
 }
 
 /* Action Buttons */
@@ -1155,3 +1055,117 @@
   background: #94a3b8;
   cursor: not-allowed;
 }
+
+/* Lookup workbench: a warm dictionary desk, not a generic result list. */
+.vocab-page { max-width: 1480px; padding: 22px 28px 40px; }
+
+.lookup-dock {
+  position: relative; overflow: hidden; margin-bottom: 20px; padding: 16px;
+  border: 1px solid rgba(203,112,47,.2); border-radius: 24px;
+  background: linear-gradient(106deg,rgba(255,253,248,.96),rgba(255,247,235,.91)), repeating-linear-gradient(90deg,rgba(182,92,34,.035) 0 1px,transparent 1px 18px);
+  box-shadow: 0 16px 36px rgba(113,55,18,.07);
+}
+.lookup-dock::after { content: '辞'; position: absolute; top: -30px; right: 28px; color: rgba(218,113,39,.07); font-family: 'Noto Sans JP',sans-serif; font-size: 128px; font-weight: 800; line-height: 1; pointer-events: none; }
+.lookup-dock__context { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; min-height: 18px; padding: 0 6px 10px; }
+.lookup-dock__eyebrow, .insight-panel__eyebrow { color: #a65526; font-size: 10px; font-weight: 850; letter-spacing: .15em; }
+.result-badge { border: 1px solid rgba(176,86,31,.15); background: #fff0d8; color: #9e4c22; font-weight: 800; }
+
+.search-bar { position: relative; z-index: 1; gap: 10px; min-height: 64px; margin: 0; padding: 6px 6px 6px 18px; border: 1px solid #edd9bf; border-radius: 16px; background: rgba(255,254,251,.92); box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 4px 14px rgba(80,39,16,.035); }
+.search-bar:focus-within, .search-bar--active { border-color: #d87739; box-shadow: 0 0 0 4px rgba(225,111,40,.11), 0 8px 20px rgba(100,44,14,.06); transform: none; }
+.search-bar__icon { color: #a46c45; }
+.search-bar__input { min-width: 120px; padding: 11px 0; color: #382417; font-size: 16px; font-weight: 580; }
+.search-bar__input::placeholder { color: #ba9c84; }
+.search-bar__clear { width: 32px; height: 32px; border: 1px solid #eedfcc; background: #fffaf3; color: #9a6849; }
+.search-bar__clear:hover { background: #fee8d1; color: #a2481f; }
+.lookup-tools { display: flex; align-items: center; gap: 4px; padding-left: 10px; border-left: 1px solid #efdfca; }
+.lookup-tool { display: grid; width: 38px; height: 38px; place-items: center; border: 1px solid #efdfca; border-radius: 11px; background: #fffdf9; color: #865331; cursor: pointer; transition: color .18s ease,background .18s ease,transform .18s ease; }
+.lookup-tool:hover:not(:disabled) { color: #fff; background: #d7672c; transform: translateY(-1px); }
+.lookup-tool:disabled { color: #cfbca9; cursor: not-allowed; }
+.lookup-language { width: 144px; height: 40px; padding: 0 30px 0 12px; border: 1px solid #efdfca; border-radius: 11px; outline: none; background: #fffaf3; color: #70442c; font: 750 13px var(--font-ui); cursor: pointer; }
+.lookup-language:focus { border-color: #d7672c; }
+.search-bar__btn { min-height: 42px; padding: 0 18px; border-radius: 11px; background: linear-gradient(135deg,#db6b2e,#a94c24); font-size: 13px; box-shadow: 0 7px 14px rgba(158,67,25,.2); }
+.search-bar__btn:hover { background: linear-gradient(135deg,#c95a24,#8f3d1d); box-shadow: 0 9px 18px rgba(158,67,25,.28); }
+
+.lookup-tabs { position: relative; z-index: 1; display: flex; align-items: center; gap: 4px; padding: 12px 3px 0; overflow-x: auto; scrollbar-width: none; }
+.lookup-tabs::-webkit-scrollbar { display: none; }
+.lookup-tab { flex: 0 0 auto; min-height: 36px; padding: 0 13px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: #92735d; font: 700 13px var(--font-ui); cursor: pointer; transition: background .18s ease,color .18s ease,border-color .18s ease; }
+.lookup-tab:hover { color: #8e401c; background: rgba(253,234,207,.78); }
+.lookup-tab--active { border-color: rgba(206,101,39,.14); background: #fbe4c3; color: #a5471f; box-shadow: inset 0 -2px 0 #d7672c; }
+
+.empty-state { min-height: 320px; padding: 68px 24px; border: 1px solid #efdfca; border-radius: 24px; background: rgba(255,253,248,.86); box-shadow: none; }
+.empty-state__icon { color: #e7b77c; }
+.hint-chip { border: 1px solid #efdfca; background: #fff4e2; color: #9d522a; }
+
+.vocab-main { grid-template-columns: minmax(248px,290px) minmax(0,1fr) minmax(244px,286px); gap: 16px; align-items: stretch; }
+.list-panel, .detail-panel, .insight-panel { min-height: 610px; height: calc(100vh - 194px); border: 1px solid #efdfca; border-radius: 22px; background: rgba(255,253,248,.94); box-shadow: 0 12px 28px rgba(105,50,16,.045); }
+.list-panel { top: 78px; }
+.list-panel__header { display: flex; align-items: center; min-height: 57px; padding: 0 18px; border-bottom-color: #efdfca; background: #fffaf2; color: #8b674d; }
+.list-panel__header span::after { content: ''; display: inline-block; width: 26px; height: 2px; margin: 0 0 3px 10px; background: #dc7133; }
+.vocab-item { min-height: 98px; padding: 14px 17px 14px 20px; border-bottom-color: #f1e4d3; }
+.vocab-item:hover { background: #fff5e8; }
+.vocab-item--active, .vocab-item--active:hover { border-left: 4px solid #ce5724; background: linear-gradient(90deg,#f5dfbf,#fff4e6); }
+.vocab-item__word { margin-bottom: 3px; color: #392319; font-family: 'Noto Sans JP',var(--font-ui); font-size: 17px; }
+.vocab-item--active .vocab-item__word, .vocab-item__reading { color: #ac4b21; }
+.vocab-item__meaning { color: #816651; }
+.vocab-item__lang { color: #a27c62; }
+
+.detail-panel { top: 78px; padding: 28px 32px; scrollbar-color: #dfaa78 transparent; }
+.detail-header { margin-bottom: 25px; padding-bottom: 23px; border-bottom-color: #ebdfd0; }
+.detail-header__top { gap: 18px; }
+.detail-word { color: #271b15; font-family: 'Noto Sans JP',var(--font-ui); font-size: clamp(36px,4vw,57px); font-weight: 760; letter-spacing: -.045em; }
+.detail-reading { margin-top: 7px; color: #a64922; font-family: 'Noto Sans JP',var(--font-ui); font-size: 20px; font-weight: 650; }
+.btn-speak { border-color: #e7d3ba; background: #fff2df; color: #a64d25; }
+.detail-header__badges { align-items: flex-end; }
+.badge--lang { background: #e8f5e9; color: #368052; }
+.detail-quick-folder { border-color: #d39b75; background: #fff9ef; color: #b54e23; }
+.detail-section { padding-bottom: 25px; margin-bottom: 24px; border-bottom-color: #eee1d0; }
+.section-label { color: #936d55; font-size: 11px; font-weight: 850; letter-spacing: .12em; }
+.detail-meaning { color: #2f2119; font-size: 22px; font-weight: 720; line-height: 1.5; }
+.specific-data__row { border-bottom-color: #f1e3d3; }
+.specific-data__key { color: #926d54; }
+.specific-data__value { color: #4c2f20; }
+.action-btn { border-color: #edd4bb; background: #fff9f0; color: #9a4824; }
+.action-btn:hover:not(:disabled) { border-color: #ce6530; background: #fff0dd; }
+.action-btn--bookmarked { border-color: #d56836; background: #d56836; }
+
+.insight-panel { position: sticky; top: 78px; overflow: hidden auto; padding: 22px 16px 16px; scrollbar-width: thin; scrollbar-color: #dfaa78 transparent; }
+.insight-panel__heading { padding: 0 7px 18px; border-bottom: 1px solid #eee0cf; }
+.insight-panel__heading h2 { margin: 7px 0 5px; color: #3c261a; font-size: 19px; line-height: 1.25; }
+.insight-panel__heading p { margin: 0; color: #98765e; font-size: 12px; line-height: 1.5; }
+.insight-panel__heading strong { color: #a14b23; font-family: 'Noto Sans JP',var(--font-ui); }
+.kanji-reading-list { display: grid; gap: 8px; padding-top: 15px; }
+.kanji-reading-card { display: grid; grid-template-columns: 22px 46px minmax(0,1fr) 14px; align-items: center; gap: 8px; width: 100%; min-height: 75px; padding: 8px 9px; border: 1px solid #eedfce; border-radius: 14px; background: #fffaf3; color: #9c4d26; text-align: left; cursor: pointer; transition: transform .18s ease,border-color .18s ease,background .18s ease; }
+.kanji-reading-card:hover { border-color: #d77940; background: #fff0dd; transform: translateX(2px); }
+.kanji-reading-card__index { align-self: start; padding-top: 7px; color: #c89873; font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.kanji-reading-card__character { display: grid; width: 46px; height: 51px; place-items: center; border-radius: 11px; background: #f9e4c5; color: #8f3f1d; font-family: 'Noto Sans JP',sans-serif; font-size: 29px; font-weight: 750; }
+.kanji-reading-card__copy { display: grid; gap: 4px; min-width: 0; }
+.kanji-reading-card__copy strong { overflow: hidden; color: #5b3624; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.kanji-reading-card__copy small { color: #aa876e; font-size: 10px; line-height: 1.35; }
+.insight-panel__tip { display: grid; grid-template-columns: 29px minmax(0,1fr); gap: 8px; align-items: center; margin-top: 16px; padding: 11px; border-radius: 14px; background: #f8e6cc; }
+.insight-panel__tip span { display: grid; width: 29px; height: 29px; place-items: center; border-radius: 9px; background: #db6d2f; color: #fff8ee; font-family: 'Noto Sans JP',sans-serif; font-size: 16px; }
+.insight-panel__tip p, .insight-empty p { margin: 0; color: #7e5c45; font-size: 11px; line-height: 1.5; }
+.insight-empty { display: grid; justify-items: center; gap: 11px; padding: 40px 14px; text-align: center; }
+.insight-empty > span { color: #e2ad7a; font-family: 'Noto Sans JP',sans-serif; font-size: 42px; font-weight: 800; }
+.insight-empty--placeholder { min-height: 260px; align-content: center; }
+
+@media (max-width: 1240px) {
+  .vocab-main { grid-template-columns: minmax(240px,285px) minmax(0,1fr); }
+  .insight-panel { position: static; grid-column: 1 / -1; height: auto; min-height: 0; }
+  .kanji-reading-list { grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); }
+}
+@media (max-width: 820px) {
+  .vocab-page { padding: 14px 14px 28px; }
+  .lookup-dock { padding: 11px; border-radius: 19px; }
+  .search-bar { display: grid; grid-template-columns: auto minmax(0,1fr) auto; padding: 8px 10px; }
+  .search-bar__input { width: 100%; }
+  .lookup-tools { grid-column: 1 / span 2; padding: 7px 0 0; border-top: 1px solid #efdfca; border-left: 0; }
+  .lookup-language { grid-column: 3; grid-row: 2; width: 100%; }
+  .search-bar__btn { grid-column: 1 / -1; width: 100%; }
+  .vocab-main { grid-template-columns: 1fr; }
+  .list-panel, .detail-panel { position: static; min-height: 0; height: auto; }
+  .list-panel { max-height: 400px; }
+  .detail-panel { padding: 23px 20px; }
+  .detail-header__top { align-items: flex-start; flex-direction: column; }
+  .detail-header__badges { align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) { .lookup-tool, .kanji-reading-card, .search-bar__btn { transition: none; } }

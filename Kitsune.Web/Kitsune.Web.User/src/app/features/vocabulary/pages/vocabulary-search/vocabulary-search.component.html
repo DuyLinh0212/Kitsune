@@ -9,39 +9,61 @@
   </div>
   }
 
-  <!-- PAGE HEADER -->
-  <div class="vocab-header">
-    <div>
-      <h1 class="vocab-title">Tra từ vựng</h1>
-      <p class="vocab-subtitle">Tìm kiếm theo Hiragana, Katakana, Kanji hoặc Tiếng Việt</p>
+  <!-- LOOKUP DOCK: the working surface for every dictionary search -->
+  <section class="lookup-dock" aria-label="Tra cứu tiếng Nhật">
+    <div class="lookup-dock__context">
+      <span class="lookup-dock__eyebrow">KITSUNE / TRA CỨU</span>
+      @if (searchResults().length > 0) {
+        <span class="result-badge">{{ searchResults().length }} kết quả</span>
+      }
     </div>
-    @if (searchResults().length > 0) {
-    <span class="result-badge">{{ searchResults().length }} kết quả</span>
-    }
-  </div>
 
-  <!-- SEARCH BAR -->
-  <div class="search-bar" [class.search-bar--active]="searchQuery()">
-    <svg class="search-bar__icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-    <input type="text" class="search-bar__input" placeholder="例：食べる、taberu、ăn uống..." [ngModel]="searchQuery()"
-      (ngModelChange)="onSearchInput($event)" (keyup.enter)="onSearchEnter()" autocomplete="off" autocorrect="off"
-      spellcheck="false" />
-    @if (isSearching()) {
-    <div class="search-bar__spinner"></div>
-    } @else if (searchQuery()) {
-    <button class="search-bar__clear" (click)="onSearchInput('')" title="Xóa">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-        <line x1="18" y1="6" x2="6" y2="18" />
-        <line x1="6" y1="6" x2="18" y2="18" />
+    <div class="search-bar" [class.search-bar--active]="searchQuery()">
+      <svg class="search-bar__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <circle cx="11" cy="11" r="7.25" />
+        <line x1="16.3" y1="16.3" x2="21" y2="21" />
       </svg>
-    </button>
-    }
-    <button class="search-bar__btn" (click)="onSearchEnter()">Tìm kiếm</button>
-  </div>
+      <input type="text" class="search-bar__input" placeholder="Ví dụ: 食べる, taberu, ăn uống..." [ngModel]="searchQuery()"
+        (ngModelChange)="onSearchInput($event)" (keyup.enter)="onSearchEnter()" autocomplete="off" autocorrect="off"
+        spellcheck="false" aria-label="Nhập từ cần tra" />
+      @if (isSearching()) {
+        <div class="search-bar__spinner" aria-label="Đang tìm kiếm"></div>
+      } @else if (searchQuery()) {
+        <button type="button" class="search-bar__clear" (click)="clearSearch()" title="Xóa từ khóa" aria-label="Xóa từ khóa">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      }
+      <div class="lookup-tools" aria-label="Công cụ tra cứu">
+        <button type="button" class="lookup-tool" (click)="selectedVocab() && speakWord(selectedVocab()!)" [disabled]="!selectedVocab() || !ttsService.isSupported" title="Nghe cách đọc" aria-label="Nghe cách đọc">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            <path d="M4 10v4h4l5 4V6L8 10H4z" /><path d="M16 9.5a4 4 0 0 1 0 5" /><path d="M18.5 7a7.5 7.5 0 0 1 0 10" />
+          </svg>
+        </button>
+        <button type="button" class="lookup-tool" (click)="openFolderModal()" [disabled]="!selectedVocab()" title="Lưu từ đang xem" aria-label="Lưu từ đang xem">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11l2 2h4.5A2.5 2.5 0 0 1 20 7.5v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-12z" /><path d="M12 9v6M9 12h6" />
+          </svg>
+        </button>
+      </div>
+      <select class="lookup-language" [ngModel]="dictionaryLanguage()" (ngModelChange)="setDictionaryLanguage($event)" aria-label="Ngôn ngữ tra cứu">
+        <option value="ja-vi">Nhật - Việt</option>
+        <option value="ja-ja">Nhật - Nhật</option>
+      </select>
+      <button type="button" class="search-bar__btn" (click)="onSearchEnter()">Tra cứu</button>
+    </div>
+
+    <div class="lookup-tabs" role="tablist" aria-label="Chế độ tra cứu">
+      @for (mode of lookupModes; track mode.id) {
+        <button type="button" class="lookup-tab" [class.lookup-tab--active]="activeLookupMode() === mode.id"
+          [attr.aria-selected]="activeLookupMode() === mode.id" (click)="selectLookupMode(mode.id)">
+          {{ mode.label }}
+        </button>
+      }
+    </div>
+  </section>
 
   <!-- EMPTY STATE (chưa tìm) -->
   @if (!isSearching() && searchResults().length === 0 && !searchQuery()) {
@@ -145,28 +167,6 @@
         <p class="detail-meaning">{{ v.meaning }}</p>
       </div>
 
-      <!-- KANJI COMPONENTS -->
-      @if (v.kanjiComponents.length > 0) {
-      <div class="detail-section">
-        <div class="section-label">Thành phần Kanji</div>
-        <div class="kanji-chips">
-          @for (k of v.kanjiComponents; track k.kanjiId) {
-          <button class="kanji-chip" (click)="openKanjiDetail(k.kanjiId)" title="Xem chi tiết {{ k.character }}">
-            <span class="kanji-chip__char">{{ k.character }}</span>
-            <span class="kanji-chip__hv">{{ k.amHanViet }}</span>
-            <span class="kanji-chip__hint">
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-            </span>
-          </button>
-          }
-        </div>
-      </div>
-      }
-
       <!-- SPECIFIC DATA -->
       @if (getSpecificDataEntries(v).length > 0) {
       <div class="detail-section">
@@ -221,6 +221,45 @@
       </div>
       }
     </div>
+
+    <!-- RIGHT: KANJI READING RAIL -->
+    <aside class="insight-panel" aria-label="Gợi ý Kanji">
+      @if (selectedVocab(); as v) {
+        <div class="insight-panel__heading">
+          <span class="insight-panel__eyebrow">TÁCH KANJI</span>
+          <h2>Chạm từng nét nghĩa</h2>
+          <p>Những ký tự tạo nên <strong>{{ v.word }}</strong></p>
+        </div>
+
+        @if (v.kanjiComponents.length > 0) {
+          <div class="kanji-reading-list">
+            @for (k of v.kanjiComponents; track k.kanjiId; let index = $index) {
+              <button type="button" class="kanji-reading-card" (click)="openKanjiDetail(k.kanjiId)" title="Mở chi tiết {{ k.character }}">
+                <span class="kanji-reading-card__index">0{{ index + 1 }}</span>
+                <span class="kanji-reading-card__character">{{ k.character }}</span>
+                <span class="kanji-reading-card__copy"><strong>{{ k.amHanViet || 'Kanji' }}</strong><small>Xem âm đọc và bộ thủ</small></span>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
+              </button>
+            }
+          </div>
+        } @else {
+          <div class="insight-empty">
+            <span>かな</span>
+            <p>Từ này được viết bằng kana, không có Kanji cần tách.</p>
+          </div>
+        }
+
+        <div class="insight-panel__tip">
+          <span aria-hidden="true">狐</span>
+          <p>Lưu từ vào thư mục để đưa nó vào phiên ôn tập tiếp theo.</p>
+        </div>
+      } @else {
+        <div class="insight-empty insight-empty--placeholder">
+          <span>辞</span>
+          <p>Kết quả bạn chọn sẽ mở thành phần Kanji tại đây.</p>
+        </div>
+      }
+    </aside>
   </div>
   }
 
