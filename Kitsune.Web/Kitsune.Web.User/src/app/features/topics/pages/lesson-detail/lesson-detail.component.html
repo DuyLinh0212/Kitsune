@@ -81,7 +81,7 @@
             ></i>
           }
         </div>
-        <button type="button" class="next" (click)="next()" [disabled]="isSaving()">
+        <button type="button" class="next" (click)="next()">
           {{ activeIndex() === lesson.items.length - 1 ? 'Hoàn thành' : 'Đã nhớ · Tiếp' }} →
         </button>
       </nav>

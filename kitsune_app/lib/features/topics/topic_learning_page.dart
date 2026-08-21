@@ -256,9 +256,25 @@ class LessonStudyPage extends ConsumerStatefulWidget {
   ConsumerState<LessonStudyPage> createState() => _LessonStudyPageState();
 }
 
+class _PendingLessonProgress {
+  const _PendingLessonProgress({
+    required this.lessonId,
+    required this.completedItemCount,
+    required this.totalItems,
+    required this.lastItemId,
+  });
+
+  final int lessonId;
+  final int completedItemCount;
+  final int totalItems;
+  final int lastItemId;
+}
+
 class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
   late Future<LessonDto> _future;
   int _index = 0;
+  _PendingLessonProgress? _pendingProgress;
+  bool _progressSaveInFlight = false;
   final TtsService _tts = TtsService();
   @override
   void initState() {
@@ -381,21 +397,7 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                           child: const Text('Trước')),
                       const Spacer(),
                       FilledButton(
-                          onPressed: () async {
-                            await ref
-                                .read(kitsuneApiProvider)
-                                .saveLessonProgress(
-                                    lesson.id, _index + 1, lesson.items.length,
-                                    lastItemId: item.id);
-                            if (!context.mounted) return;
-                            if (_index < lesson.items.length - 1) {
-                              setState(() => _index++);
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                      content: Text('Đã hoàn thành bài học!')));
-                            }
-                          },
+                          onPressed: () => _advanceLesson(lesson, item),
                           style: FilledButton.styleFrom(
                               backgroundColor: const Color(0xFFD85B3F)),
                           child: Text(_index == lesson.items.length - 1
@@ -405,6 +407,53 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                   ]));
             }),
       );
+
+  void _advanceLesson(LessonDto lesson, LessonItemDto item) {
+    final completed = _index + 1;
+    final isCompleted = completed >= lesson.items.length;
+    if (!isCompleted) {
+      setState(() => _index++);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đã hoàn thành bài học!')),
+      );
+    }
+    _pendingProgress = _PendingLessonProgress(
+      lessonId: lesson.id,
+      completedItemCount: completed,
+      totalItems: lesson.items.length,
+      lastItemId: item.id,
+    );
+    _flushProgressSave();
+  }
+
+  void _flushProgressSave() {
+    if (_progressSaveInFlight || _pendingProgress == null) return;
+    final progress = _pendingProgress!;
+    _pendingProgress = null;
+    _progressSaveInFlight = true;
+    unawaited(() async {
+      try {
+        await ref.read(kitsuneApiProvider).saveLessonProgress(
+              progress.lessonId,
+              progress.completedItemCount,
+              progress.totalItems,
+              lastItemId: progress.lastItemId,
+            );
+      } catch (_) {
+        if (mounted && _pendingProgress == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    'Chưa thể đồng bộ tiến độ. Lượt tiếp theo sẽ thử lại.')),
+          );
+        }
+      } finally {
+        _progressSaveInFlight = false;
+        _flushProgressSave();
+      }
+    }());
+  }
 }
 
 class _ErrorState extends StatelessWidget {

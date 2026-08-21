@@ -7,6 +7,13 @@ import { LessonDetail } from '../../../../core/models/topic.model';
 import { TopicService } from '../../../../core/services/topic.service';
 import { TtsService } from '../../../../core/services/tts.service';
 
+interface PendingLessonProgress {
+  lessonId: number;
+  completedItemCount: number;
+  totalItems: number;
+  lastItemId: number;
+}
+
 @Component({
   selector: 'app-lesson-detail',
   standalone: true,
@@ -25,6 +32,8 @@ export class LessonDetailComponent implements OnInit {
   readonly isLoading = signal(true);
   readonly isSaving = signal(false);
   readonly errorMessage = signal('');
+  private pendingProgress: PendingLessonProgress | null = null;
+  private progressSaveInFlight = false;
   readonly activeItem = computed(() => this.lesson()?.items[this.activeIndex()] ?? null);
   readonly progressPercent = computed(() => {
     const total = this.lesson()?.items.length ?? 0;
@@ -57,19 +66,54 @@ export class LessonDetailComponent implements OnInit {
 
   next(): void {
     const lesson = this.lesson();
-    if (!lesson || this.isSaving()) return;
+    if (!lesson) return;
     const completed = Math.min(this.activeIndex() + 1, lesson.items.length);
+    const completedItem = this.activeItem();
+    if (!completedItem) return;
+
+    if (this.activeIndex() < lesson.items.length - 1) {
+      this.activeIndex.update((index) => index + 1);
+    }
+    this.queueProgressSave({
+      lessonId: lesson.id,
+      completedItemCount: completed,
+      totalItems: lesson.items.length,
+      lastItemId: completedItem.id,
+    });
+  }
+
+  private queueProgressSave(progress: PendingLessonProgress): void {
+    this.pendingProgress = progress;
     this.isSaving.set(true);
-    this.topicService.updateProgress(lesson.id, completed, lesson.items.length, this.activeItem()?.id)
+    this.flushProgressSave();
+  }
+
+  private flushProgressSave(): void {
+    if (this.progressSaveInFlight || !this.pendingProgress) return;
+    const progress = this.pendingProgress;
+    this.pendingProgress = null;
+    this.progressSaveInFlight = true;
+    this.topicService
+      .updateProgress(
+        progress.lessonId,
+        progress.completedItemCount,
+        progress.totalItems,
+        progress.lastItemId,
+      )
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => {
-          if (this.activeIndex() < lesson.items.length - 1) this.activeIndex.update((index) => index + 1);
-          this.isSaving.set(false);
+          this.progressSaveInFlight = false;
+          if (this.pendingProgress) this.flushProgressSave();
+          else this.isSaving.set(false);
         },
         error: () => {
-          this.errorMessage.set('Chưa thể lưu tiến độ. Vui lòng thử lại.');
-          this.isSaving.set(false);
+          this.progressSaveInFlight = false;
+          if (this.pendingProgress) this.flushProgressSave();
+          else {
+            this.errorMessage.set('Chưa thể đồng bộ tiến độ. Lượt tiếp theo sẽ thử lại.');
+            this.isSaving.set(false);
+          }
         },
       });
   }
