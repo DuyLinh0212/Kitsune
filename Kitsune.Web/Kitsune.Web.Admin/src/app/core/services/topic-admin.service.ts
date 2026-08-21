@@ -94,6 +94,14 @@ export class TopicAdminService {
     return from(this.deleteLessonItem(lessonItemId));
   }
 
+  deleteTopic(topicId: number): Observable<void> {
+    return from(this.deleteDraftTopic(topicId));
+  }
+
+  deleteLesson(lessonId: number): Observable<void> {
+    return from(this.deleteDraftLesson(lessonId));
+  }
+
   generateAndSaveTopic(topicTitle: string, lessonCount: number): Observable<AiTopicCreation> {
     return from(this.generateAndPersistAiPlan(topicTitle, lessonCount));
   }
@@ -259,6 +267,40 @@ export class TopicAdminService {
   private async deleteLessonItem(lessonItemId: number): Promise<void> {
     const { error } = await supabase.from('LessonItems').delete().eq('Id', lessonItemId);
     if (error) throw error;
+  }
+
+  private async deleteDraftTopic(topicId: number): Promise<void> {
+    const [{ data: topic, error: topicError }, { data: lessons, error: lessonError }] = await Promise.all([
+      supabase.from('Topics').select('Id, IsPublished').eq('Id', topicId).maybeSingle(),
+      supabase.from('Lessons').select('Id, IsPublished').eq('TopicId', topicId),
+    ]);
+    if (topicError) throw topicError;
+    if (lessonError) throw lessonError;
+    if (!topic) throw new Error('Chủ đề không còn tồn tại.');
+    if (topic.IsPublished) throw new Error('Không thể xóa chủ đề đã xuất bản.');
+    if ((lessons ?? []).some((lesson) => lesson.IsPublished)) {
+      throw new Error('Không thể xóa chủ đề vì vẫn có bài học đã xuất bản.');
+    }
+
+    const { data: deleted, error } = await supabase
+      .from('Topics')
+      .delete()
+      .eq('Id', topicId)
+      .eq('IsPublished', false)
+      .select('Id');
+    if (error) throw error;
+    if (!deleted?.length) throw new Error('Chủ đề đã được xuất bản hoặc bị xóa bởi phiên khác.');
+  }
+
+  private async deleteDraftLesson(lessonId: number): Promise<void> {
+    const { data: deleted, error } = await supabase
+      .from('Lessons')
+      .delete()
+      .eq('Id', lessonId)
+      .eq('IsPublished', false)
+      .select('Id');
+    if (error) throw error;
+    if (!deleted?.length) throw new Error('Bài học đã được xuất bản hoặc không còn tồn tại.');
   }
 
   private async invokeAi(topic: string, lessonCount: number): Promise<AiTopicPlan> {

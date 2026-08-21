@@ -26,6 +26,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 class KitsuneApi {
   static const _lessonSrsCacheVersion = 1;
   static const _lessonSrsCachePrefix = 'kitsune.srs.lessonSession.';
+  static const _globalSrsId = 0;
+  static const _globalSrsName = 'SRS chung';
 
   final SupabaseClient client;
   UserProfile? _currentUser;
@@ -2241,6 +2243,70 @@ class KitsuneApi {
     return session;
   }
 
+  Future<FolderSrsSession?> getGlobalSrsSession() async {
+    if (client.userEmail == null) return null;
+    final userId = await getCurrentUserId();
+    final cardResponse = await client.dio.get(
+      client.table('SRSCards'),
+      queryParameters: {
+        'select': SupabaseConfig.srsCardSelect,
+        'UserId': 'eq.$userId',
+      },
+    );
+    final cards = (cardResponse.data as List<dynamic>).cast<Map<String, dynamic>>();
+    final vocabularyIds = cards
+        .map((card) => (card['VocabularyId'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet()
+        .toList();
+    final kanjiIds = cards
+        .map((card) => (card['KanjiId'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet()
+        .toList();
+    final content = await Future.wait([
+      vocabularyIds.isEmpty
+          ? Future.value(Response(data: <dynamic>[], requestOptions: RequestOptions()))
+          : client.dio.get(client.table('Vocabularies'), queryParameters: {
+              'select': 'Id,Word,Pronunciation,Meaning,FolderId,SpecificData',
+              'Id': 'in.(${vocabularyIds.join(',')})',
+            }),
+      kanjiIds.isEmpty
+          ? Future.value(Response(data: <dynamic>[], requestOptions: RequestOptions()))
+          : client.dio.get(client.table('Kanji'), queryParameters: {
+              'select': SupabaseConfig.kanjiSelect,
+              'Id': 'in.(${kanjiIds.join(',')})',
+            }),
+      _loadKanjiExamples(kanjiIds),
+      _loadTodayNewLearned(cards.map((card) => (card['Id'] as num).toInt()).toList()),
+      _loadWrongReviewCounts(cards.map((card) => (card['Id'] as num).toInt()).toList()),
+    ]);
+    final kanjiRows = (content[1].data as List<dynamic>).cast<Map<String, dynamic>>();
+    final context = _SrsContext(
+      folderId: _globalSrsId,
+      folderName: _globalSrsName,
+      userId: userId,
+      vocabs: (content[0].data as List<dynamic>).cast<Map<String, dynamic>>(),
+      kanjiComponents: kanjiRows
+          .map((kanji) => <String, dynamic>{'VocabularyId': 0, 'KanjiId': kanji['Id'], 'Kanji': kanji})
+          .toList(),
+      kanjiExamples: content[2] as Map<int, List<SrsVocabularyExample>>,
+      todayNewLearned: content[3] as int,
+      wrongReviewCounts: content[4] as Map<int, int>,
+      cards: cards,
+    );
+    final mappedCards = _mapSrsCards(context);
+    final overview = _buildSrsOverview(context);
+    return FolderSrsSession(
+      folderId: _globalSrsId,
+      folderName: _globalSrsName,
+      overview: overview,
+      cards: mappedCards,
+      flashcards: mappedCards.where((card) => card.boxLevel == 0).toList(),
+      quizCards: mappedCards.where((card) => SrsEngine.isScheduledReviewDue(level: card.boxLevel, nextReviewDate: card.nextReviewDate)).toList(),
+    );
+  }
+
   Future<FolderSrsOverview> getLessonSrsOverview(int lessonId) async {
     final session = await getLessonSrsSession(lessonId: lessonId);
     if (session == null) {
@@ -2502,10 +2568,12 @@ class KitsuneApi {
       );
 
   Future<FolderSrsSession> activateLesson(int lessonId) async {
-    final session = await getLessonSrsSession(lessonId: lessonId);
-    if (session == null) throw Exception('Không thể khởi tạo SRS cho bài học');
+    final lessonSession = await getLessonSrsSession(lessonId: lessonId);
+    if (lessonSession == null) throw Exception('Không thể khởi tạo SRS cho bài học');
     await setActiveLessonId(lessonId);
-    return session;
+    final globalSession = await getGlobalSrsSession();
+    if (globalSession == null) throw Exception('Không thể tải SRS chung');
+    return globalSession;
   }
 
   Future<LessonDto> getLessonDetail(int lessonId) async {

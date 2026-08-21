@@ -3,7 +3,6 @@ import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { TopicService } from '../../../../core/services/topic.service';
 import {
   FolderSrsOverview,
   FolderSrsSession,
@@ -60,7 +59,6 @@ interface LevelBucket {
   styleUrl: './srs-review.component.css',
 })
 export class SrsReviewComponent implements OnInit, OnDestroy {
-  private readonly topicService = inject(TopicService);
   private readonly route = inject(ActivatedRoute);
   private readonly srsService = inject(SrsService);
   readonly ttsService = inject(TtsService);
@@ -199,69 +197,23 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   // ─── Dashboard ──────────────────────────────────────────────────────────────
 
   async loadDashboard(): Promise<void> {
-    const cachedSession = await this.srsService.getCachedLessonSession();
-    if (cachedSession) {
-      this.dashboardFolders.set([
-        {
-          id: cachedSession.folderId,
-          name: cachedSession.folderName,
-          description: null,
-          vocabCount: cachedSession.overview.totalCards,
-          ...cachedSession.overview,
-        },
-      ]);
-      this.activeFolderId.set(cachedSession.folderId);
-      this.activeSession.set(cachedSession);
-      this.resetSession(cachedSession);
-      this.isLoading.set(false);
-    } else {
-      this.isLoading.set(true);
-    }
-
+    this.isLoading.set(true);
     try {
-      const folders = await firstValueFrom(this.topicService.getLessons());
       const requestedLessonId = Number(this.route.snapshot.queryParamMap.get('lessonId'));
-      const preferredFolderId = (Number.isFinite(requestedLessonId) && requestedLessonId > 0 ? requestedLessonId : null)
-        ?? this.srsService.getActiveLessonId()
-        ?? cachedSession?.folderId
-        ?? null;
-      const overviewsPromise = firstValueFrom(
-        this.srsService.getLessonOverviews(folders.map((folder) => ({ id: folder.id, title: folder.title })))
-      );
-      const sessionPromise = preferredFolderId
-        ? firstValueFrom(this.srsService.getLessonSession(preferredFolderId))
-        : Promise.resolve(null);
-      const [overviews, session] = await Promise.all([overviewsPromise, sessionPromise]);
-      const overviewByLesson = new Map(overviews.map((overview) => [overview.folderId, overview]));
-      const dashboards = folders.map((folder) => ({
-        id: folder.id,
-        name: folder.title,
-        description: folder.description,
-        vocabCount: folder.itemCount,
-        ...(overviewByLesson.get(folder.id) ?? {
-          folderId: folder.id,
-          folderName: folder.title,
-          totalCards: 0,
-          newCards: 0,
-          dueCards: 0,
-          learnedCards: 0,
-          masteredCards: 0,
-          todayNewLearned: 0,
-          nextDueAt: null,
-        }),
-      } satisfies DashboardFolder));
-
-      this.dashboardFolders.set(dashboards);
-      if (session && preferredFolderId) {
-        this.activeFolderId.set(preferredFolderId);
-        this.activeSession.set(session);
-        this.resetSession(session);
-      } else {
-        this.phase.set('idle');
+      if (Number.isFinite(requestedLessonId) && requestedLessonId > 0) {
+        await firstValueFrom(this.srsService.activateLesson(requestedLessonId));
       }
+      const session = await firstValueFrom(this.srsService.getGlobalSession());
+      if (!session) {
+        this.activeSession.set(null);
+        this.dashboardFolders.set([]);
+        this.phase.set('idle');
+        return;
+      }
+      this.applyGlobalSession(session);
     } catch (error) {
       console.error(error);
-      this.showToast('error', 'Không thể tải danh sách bài học cho SRS. Hãy áp dụng migration v3.0.0.');
+      this.showToast('error', 'Không thể tải SRS chung. Hãy thử lại sau.');
     } finally {
       this.isLoading.set(false);
     }
@@ -274,7 +226,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     try {
       const session = userInitiated
         ? await firstValueFrom(this.srsService.activateLesson(folderId))
-        : await firstValueFrom(this.srsService.getLessonSession(folderId));
+        : await firstValueFrom(this.srsService.getGlobalSession());
 
       if (!session) {
         this.activeFolderId.set(folderId);
@@ -283,9 +235,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
         return;
       }
 
-      this.activeFolderId.set(folderId);
-      this.activeSession.set(session);
-      this.resetSession(session);
+      this.applyGlobalSession(session);
     } catch (error) {
       console.error(error);
       const message =
@@ -442,10 +392,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   }
 
   async reloadActiveFolder(): Promise<void> {
-    const folderId = this.activeFolderId();
-    if (!folderId) return;
-    await this.openFolder(folderId, false);
-    await this.refreshDashboardFolders();
+    const session = await firstValueFrom(this.srsService.getGlobalSession());
+    if (session) this.applyGlobalSession(session);
     this.showStudyOverlay.set(false);
   }
 
@@ -678,21 +626,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       quizCards: cards.filter((card) => this.isScheduledReviewDue(card)),
     };
     this.activeSession.set(updatedSession);
-    void this.srsService.cacheLessonSession(updatedSession);
-
-    this.dashboardFolders.update((folders) =>
-      folders.map((folder) => {
-        if (folder.folderId !== updatedSession.folderId) return folder;
-        return {
-          ...folder,
-          ...this.buildLocalOverview(
-            folder,
-            cards,
-            folder.todayNewLearned + (previousCard.isNew ? 1 : 0)
-          ),
-        };
-      })
-    );
+    this.dashboardFolders.set([this.toDashboardFolder(updatedSession)]);
     this.updateCountdown();
   }
 
@@ -986,20 +920,25 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   }
 
   private async refreshDashboardFolders(): Promise<void> {
-    const folders = this.dashboardFolders();
-    if (folders.length === 0) return;
-    const overviews = await firstValueFrom(
-      this.srsService.getLessonOverviews(
-        folders.map((folder) => ({ id: folder.folderId, title: folder.folderName }))
-      )
-    );
-    const overviewByLesson = new Map(overviews.map((overview) => [overview.folderId, overview]));
-    this.dashboardFolders.set(
-      folders.map((folder) => ({
-        ...folder,
-        ...(overviewByLesson.get(folder.folderId) ?? {}),
-      }))
-    );
+    const session = await firstValueFrom(this.srsService.getGlobalSession());
+    if (session) this.applyGlobalSession(session);
+  }
+
+  private applyGlobalSession(session: FolderSrsSession): void {
+    this.activeFolderId.set(session.folderId);
+    this.activeSession.set(session);
+    this.dashboardFolders.set([this.toDashboardFolder(session)]);
+    this.resetSession(session);
+  }
+
+  private toDashboardFolder(session: FolderSrsSession): DashboardFolder {
+    return {
+      id: session.folderId,
+      name: session.folderName,
+      description: null,
+      vocabCount: session.overview.totalCards,
+      ...session.overview,
+    };
   }
 
   private showToast(type: 'success' | 'error', message: string): void {

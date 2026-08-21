@@ -1,4 +1,4 @@
-<div class="srs-shell">
+<div class="srs-shell" [class.srs-shell--studying]="showStudyOverlay()">
 
   <!-- ─── Toast ─────────────────────────────────────────── -->
   @if (toast()) {
@@ -17,18 +17,14 @@
     ══════════════════════════════════════════════════════ -->
     <div class="srs-dashboard" [class.srs-dashboard--hidden]="showStudyOverlay()">
 
-      <!-- ── TOP BAR: Title + Lesson Picker ─────────────── -->
+      <!-- ── TOP BAR: Global SRS queue ──────────────────── -->
       <div class="dash-topbar">
         <div class="dash-topbar__title">
-          <p class="dash-eyebrow">Ôn tập theo bài học</p>
-          <h1 class="dash-title">Bài cần ôn hôm nay</h1>
+          <p class="dash-eyebrow">SRS chung</p>
+          <h1 class="dash-title">Thẻ cần ôn hôm nay</h1>
         </div>
 
-        @if (activeFolder(); as lesson) {
-          <div class="folder-picker lesson-context"><span>Đang ôn bài</span><strong>{{ lesson.folderName }}</strong></div>
-        } @else {
-          <a class="folder-picker lesson-context" routerLink="/topics">Chọn một bài học để bắt đầu ôn tập</a>
-        }
+        <div class="folder-picker lesson-context"><span>Tất cả bài đã học cùng một hàng đợi</span><strong>SRS chung</strong></div>
 
         @if (false) {
         <div class="folder-picker" [class.folder-picker--open]="showFolderDropdown()">
@@ -101,7 +97,7 @@
           <div>
             <p class="chart-title">Phân bố cấp độ</p>
             @if (activeFolder(); as folder) {
-              <p class="chart-sub">{{ folder.folderName }} • {{ folder.totalCards }} thẻ trong bài</p>
+              <p class="chart-sub">{{ folder.totalCards }} thẻ từ tất cả bài đã học</p>
             }
           </div>
           <div class="chart-summary-pills">
@@ -163,7 +159,7 @@
       <!-- ── BOTTOM ACTION BAR ───────────────────────────── -->
       <div class="action-bar bento-card">
         @if (activeFolder(); as folder) {
-          <!-- Lesson info -->
+          <!-- Global SRS info -->
           <div class="action-bar__folder">
             <div class="action-bar__folder-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -171,7 +167,7 @@
               </svg>
             </div>
             <div>
-              <p class="action-bar__folder-name">{{ folder.folderName }}</p>
+              <p class="action-bar__folder-name">SRS chung</p>
               <p class="action-bar__folder-stats">
                 {{ folder.learnedCards }} đã học •
                 <span class="text-orange">{{ folder.newCards }} mới</span> •
@@ -234,7 +230,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
-            <p>Nhấn vào <strong>"Chọn bài học"</strong> phía trên để bắt đầu</p>
+            <p>Học từ một Lesson để thêm thẻ vào SRS chung</p>
           </div>
         }
       </div>

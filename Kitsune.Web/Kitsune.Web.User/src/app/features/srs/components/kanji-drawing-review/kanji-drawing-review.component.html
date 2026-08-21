@@ -34,4 +34,12 @@
   @if (feedback(); as result) {
     <p class="drawing-review__feedback" [class.drawing-review__feedback--correct]="result.correct" [class.drawing-review__feedback--wrong]="!result.correct">{{ result.message }}</p>
   }
+
+  @if (showAnswer()) {
+    <aside class="drawing-review__answer" aria-label="Đáp án Kanji và mẫu nét viết">
+      <span class="drawing-review__answer-label">Đáp án · Mẫu nét đã hiện trên ô viết</span>
+      <strong class="drawing-review__answer-character">{{ character }}</strong>
+      <span class="drawing-review__answer-meta">{{ expectedStrokeCount() || strokeCount || '—' }} nét</span>
+    </aside>
+  }
 </section>

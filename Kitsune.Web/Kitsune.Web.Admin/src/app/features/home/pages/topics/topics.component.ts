@@ -34,6 +34,7 @@ export class TopicManagementComponent implements OnInit {
   readonly aiPlan = signal<AiTopicPlan | null>(null);
   readonly activeTopic = computed(() => this.topics().find((topic) => topic.id === this.selectedTopicId()) ?? null);
   readonly activeLesson = computed(() => this.activeTopic()?.lessons.find((lesson) => lesson.id === this.selectedLessonId()) ?? null);
+  readonly activeTopicHasPublishedLessons = computed(() => this.activeTopic()?.lessons.some((lesson) => lesson.isPublished) ?? false);
   readonly lessonVocabularyCount = computed(() => this.lessonItems().filter((item) => item.itemType === 'vocabulary').length);
   readonly lessonKanjiCount = computed(() => this.lessonItems().filter((item) => item.itemType === 'kanji').length);
 
@@ -186,6 +187,56 @@ export class TopicManagementComponent implements OnInit {
     this.service.removeLessonItem(item.lessonItemId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => { this.busy.set(false); this.message.set('Đã gỡ học liệu khỏi bài học nháp.'); this.reload(); },
       error: () => { this.busy.set(false); this.message.set('Không thể gỡ học liệu khỏi bài học.'); },
+    });
+  }
+
+  deleteTopic(): void {
+    const topic = this.activeTopic();
+    if (!topic || topic.isPublished || this.busy()) return;
+    if (this.activeTopicHasPublishedLessons()) {
+      this.message.set('Không thể xóa Topic khi vẫn có Lesson đã xuất bản.');
+      return;
+    }
+    const lessonLabel = topic.lessons.length === 1 ? '1 Lesson nháp' : `${topic.lessons.length} Lesson nháp`;
+    if (!window.confirm(`Xóa vĩnh viễn Topic “${topic.title}” và ${lessonLabel}? Toàn bộ học liệu, tiến độ Lesson và liên kết SRS thuộc các Lesson này cũng sẽ bị xóa. Thao tác không thể hoàn tác.`)) return;
+
+    this.busy.set(true);
+    this.service.deleteTopic(topic.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.selectedTopicId.set(null);
+        this.selectedLessonId.set(null);
+        this.resetCatalogPicker();
+        this.lessonItems.set([]);
+        this.busy.set(false);
+        this.message.set(`Đã xóa vĩnh viễn Topic “${topic.title}” cùng ${lessonLabel}.`);
+        this.reload();
+      },
+      error: (error: unknown) => {
+        this.busy.set(false);
+        this.message.set(this.readErrorMessage(error, 'Không thể xóa Topic.'));
+      },
+    });
+  }
+
+  deleteLesson(): void {
+    const lesson = this.activeLesson();
+    if (!lesson || lesson.isPublished || this.busy()) return;
+    if (!window.confirm(`Xóa vĩnh viễn Lesson “${lesson.title}”? Toàn bộ học liệu, tiến độ Lesson và liên kết SRS thuộc bài này cũng sẽ bị xóa. Thao tác không thể hoàn tác.`)) return;
+
+    this.busy.set(true);
+    this.service.deleteLesson(lesson.id).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.selectedLessonId.set(null);
+        this.resetCatalogPicker();
+        this.lessonItems.set([]);
+        this.busy.set(false);
+        this.message.set(`Đã xóa vĩnh viễn Lesson “${lesson.title}”.`);
+        this.reload();
+      },
+      error: (error: unknown) => {
+        this.busy.set(false);
+        this.message.set(this.readErrorMessage(error, 'Không thể xóa Lesson.'));
+      },
     });
   }
 

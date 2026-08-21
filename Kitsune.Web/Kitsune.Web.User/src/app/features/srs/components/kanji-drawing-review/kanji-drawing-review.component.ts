@@ -46,6 +46,7 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
   readonly error = signal<string | null>(null);
   readonly feedback = signal<{ correct: boolean; message: string } | null>(null);
   readonly showHint = signal(false);
+  readonly showAnswer = signal(false);
   readonly drawnStrokeCount = signal(0);
   readonly expectedStrokeCount = signal(0);
 
@@ -108,11 +109,13 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
     this.activeStroke = null;
     this.drawnStrokeCount.set(0);
     this.feedback.set(null);
+    this.showAnswer.set(false);
     this.redraw();
   }
 
   revealHint(): void {
     this.showHint.set(true);
+    this.showAnswer.set(true);
     this.redraw();
   }
 
@@ -166,6 +169,7 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
     this.error.set(null);
     this.feedback.set(null);
     this.showHint.set(false);
+    this.showAnswer.set(false);
     this.userStrokes = [];
     this.activeStroke = null;
     this.drawnStrokeCount.set(0);
@@ -384,7 +388,10 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
 
   private report(correct: boolean, message: string): void {
     this.feedback.set({ correct, message });
-    if (!correct) this.showHint.set(true);
+    if (!correct) {
+      this.showHint.set(true);
+      this.showAnswer.set(true);
+    }
     this.redraw();
     this.checked.emit(correct);
   }

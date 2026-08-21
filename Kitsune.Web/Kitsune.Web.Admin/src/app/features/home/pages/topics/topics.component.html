@@ -28,10 +28,16 @@
       @if (activeTopic(); as topic) {
         <div class="topic-heading">
           <div><p>Chủ đề đang chọn</p><h2>{{ topic.title }}</h2><span>{{ topic.description }}</span></div>
-          <button type="button" class="publish-button" [class.published]="topic.isPublished" (click)="toggleTopicPublished()" [disabled]="busy()">
-            {{ topic.isPublished ? 'Đưa về nháp' : 'Xuất bản chủ đề' }}
-          </button>
+          <div class="topic-actions">
+            <button type="button" class="publish-button" [class.published]="topic.isPublished" (click)="toggleTopicPublished()" [disabled]="busy()">
+              {{ topic.isPublished ? 'Đưa về nháp' : 'Xuất bản chủ đề' }}
+            </button>
+            @if (!topic.isPublished) {
+              <button type="button" class="danger-button" (click)="deleteTopic()" [disabled]="busy() || activeTopicHasPublishedLessons()" [title]="activeTopicHasPublishedLessons() ? 'Hãy đưa toàn bộ Lesson đã xuất bản về nháp trước.' : 'Xóa vĩnh viễn Topic và toàn bộ Lesson nháp.'">Xóa Topic</button>
+            }
+          </div>
         </div>
+        @if (!topic.isPublished && activeTopicHasPublishedLessons()) { <p class="delete-guard">Topic này chưa thể xóa vì có Lesson đã xuất bản. Đưa các Lesson đó về nháp trước.</p> }
         <form class="topic-editor" (ngSubmit)="saveTopic()">
           <div><p>Chỉnh sửa lộ trình</p><small>{{ topic.isPublished ? 'Chủ đề đã xuất bản: chỉ có thể đổi tên.' : 'Bản nháp: có thể đổi tên, mô tả và trình độ.' }}</small></div>
           <input name="editTopicTitle" [(ngModel)]="editTopicTitle" placeholder="Tên chủ đề" required />
@@ -50,9 +56,12 @@
         @if (activeLesson(); as selectedLesson) {
           <div class="lesson-status">
             <span>{{ selectedLesson.isPublished ? 'Bài học đang hiển thị cho người học' : 'Bài học vẫn là bản nháp' }}</span>
-            <button type="button" class="publish-button" [class.published]="selectedLesson.isPublished" (click)="toggleLessonPublished()" [disabled]="busy() || selectedLesson.isPublished">
-              {{ selectedLesson.isPublished ? 'Nội dung đã khóa' : 'Xuất bản bài học' }}
-            </button>
+            <div class="lesson-actions">
+              <button type="button" class="publish-button" [class.published]="selectedLesson.isPublished" (click)="toggleLessonPublished()" [disabled]="busy() || selectedLesson.isPublished">
+                {{ selectedLesson.isPublished ? 'Nội dung đã khóa' : 'Xuất bản bài học' }}
+              </button>
+              @if (!selectedLesson.isPublished) { <button type="button" class="danger-button" (click)="deleteLesson()" [disabled]="busy()">Xóa Lesson</button> }
+            </div>
           </div>
 
           <form class="lesson-editor" (ngSubmit)="saveLesson()">

@@ -31,6 +31,7 @@
   box-sizing: border-box;
 }
 
+
 /* ─── Toast ─────────────────────────────────────────────────────── */
 .srs-toast {
   position: fixed;
@@ -656,6 +657,7 @@
   animation: fadeInUp 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
@@ -668,7 +670,7 @@
   background: var(--border-light);
   border-radius: 100px;
   overflow: hidden;
-  margin-bottom: 28px;
+  margin-bottom: 14px;
 }
 
 .study-progress-bar__fill {
@@ -684,7 +686,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-bottom: 32px;
+  margin-bottom: 14px;
 }
 
 .study-back-btn {
@@ -753,7 +755,7 @@
 .study-area {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 10px;
 }
 
 .study-area--center {
@@ -1197,7 +1199,7 @@
 .quiz-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
 }
 
 .quiz-mode-strip {

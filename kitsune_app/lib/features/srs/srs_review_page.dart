@@ -110,67 +110,28 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
   Future<void> _loadDashboard() async {
     final repo = ref.read(kitsuneApiProvider);
-    final cachedSession = await repo.getCachedLessonSrsSession();
-    if (cachedSession != null && mounted) {
-      setState(() {
-        _dashboardFolders = [
-          _DashboardFolder(
-            lesson: LessonDto(
-              id: cachedSession.folderId,
-              topicId: 0,
-              title: cachedSession.folderName,
-              description: '',
-              orderIndex: 0,
-              estimatedMinutes: 0,
-              itemCount: cachedSession.overview.totalCards,
-            ),
-            overview: cachedSession.overview,
-          ),
-        ];
-        _selectedFolderId = cachedSession.folderId;
-        _session = cachedSession;
-        _resetStudyState(cachedSession);
-        _isLoading = false;
-      });
-    } else if (mounted) {
-      setState(() => _isLoading = true);
-    }
+    if (mounted) setState(() => _isLoading = true);
 
     try {
       final initialData = await Future.wait<dynamic>([
-        repo.getTopicsWithLessons(),
-        repo.getActiveLessonId(),
+        repo.getGlobalSrsSession(),
         repo.getDailySrsGoal(),
       ]);
-      final lessons = (initialData[0] as List<TopicDto>)
-          .expand((topic) => topic.lessons)
-          .toList();
-      final preferredFolderId =
-          initialData[1] as int? ?? cachedSession?.folderId;
-      final dailyGoal = initialData[2] as int?;
-      final sessionFuture = preferredFolderId == null
-          ? Future<FolderSrsSession?>.value(null)
-          : repo.getLessonSrsSession(lessonId: preferredFolderId);
-      final session = await sessionFuture;
-      final activeLesson = session == null
-          ? null
-          : lessons
-              .where((lesson) => lesson.id == session.folderId)
-              .firstOrNull;
+      final session = initialData[0] as FolderSrsSession?;
+      final dailyGoal = initialData[1] as int?;
       final dashboards = session == null
           ? const <_DashboardFolder>[]
           : [
               _DashboardFolder(
-                lesson: activeLesson ??
-                    LessonDto(
-                      id: session.folderId,
-                      topicId: 0,
-                      title: session.folderName,
-                      description: '',
-                      orderIndex: 0,
-                      estimatedMinutes: 0,
-                      itemCount: session.overview.totalCards,
-                    ),
+                lesson: LessonDto(
+                  id: session.folderId,
+                  topicId: 0,
+                  title: session.folderName,
+                  description: '',
+                  orderIndex: 0,
+                  estimatedMinutes: 0,
+                  itemCount: session.overview.totalCards,
+                ),
                 overview: session.overview,
               ),
             ];
@@ -181,7 +142,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
       setState(() {
         _dashboardFolders = dashboards;
-        _selectedFolderId = preferredFolderId;
+        _selectedFolderId = session?.folderId;
         _session = session;
         _dailyGoal = dailyGoal;
         _resetStudyState(session);
@@ -311,7 +272,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         repo.getDailySrsGoal(),
         activate
             ? repo.activateLesson(folderId)
-            : repo.getLessonSrsSession(lessonId: folderId),
+            : repo.getGlobalSrsSession(),
       ]);
       final dailyGoal = result[0] as int?;
       final session = result[1] as FolderSrsSession?;
@@ -321,12 +282,12 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       }
 
       setState(() {
-        _selectedFolderId = folderId;
+        _selectedFolderId = session?.folderId;
         _session = session;
         _dailyGoal = dailyGoal;
         _resetStudyState(session);
       });
-      _refreshOverview(folderId, session?.overview);
+      _refreshOverview(session?.folderId ?? folderId, session?.overview);
     } catch (error) {
       _showError(error);
     } finally {
@@ -971,10 +932,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   Future<void> _reloadActiveFolder() async {
-    if (_selectedFolderId == null) {
-      return;
-    }
-    await _openFolder(_selectedFolderId!, activate: false);
+    await _openFolder(0, activate: false);
     if (!mounted) {
       return;
     }
@@ -1028,7 +986,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           KitsuneHeroCard(
             title: 'Sổ tay ôn tập với 6 chế độ câu hỏi như bên web.',
             subtitle:
-                'Ôn đúng bài bạn đang học, với thẻ mới và thẻ đến hạn của bài đó.',
+                'Mọi thẻ từ các bài đã học được trộn trong một hàng đợi SRS chung.',
             accent: KitsuneColors.secondary,
             trailing: Container(
               width: 96,
@@ -1054,7 +1012,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   KitsuneSectionHeader(
-                    title: _activeFolder!.overview.folderName,
+                    title: 'SRS chung',
                     subtitle:
                         '${_activeFolder!.overview.totalCards} thẻ tổng • ${_activeFolder!.overview.learnedCards} đã học',
                     accent: KitsuneColors.primary,

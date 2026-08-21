@@ -176,6 +176,8 @@ interface LessonProgressRow {
 
 const ACTIVE_FOLDER_STORAGE_KEY = 'kitsune.srs.activeFolderId';
 const ACTIVE_LESSON_STORAGE_KEY = 'kitsune.srs.activeLessonId';
+const GLOBAL_SRS_ID = 0;
+const GLOBAL_SRS_NAME = 'SRS chung';
 const DAILY_GOAL_STORAGE_PREFIX = 'kitsune.srs.dailyGoal.';
 const DAILY_LEARNED_STORAGE_PREFIX = 'kitsune.srs.learnedCards.';
 const LESSON_SESSION_CACHE_PREFIX = 'kitsune.srs.lessonSession.';
@@ -250,6 +252,10 @@ export class SrsService {
 
   getLessonSession(lessonId?: number): Observable<FolderSrsSession | null> {
     return from(this.loadLessonSession(lessonId ?? this.getActiveLessonId() ?? undefined));
+  }
+
+  getGlobalSession(): Observable<FolderSrsSession | null> {
+    return from(this.loadGlobalSession());
   }
 
   getLessonOverviews(
@@ -386,10 +392,58 @@ export class SrsService {
   }
 
   private async activateLessonNow(lessonId: number): Promise<FolderSrsSession> {
-    const session = await this.loadLessonSession(lessonId);
-    if (!session) throw new Error('Không thể khởi tạo SRS cho bài học này.');
+    const lessonSession = await this.loadLessonSession(lessonId);
+    if (!lessonSession) throw new Error('Không thể khởi tạo SRS cho bài học này.');
     this.setActiveLessonId(lessonId);
-    return session;
+    const globalSession = await this.loadGlobalSession();
+    if (!globalSession) throw new Error('Không thể tải SRS chung.');
+    return globalSession;
+  }
+
+  private async loadGlobalSession(): Promise<FolderSrsSession | null> {
+    const { data: authData } = await supabase.auth.getUser();
+    const email = authData.user?.email;
+    if (!email) return null;
+    const userId = await this.getCurrentUserId(email);
+    const { data: cardData, error: cardError } = await supabase
+      .from('SRSCards')
+      .select('Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate, LastReviewedAt')
+      .eq('UserId', userId);
+    if (cardError) throw cardError;
+
+    const cards = (cardData ?? []) as DbCardRow[];
+    const vocabularyIds = [...new Set(cards.flatMap((card) => card.VocabularyId == null ? [] : [card.VocabularyId]))];
+    const kanjiIds = [...new Set(cards.flatMap((card) => card.KanjiId == null ? [] : [card.KanjiId]))];
+    const [{ data: vocabData, error: vocabError }, { data: kanjiData, error: kanjiError }] = await Promise.all([
+      vocabularyIds.length
+        ? supabase.from('Vocabularies').select('Id, Word, Pronunciation, Meaning, FolderId, SpecificData').in('Id', vocabularyIds)
+        : Promise.resolve({ data: [], error: null }),
+      kanjiIds.length
+        ? supabase.from('Kanji').select('Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi, Radical:RadicalId(RadicalCharacter, RadicalName)').in('Id', kanjiIds)
+        : Promise.resolve({ data: [], error: null }),
+    ]);
+    if (vocabError) throw vocabError;
+    if (kanjiError) throw kanjiError;
+
+    const [wrongReviewCounts, todayNewLearned, kanjiExamples] = await Promise.all([
+      this.loadWrongReviewCounts(cards.map((card) => card.Id)),
+      this.loadTodayNewLearned(cards.map((card) => card.Id)),
+      this.loadKanjiExamples(kanjiIds),
+    ]);
+    const vocabMap = new Map((vocabData ?? []).map((vocab) => [(vocab as VocabRow).Id, vocab as VocabRow]));
+    const kanjiMap = new Map((kanjiData ?? []).map((kanji) => [(kanji as unknown as KanjiRow).Id, kanji as unknown as KanjiRow]));
+    const mappedCards = cards
+      .filter((card) => card.VocabularyId != null ? vocabMap.has(card.VocabularyId) : card.KanjiId != null && kanjiMap.has(card.KanjiId))
+      .map((card) => this.mapRowToCard(card, vocabMap, kanjiMap, kanjiExamples, wrongReviewCounts, GLOBAL_SRS_ID, Date.now()));
+    const overview = this.buildOverview({ Id: GLOBAL_SRS_ID, FolderName: GLOBAL_SRS_NAME }, mappedCards, todayNewLearned);
+    return {
+      folderId: GLOBAL_SRS_ID,
+      folderName: GLOBAL_SRS_NAME,
+      overview,
+      cards: this.sortCards(mappedCards),
+      flashcards: this.sortCards(mappedCards.filter((card) => card.boxLevel === 0)),
+      quizCards: this.sortCards(mappedCards.filter((card) => this.isScheduledReviewDue(card.boxLevel, card.nextReviewDate))),
+    };
   }
 
   private async loadLessonSession(lessonId?: number): Promise<FolderSrsSession | null> {
