@@ -178,6 +178,8 @@ const ACTIVE_FOLDER_STORAGE_KEY = 'kitsune.srs.activeFolderId';
 const ACTIVE_LESSON_STORAGE_KEY = 'kitsune.srs.activeLessonId';
 const DAILY_GOAL_STORAGE_PREFIX = 'kitsune.srs.dailyGoal.';
 const DAILY_LEARNED_STORAGE_PREFIX = 'kitsune.srs.learnedCards.';
+const LESSON_SESSION_CACHE_PREFIX = 'kitsune.srs.lessonSession.';
+const LESSON_SESSION_CACHE_VERSION = 1;
 const BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
   0: 0,
   1: 30 * 60 * 1000,
@@ -248,6 +250,45 @@ export class SrsService {
 
   getLessonSession(lessonId?: number): Observable<FolderSrsSession | null> {
     return from(this.loadLessonSession(lessonId ?? this.getActiveLessonId() ?? undefined));
+  }
+
+  getLessonOverviews(
+    lessons: ReadonlyArray<{ id: number; title: string }>
+  ): Observable<FolderSrsOverview[]> {
+    return from(this.loadLessonOverviews(lessons));
+  }
+
+  async getCachedLessonSession(): Promise<FolderSrsSession | null> {
+    if (typeof window === 'undefined') return null;
+    const cacheKey = await this.getLessonSessionCacheKey();
+    if (!cacheKey) return null;
+    try {
+      const raw = window.localStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const payload = JSON.parse(raw) as { version?: unknown; session?: unknown };
+      if (payload.version !== LESSON_SESSION_CACHE_VERSION || !payload.session) return null;
+      return payload.session as FolderSrsSession;
+    } catch {
+      return null;
+    }
+  }
+
+  async cacheLessonSession(session: FolderSrsSession): Promise<void> {
+    if (typeof window === 'undefined') return;
+    const cacheKey = await this.getLessonSessionCacheKey();
+    if (!cacheKey) return;
+    try {
+      window.localStorage.setItem(
+        cacheKey,
+        JSON.stringify({
+          version: LESSON_SESSION_CACHE_VERSION,
+          savedAt: new Date().toISOString(),
+          session,
+        })
+      );
+    } catch {
+      // Local cache is an enhancement; a storage failure must not block review.
+    }
   }
 
   activateLesson(lessonId: number): Observable<FolderSrsSession> {
@@ -459,7 +500,7 @@ export class SrsService {
         };
       });
     const overview = this.buildOverview({ Id: lesson.Id, FolderName: lesson.Title }, mapped, todayNewLearned);
-    return {
+    const session: FolderSrsSession = {
       folderId: lesson.Id,
       folderName: lesson.Title,
       overview,
@@ -467,6 +508,70 @@ export class SrsService {
       flashcards: this.sortCards(mapped.filter((card) => card.boxLevel === 0)),
       quizCards: this.sortCards(mapped.filter((card) => this.isScheduledReviewDue(card.boxLevel, card.nextReviewDate))),
     };
+    void this.cacheLessonSession(session);
+    return session;
+  }
+
+  private async loadLessonOverviews(
+    lessons: ReadonlyArray<{ id: number; title: string }>
+  ): Promise<FolderSrsOverview[]> {
+    if (lessons.length === 0) return [];
+    const { data: authData } = await supabase.auth.getUser();
+    const email = authData.user?.email;
+    if (!email) return [];
+    const userId = await this.getCurrentUserId(email);
+    const lessonIds = lessons.map((lesson) => lesson.id);
+    const { data: itemData, error: itemError } = await supabase
+      .from('LessonItems')
+      .select('LessonId, VocabularyId, KanjiId')
+      .in('LessonId', lessonIds);
+    if (itemError) throw itemError;
+
+    const items = (itemData ?? []) as Pick<LessonSrsItemRow, 'LessonId' | 'VocabularyId' | 'KanjiId'>[];
+    const vocabularyIds = [
+      ...new Set(items.flatMap((item) => item.VocabularyId == null ? [] : [item.VocabularyId])),
+    ];
+    const kanjiIds = [
+      ...new Set(items.flatMap((item) => item.KanjiId == null ? [] : [item.KanjiId])),
+    ];
+    const cards = await this.loadFolderCards(userId, vocabularyIds, kanjiIds);
+    const learnedToday = await this.loadTodayNewLearnedCardIds(cards.map((card) => card.Id));
+    const cardsByKey = new Map(cards.map((card) => [this.cardKey(card.VocabularyId, card.KanjiId), card]));
+    const itemsByLesson = new Map<number, typeof items>();
+    for (const item of items) {
+      const current = itemsByLesson.get(item.LessonId) ?? [];
+      current.push(item);
+      itemsByLesson.set(item.LessonId, current);
+    }
+
+    return lessons.map((lesson) => {
+      const lessonItems = itemsByLesson.get(lesson.id) ?? [];
+      const lessonCards = lessonItems
+        .map((item) => cardsByKey.get(this.cardKey(item.VocabularyId, item.KanjiId)))
+        .filter((card): card is DbCardRow => !!card);
+      const learnedCards = lessonCards.filter((card) => this.normalizeLevel(card.BoxLevel) > 0);
+      const futureDates = lessonCards
+        .filter((card) => {
+          const level = this.normalizeLevel(card.BoxLevel);
+          return level > 0 && !this.isScheduledReviewDue(level, card.NextReviewDate ?? '');
+        })
+        .map((card) => card.NextReviewDate ?? '')
+        .filter(Boolean)
+        .sort();
+      return {
+        folderId: lesson.id,
+        folderName: lesson.title,
+        totalCards: lessonItems.length,
+        newCards: lessonItems.length - learnedCards.length,
+        dueCards: lessonCards.filter((card) =>
+          this.isScheduledReviewDue(this.normalizeLevel(card.BoxLevel), card.NextReviewDate ?? '')
+        ).length,
+        learnedCards: learnedCards.length,
+        masteredCards: lessonCards.filter((card) => this.normalizeLevel(card.BoxLevel) >= 7).length,
+        todayNewLearned: lessonCards.filter((card) => learnedToday.has(card.Id)).length,
+        nextDueAt: futureDates[0] ?? null,
+      } satisfies FolderSrsOverview;
+    });
   }
 
   private async updateCardProgress(
@@ -704,6 +809,27 @@ export class SrsService {
     }
     const databaseCount = new Set((data ?? []).map((row) => row.CardId as number)).size;
     return Math.max(databaseCount, localCount);
+  }
+
+  private async loadTodayNewLearnedCardIds(cardIds: number[]): Promise<Set<number>> {
+    const localIds = this.getLocalNewCardIds();
+    if (cardIds.length === 0) return localIds;
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const { data, error } = await supabase
+      .from('SRSReviewLogs')
+      .select('CardId')
+      .in('CardId', cardIds)
+      .eq('OldBoxLevel', 0)
+      .gte('ReviewedAt', start.toISOString())
+      .lt('ReviewedAt', end.toISOString());
+    if (error) return localIds;
+    return new Set([
+      ...localIds,
+      ...(data ?? []).map((row) => (row as { CardId: number }).CardId),
+    ]);
   }
 
   private async loadKanjiComponents(vocabIds: number[]): Promise<KanjiComponentRow[]> {
@@ -1137,6 +1263,12 @@ export class SrsService {
     if (error) throw error;
     if (!profile) throw new Error('User profile not found â€” please reload the page');
     return (profile as { Id: number }).Id;
+  }
+
+  private async getLessonSessionCacheKey(): Promise<string | null> {
+    const { data } = await supabase.auth.getSession();
+    const userId = data.session?.user.id;
+    return userId ? `${LESSON_SESSION_CACHE_PREFIX}${userId}` : null;
   }
 
 }

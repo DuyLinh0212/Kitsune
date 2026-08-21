@@ -109,46 +109,74 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   Future<void> _loadDashboard() async {
-    setState(() => _isLoading = true);
+    final repo = ref.read(kitsuneApiProvider);
+    final cachedSession = await repo.getCachedLessonSrsSession();
+    if (cachedSession != null && mounted) {
+      setState(() {
+        _dashboardFolders = [
+          _DashboardFolder(
+            lesson: LessonDto(
+              id: cachedSession.folderId,
+              topicId: 0,
+              title: cachedSession.folderName,
+              description: '',
+              orderIndex: 0,
+              estimatedMinutes: 0,
+              itemCount: cachedSession.overview.totalCards,
+            ),
+            overview: cachedSession.overview,
+          ),
+        ];
+        _selectedFolderId = cachedSession.folderId;
+        _session = cachedSession;
+        _resetStudyState(cachedSession);
+        _isLoading = false;
+      });
+    } else if (mounted) {
+      setState(() => _isLoading = true);
+    }
+
     try {
-      final repo = ref.read(kitsuneApiProvider);
-      final folders = (await repo.getTopicsWithLessons())
+      final initialData = await Future.wait<dynamic>([
+        repo.getTopicsWithLessons(),
+        repo.getActiveLessonId(),
+        repo.getDailySrsGoal(),
+      ]);
+      final folders = (initialData[0] as List<TopicDto>)
           .expand((topic) => topic.lessons)
           .toList();
-      final dashboards = <_DashboardFolder>[];
-      for (final folder in folders) {
-        try {
-          final overview = await repo.getLessonSrsOverview(folder.id);
-          dashboards.add(_DashboardFolder(lesson: folder, overview: overview));
-        } catch (_) {
-          dashboards.add(
-            _DashboardFolder(
-              lesson: folder,
-              overview: FolderSrsOverview(
-                folderId: folder.id,
-                folderName: folder.title,
-                totalCards: 0,
-                newCards: 0,
-                dueCards: 0,
-                learnedCards: 0,
-                masteredCards: 0,
-                todayNewLearned: 0,
-                nextDueAt: null,
-                canSwitchFolder: true,
-              ),
+      final preferredFolderId = initialData[1] as int? ??
+          (folders.isNotEmpty ? folders.first.id : null);
+      final dailyGoal = initialData[2] as int?;
+      final overviewsFuture = repo.getLessonSrsOverviews(folders);
+      final sessionFuture = preferredFolderId == null
+          ? Future<FolderSrsSession?>.value(null)
+          : repo.getLessonSrsSession(lessonId: preferredFolderId);
+      final overviews = await overviewsFuture;
+      final session = await sessionFuture;
+      final overviewByLesson = {
+        for (final overview in overviews) overview.folderId: overview,
+      };
+      final dashboards = folders
+          .map(
+            (lesson) => _DashboardFolder(
+              lesson: lesson,
+              overview: overviewByLesson[lesson.id] ??
+                  FolderSrsOverview(
+                    folderId: lesson.id,
+                    folderName: lesson.title,
+                    totalCards: 0,
+                    newCards: 0,
+                    dueCards: 0,
+                    learnedCards: 0,
+                    masteredCards: 0,
+                    todayNewLearned: 0,
+                    nextDueAt: null,
+                    canSwitchFolder: true,
+                  ),
             ),
-          );
-        }
-      }
-
-      final preferredFolderId = await repo.getActiveLessonId() ??
-          (dashboards.isNotEmpty ? dashboards.first.lesson.id : null);
-
-      FolderSrsSession? session;
-      final dailyGoal = await repo.getDailySrsGoal();
-      if (preferredFolderId != null) {
-        session = await repo.getLessonSrsSession(lessonId: preferredFolderId);
-      }
+          )
+          .toList();
 
       if (!mounted) {
         return;
@@ -282,10 +310,14 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     setState(() => _isSubmitting = true);
     try {
       final repo = ref.read(kitsuneApiProvider);
-      final dailyGoal = await repo.getDailySrsGoal();
-      final session = activate
-          ? await repo.activateLesson(folderId)
-          : await repo.getLessonSrsSession(lessonId: folderId);
+      final result = await Future.wait<dynamic>([
+        repo.getDailySrsGoal(),
+        activate
+            ? repo.activateLesson(folderId)
+            : repo.getLessonSrsSession(lessonId: folderId),
+      ]);
+      final dailyGoal = result[0] as int?;
+      final session = result[1] as FolderSrsSession?;
 
       if (!mounted) {
         return;
@@ -297,7 +329,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         _dailyGoal = dailyGoal;
         _resetStudyState(session);
       });
-      await _refreshOverview(folderId);
+      _refreshOverview(folderId, session?.overview);
     } catch (error) {
       _showError(error);
     } finally {
@@ -307,24 +339,15 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     }
   }
 
-  Future<void> _refreshOverview(int folderId) async {
-    final repo = ref.read(kitsuneApiProvider);
-    try {
-      final overview = await repo.getLessonSrsOverview(folderId);
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _dashboardFolders = _dashboardFolders.map((item) {
-          if (item.lesson.id != folderId) {
-            return item;
-          }
-          return _DashboardFolder(lesson: item.lesson, overview: overview);
-        }).toList();
-      });
-      await _scheduleNextReview(_dashboardFolders);
-    } catch (_) {}
+  void _refreshOverview(int folderId, FolderSrsOverview? overview) {
+    if (overview == null || !mounted) return;
+    setState(() {
+      _dashboardFolders = _dashboardFolders.map((item) {
+        if (item.lesson.id != folderId) return item;
+        return _DashboardFolder(lesson: item.lesson, overview: overview);
+      }).toList();
+    });
+    unawaited(_scheduleNextReview(_dashboardFolders));
   }
 
   Future<void> _scheduleNextReview(List<_DashboardFolder> folders) async {
@@ -344,35 +367,15 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     if (_session == null || _selectedFolderId == null) {
       return;
     }
-
-    setState(() => _isSubmitting = true);
-    try {
-      final session = await ref
-          .read(kitsuneApiProvider)
-          .getLessonSrsSession(lessonId: _selectedFolderId);
-      if (!mounted) return;
-      if (session == null) {
-        _showMessage('Không thể tải lượt ôn tập của bài học này.');
-        return;
-      }
-
-      setState(() {
-        _session = session;
-        _resetStudyState(session);
-      });
-      if (session.flashcards.isEmpty && session.quizCards.isEmpty) {
-        _showMessage(_nextReviewWaitMessage(session.overview.nextDueAt));
-        return;
-      }
-
-      setState(() => _showStudyOverlay = true);
-    } catch (error) {
-      _showError(error);
-    } finally {
-      if (mounted) {
-        setState(() => _isSubmitting = false);
-      }
+    final session = _session!;
+    if (session.flashcards.isEmpty && session.quizCards.isEmpty) {
+      _showMessage(_nextReviewWaitMessage(session.overview.nextDueAt));
+      return;
     }
+    setState(() {
+      _resetStudyState(session);
+      _showStudyOverlay = true;
+    });
   }
 
   Future<void> _markFlashcardLearned() async {
@@ -395,6 +398,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         _flashCompleted += 1;
         _isCardFlipped = false;
       });
+      final session = _session;
+      if (session != null) {
+        unawaited(repo.cacheLessonSrsSession(session));
+      }
       _syncPhase();
     } catch (error) {
       _showError(error);
@@ -466,6 +473,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         return;
       }
       setState(() => _applyLocalProgress(progress));
+      final session = _session;
+      if (session != null) {
+        unawaited(repo.cacheLessonSrsSession(session));
+      }
       _feedbackTimer?.cancel();
       _feedbackTimer = Timer(
         Duration(milliseconds: isCorrect ? 850 : 1350),

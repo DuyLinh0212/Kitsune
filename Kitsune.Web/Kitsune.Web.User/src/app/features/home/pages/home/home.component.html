@@ -1,182 +1,94 @@
-<!-- frontend/Kitsune.Web.User/src/app/features/home/pages/home/home.component.html -->
-<div class="dashboard-root">
-  <div class="dashboard-grid">
-
-    <!-- WELCOME BANNER (Glassmorphism & Floating Kana) -->
-    <div class="bento-card welcome-banner">
-      <!-- Background floating elements -->
-      <div class="welcome-deco" aria-hidden="true">
-        <span class="deco-kana deco-1">あ</span>
-        <span class="deco-kana deco-2">学</span>
-        <span class="deco-kana deco-3">語</span>
+<section class="dashboard-shell">
+  @if (isLoading()) {
+    <div class="dashboard-loading"><app-loading-fox message="Đang mở hành trình hôm nay..." /></div>
+  } @else {
+    <header class="dashboard-greeting">
+      <div>
+        <p class="eyebrow">Nghi thức học tập hôm nay</p>
+        <h1>Chào {{ displayName }} <span>✦</span></h1>
+        <p>Chỉ cần một phiên ngắn để viết tiếp hành trình tiếng Nhật của bạn.</p>
       </div>
+      <div class="streak-seal" [class.streak-seal--quiet]="streak() === 0">
+        <span>🔥</span><strong>{{ streak() }}</strong><small>ngày liên tiếp</small>
+      </div>
+    </header>
 
-      <!-- Main Content -->
-      <div class="welcome-body">
-        <div class="welcome-text">
-          <p class="welcome-greeting">Konnichiwa,</p>
-          <h2 class="welcome-name">{{ currentUser()?.fullName || currentUser()?.username || 'Bạn' }}</h2>
-          <p class="welcome-sub">Tiếp tục hành trình chinh phục tiếng Nhật của bạn nhé!</p>
+    <div class="ritual-grid">
+      <article class="ritual-card">
+        <div class="ritual-ink ritual-ink--left">学</div>
+        <div class="ritual-ink ritual-ink--right">続</div>
+        <div class="ritual-intro">
+          <span class="ritual-kicker">Hành trình hôm nay</span>
+          <h2>{{ hasReviewReady ? 'Một bước để giữ nhịp học' : 'Bạn đã sẵn sàng cho điều mới' }}</h2>
+          <p>{{ hasReviewReady ? srsCardsDue() + ' thẻ đang chờ bạn quay lại.' : 'Không còn thẻ đến hạn — hãy mở một bài học mới.' }}</p>
         </div>
 
-        <div class="welcome-stats">
-          <div class="stat-pill">
-            <span class="stat-emoji">🔥</span>
-            <div>
-              <span class="stat-val">{{ streak() }}</span>
-              <span class="stat-lbl">Chuỗi ngày</span>
-            </div>
-          </div>
-          <div class="stat-pill">
-            <span class="stat-emoji">⭐</span>
-            <div>
-              <span class="stat-val">{{ totalXP() | number }}</span>
-              <span class="stat-lbl">Tổng XP</span>
-            </div>
-          </div>
-          <div class="stat-pill clickable" (click)="router.navigate(['/srs'])">
-            <span class="stat-emoji">📚</span>
-            <div>
-              <span class="stat-val">{{ srsCardsDue() }}</span>
-              <span class="stat-lbl">Thẻ cần ôn</span>
-            </div>
+        <div class="sun-progress" [style.--progress]="dailyProgress() + '%'">
+          <div class="sun-progress__inner">
+            <small>Tiến độ hôm nay</small>
+            <strong>{{ completedToday() }}<span>/{{ dailyTarget }}</span></strong>
+            <em>thẻ đã chạm</em>
           </div>
         </div>
-      </div>
-    </div>
 
-    @if (isLoading()) {
-      <div class="bento-card dashboard-loading">
-        <app-loading-fox message="Đang tải bảng điều khiển..." />
-      </div>
-    } @else {
-
-    <!-- 2. SRS CARD (Core Action) -->
-    <div class="bento-card srs-card">
-      <div class="card-header">
-        <h3 class="card-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          Hôm nay
-        </h3>
-        <button class="header-link" (click)="router.navigate(['/srs'])">Đi tới Ôn tập →</button>
-      </div>
-
-      @if (srsCardsDue() > 0) {
-        <div class="srs-due-block">
-          <div class="srs-due-badge">{{ srsCardsDue() }}</div>
-          <p class="srs-due-text">thẻ từ vựng đang chờ bạn ôn tập</p>
-          <button class="btn-primary srs-start-btn" (click)="router.navigate(['/srs'])">
-            Bắt đầu ôn tập
-          </button>
+        <div class="fox-companion" aria-hidden="true">
+          <img src="/Logo.png" alt="" />
+          <span>いっしょに！</span>
         </div>
-      } @else {
-        <div class="srs-due-block srs-done">
-          <span class="srs-done-icon">🎉</span>
-          <p class="srs-due-text">Bạn đã hoàn thành mục tiêu hôm nay!</p>
-        </div>
-      }
-    </div>
 
-    <!-- 3. MY FOLDERS (Bento sub-grid) -->
-    <div class="bento-card folders-card">
-      <div class="card-header">
-        <h3 class="card-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-          Thư mục của tôi
-        </h3>
-        <button class="header-link" (click)="router.navigate(['/folders'])">Xem tất cả</button>
-      </div>
+        <button class="ritual-cta" type="button" (click)="router.navigate([nextActionRoute])">
+          <span>{{ nextActionLabel }}</span>
+          <b>→</b>
+        </button>
+      </article>
 
-      @if (folders().length === 0) {
-        <div class="empty-state">
-          <span>📂</span>
-          <p>Bạn chưa tạo thư mục nào</p>
-          <button class="header-link" (click)="router.navigate(['/folders'])">+ Tạo ngay</button>
-        </div>
-      } @else {
-        <div class="folders-grid">
-          @for (folder of folders(); track folder.id; let i = $index) {
-            <div class="folder-tile" (click)="router.navigate(['/folders', folder.id])">
-              <span class="folder-icon-big">📁</span>
-              <span class="folder-tile-name">{{ folder.name }}</span>
-              <span class="folder-tile-count">{{ folder.vocabCount }} từ vựng</span>
-            </div>
-          }
-          @for (_ of [].constructor(Math.max(0, 4 - folders().length)); track $index) {
-            <div class="folder-tile folder-empty" (click)="router.navigate(['/folders'])">
-              <span class="folder-icon-big">＋</span>
-              <span class="folder-tile-name">Thêm mới</span>
+      <aside class="weekly-card">
+        <div class="section-title"><div><span>Nhịp học</span><h2>7 ngày vừa qua</h2></div><strong>{{ formatWeekDuration(totalWeekHours()) }}</strong></div>
+        <div class="week-chart" aria-label="Thời gian học trong bảy ngày gần nhất">
+          @for (hour of weeklyHours(); track $index) {
+            <div class="week-day">
+              <span>{{ formatWeekDuration(hour) }}</span>
+              <div class="week-track"><i [class.week-bar--today]="$index === 6" [style.height.%]="getBarHeight(hour)"></i></div>
+              <small>{{ getDayLabel($index) }}</small>
             </div>
           }
         </div>
-      }
+        <p>Chỉ tính thời gian bạn đang học trên Kitsune.</p>
+      </aside>
     </div>
 
-    <!-- 4. RECENT QUIZZES -->
-    <div class="bento-card quizzes-card">
-      <div class="card-header">
-        <h3 class="card-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-          Quiz gần đây
-        </h3>
-        <button class="header-link" (click)="router.navigate(['/my-quizzes'])">Xem tất cả</button>
-      </div>
+    <div class="next-actions">
+      <button type="button" class="action-card" (click)="router.navigate(['/srs'])">
+        <span class="action-icon">↻</span><span><small>Ưu tiên ngay</small><strong>Ôn {{ srsCardsDue() }} thẻ</strong><em>SRS đang chờ bạn</em></span><b>→</b>
+      </button>
+      <button type="button" class="action-card" (click)="router.navigate(['/topics'])">
+        <span class="action-icon">本</span><span><small>Tiếp nối</small><strong>Học một bài</strong><em>Đi theo lộ trình của bạn</em></span><b>→</b>
+      </button>
+      <button type="button" class="action-card" (click)="router.navigate(['/quizzes'])">
+        <span class="action-icon">?</span><span><small>Khởi động nhanh</small><strong>Quiz 5 phút</strong><em>Kiểm tra điều vừa nhớ</em></span><b>→</b>
+      </button>
+    </div>
 
-      @if (myQuizzes().length === 0) {
-        <div class="empty-state">
-          <span>📝</span>
-          <p>Chưa có bài quiz nào</p>
-          <button class="create-quiz-btn" (click)="router.navigate(['/quizzes/create'])">Tạo quiz mới</button>
+    <div class="insight-grid">
+      <article class="achievement-card">
+        <div class="section-title"><div><span>Thành quả</span><h2>Nhịp của bạn</h2></div><span class="sun-icon">☀</span></div>
+        <div class="achievement-stats">
+          <div><strong>{{ totalXP() | number }}</strong><span>Tổng XP</span></div>
+          <div><strong>{{ streak() }}</strong><span>Ngày liên tiếp</span></div>
+          <div><strong>{{ dailyProgress() }}%</strong><span>Mục tiêu hôm nay</span></div>
         </div>
-      } @else {
-        <div class="quiz-list">
-          @for (quiz of myQuizzes().slice(0, 4); track quiz.id) {
-            <div class="quiz-row" (click)="router.navigate(['/my-quizzes', quiz.id])">
-              <div class="quiz-row-info">
-                <span class="quiz-row-title">{{ quiz.title }}</span>
-                <span class="quiz-row-date">{{ formatAttemptDate(quiz.lastAttemptDate) }}</span>
-              </div>
-              <div class="quiz-row-acc"
-                [class.acc-good]="quiz.lastAccuracy !== null && quiz.lastAccuracy >= 70"
-                [class.acc-bad]="quiz.lastAccuracy !== null && quiz.lastAccuracy < 70"
-                [class.acc-none]="quiz.lastAccuracy === null">
-                {{ quiz.lastAccuracy !== null ? (quiz.lastAccuracy | number:'1.0-0') + '%' : '—' }}
-              </div>
-            </div>
-          }
+        <p>Mỗi phiên học ngắn đều tích luỹ thành phản xạ lâu dài.</p>
+      </article>
+
+      <article class="challenge-card">
+        <div class="challenge-copy">
+          <span>Thử thách cộng đồng</span>
+          <h2>Học đều — tiến xa</h2>
+          <p>Hoàn thành một quiz hôm nay để tham gia bảng xếp hạng tuần.</p>
+          <button type="button" (click)="router.navigate(['/quizzes'])">Tham gia thử thách <b>→</b></button>
         </div>
-        <button class="create-quiz-btn" (click)="router.navigate(['/quizzes/create'])">+ Luyện tập thêm</button>
-      }
+        <div class="challenge-art" aria-hidden="true"><span>狐</span><i>✦</i><i>✦</i></div>
+      </article>
     </div>
-
-    <!-- 5. WEEKLY USAGE -->
-    <div class="bento-card activity-card">
-      <div class="card-header">
-        <h3 class="card-title">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V9M10 19V5M16 19v-7M22 19V3"/></svg>
-          Nhịp học tuần này
-        </h3>
-        <span class="activity-total">{{ formatWeekDuration(totalWeekHours) }} mở web</span>
-      </div>
-      <div class="usage-chart" aria-label="Biểu đồ số giờ mở web trong 7 ngày gần nhất">
-        @for (value of srsWeekData(); track $index) {
-          <div class="usage-day">
-            <span class="usage-value">{{ formatWeekDuration(value) }}</span>
-            <div class="usage-track">
-              <div
-                class="usage-bar"
-                [class.usage-bar--today]="$index === 6"
-                [style.height.%]="getBarHeight(value)"
-              ></div>
-            </div>
-            <span class="usage-label">{{ getDayLabel($index) }}</span>
-          </div>
-        }
-      </div>
-      <p class="activity-note">Chỉ tính thời gian tab Kitsune đang được mở, không tính lúc tab chạy nền.</p>
-    </div>
-
-    }
-
-  </div>
-</div>
+  }
+</section>

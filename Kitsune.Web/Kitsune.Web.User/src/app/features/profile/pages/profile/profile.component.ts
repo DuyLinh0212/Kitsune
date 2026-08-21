@@ -178,7 +178,7 @@ export class ProfileComponent implements OnInit {
 
       if (updateError) throw updateError;
 
-      this.userProfile.update((u) => (u ? { ...u, avatarUrl: publicUrl } : u));
+      this.applyAvatarUrl(publicUrl);
       this.avatarPreview.set(publicUrl);
       this.showToast('Cập nhật ảnh đại diện thành công!', 'success');
     } catch {
@@ -202,7 +202,7 @@ export class ProfileComponent implements OnInit {
 
       if (error) throw error;
 
-      this.userProfile.update((u) => (u ? { ...u, avatarUrl: null } : u));
+      this.applyAvatarUrl(null);
       this.avatarPreview.set(null);
       this.showToast('Đã xóa ảnh đại diện', 'success');
     } catch {
@@ -306,6 +306,15 @@ export class ProfileComponent implements OnInit {
   private showToast(message: string, type: 'success' | 'error'): void {
     this.toast.set({ message, type });
     setTimeout(() => this.toast.set(null), 3000);
+  }
+
+  private applyAvatarUrl(avatarUrl: string | null): void {
+    const profile = this.userProfile();
+    if (!profile) return;
+
+    const updatedProfile: UserProfile = { ...profile, avatarUrl };
+    this.userProfile.set(updatedProfile);
+    this.authService.setCurrentUser(updatedProfile);
   }
 
   private async getCurrentUserId(): Promise<number> {

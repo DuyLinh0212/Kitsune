@@ -1,5 +1,6 @@
 // kitsune_app/lib/core/api/kitsune_api.dart
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -23,6 +24,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// Single entry point for every Supabase REST/Storage/Auth call the app makes.
 /// Replaces the previous per-feature `*_repository.dart` files.
 class KitsuneApi {
+  static const _lessonSrsCacheVersion = 1;
+  static const _lessonSrsCachePrefix = 'kitsune.srs.lessonSession.';
+
   final SupabaseClient client;
   UserProfile? _currentUser;
 
@@ -886,7 +890,7 @@ class KitsuneApi {
             ))
         .toList();
 
-    return FolderSrsSession(
+    final session = FolderSrsSession(
       folderId: resolvedId,
       folderName: context.folderName,
       overview: overview,
@@ -894,6 +898,7 @@ class KitsuneApi {
       flashcards: flashcards,
       quizCards: quizCards,
     );
+    return session;
   }
 
   Future<FolderSrsOverview> getFolderOverview(int folderId) async {
@@ -999,17 +1004,12 @@ class KitsuneApi {
       todayNewLearned: details[1] as int,
       wrongReviewCounts: details[2] as Map<int, int>,
       cards: cards,
+      lessonItems: items,
     );
   }
 
-  Future<void> _linkLessonCards(
-      int lessonId, int userId, List<Map<String, dynamic>> cards) async {
-    final response =
-        await client.dio.get(client.table('LessonItems'), queryParameters: {
-      'select': 'Id,VocabularyId,KanjiId',
-      'LessonId': 'eq.$lessonId',
-    });
-    final items = (response.data as List<dynamic>).cast<Map<String, dynamic>>();
+  Future<void> _linkLessonCards(int userId, List<Map<String, dynamic>> items,
+      List<Map<String, dynamic>> cards) async {
     String key(int? vocabularyId, int? kanjiId) =>
         '${vocabularyId ?? 'v'}:${kanjiId ?? 'k'}';
     final cardByKey = <String, Map<String, dynamic>>{
@@ -1235,6 +1235,33 @@ class KitsuneApi {
       return max(databaseCount, localIds.length);
     } catch (_) {
       return localIds.length;
+    }
+  }
+
+  Future<Set<int>> _loadTodayNewLearnedCardIds(List<int> cardIds) async {
+    final localIds = await _getLocalNewCardIds();
+    if (cardIds.isEmpty) return localIds;
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, now.day).toUtc();
+    final end = start.add(const Duration(days: 1));
+    try {
+      final response = await client.dio.get(
+        client.table('SRSReviewLogs'),
+        queryParameters: {
+          'select': 'CardId',
+          'CardId': 'in.(${cardIds.join(',')})',
+          'OldBoxLevel': 'eq.0',
+          'ReviewedAt': 'gte.${start.toIso8601String()}',
+          'and': '(ReviewedAt.lt.${end.toIso8601String()})',
+        },
+      );
+      return {
+        ...localIds,
+        for (final row in response.data as List<dynamic>)
+          ((row as Map<String, dynamic>)['CardId'] as num).toInt(),
+      };
+    } catch (_) {
+      return localIds;
     }
   }
 
@@ -2197,9 +2224,9 @@ class KitsuneApi {
     if (insertedCards) {
       context = await _loadLessonSrsContext(resolvedId, userId);
     }
-    await _linkLessonCards(resolvedId, userId, context.cards);
+    await _linkLessonCards(userId, context.lessonItems, context.cards);
     final cards = _mapSrsCards(context);
-    return FolderSrsSession(
+    final session = FolderSrsSession(
       folderId: resolvedId,
       folderName: context.folderName,
       overview: _buildSrsOverview(context),
@@ -2210,6 +2237,8 @@ class KitsuneApi {
               level: card.boxLevel, nextReviewDate: card.nextReviewDate))
           .toList(),
     );
+    unawaited(cacheLessonSrsSession(session));
+    return session;
   }
 
   Future<FolderSrsOverview> getLessonSrsOverview(int lessonId) async {
@@ -2219,6 +2248,258 @@ class KitsuneApi {
     }
     return session.overview;
   }
+
+  /// Builds all lesson summaries from their items and existing SRS cards.
+  /// Full sessions also fetch Kanji prompts and review history, so using one for
+  /// every dashboard row created a mobile request waterfall.
+  Future<List<FolderSrsOverview>> getLessonSrsOverviews(
+      List<LessonDto> lessons) async {
+    if (lessons.isEmpty || client.userEmail == null) {
+      return const <FolderSrsOverview>[];
+    }
+
+    final userId = await getCurrentUserId();
+    final lessonIds = lessons.map((lesson) => lesson.id).toList();
+    final itemResponse = await client.dio.get(
+      client.table('LessonItems'),
+      queryParameters: {
+        'select': 'LessonId,VocabularyId,KanjiId',
+        'LessonId': 'in.(${lessonIds.join(',')})',
+      },
+    );
+    final items =
+        (itemResponse.data as List<dynamic>).cast<Map<String, dynamic>>();
+    final vocabularyIds = items
+        .map((item) => (item['VocabularyId'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet()
+        .toList();
+    final kanjiIds = items
+        .map((item) => (item['KanjiId'] as num?)?.toInt())
+        .whereType<int>()
+        .toSet()
+        .toList();
+    final cards = await _loadFolderSrsCards(userId, vocabularyIds, kanjiIds);
+    final cardIds = cards.map((card) => (card['Id'] as num).toInt()).toList();
+    final learnedToday = await _loadTodayNewLearnedCardIds(cardIds);
+    final cardsByKey = <String, Map<String, dynamic>>{
+      for (final card in cards)
+        SrsEngine.encodeKey(
+          (card['VocabularyId'] as num?)?.toInt(),
+          (card['KanjiId'] as num?)?.toInt(),
+        ): card,
+    };
+    final itemsByLesson = <int, List<Map<String, dynamic>>>{};
+    for (final item in items) {
+      final lessonId = (item['LessonId'] as num).toInt();
+      itemsByLesson.putIfAbsent(lessonId, () => []).add(item);
+    }
+
+    return lessons.map((lesson) {
+      final lessonItems = itemsByLesson[lesson.id] ?? const [];
+      final lessonCards = lessonItems
+          .map((item) => cardsByKey[SrsEngine.encodeKey(
+                (item['VocabularyId'] as num?)?.toInt(),
+                (item['KanjiId'] as num?)?.toInt(),
+              )])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+      final learned = lessonCards
+          .where((card) => (card['BoxLevel'] as int? ?? 0) > 0)
+          .length;
+      final futureDates = lessonCards
+          .where((card) {
+            final level = card['BoxLevel'] as int? ?? 0;
+            final nextReviewDate = card['NextReviewDate'] as String? ?? '';
+            return level > 0 &&
+                !SrsEngine.isScheduledReviewDue(
+                  level: level,
+                  nextReviewDate: nextReviewDate,
+                );
+          })
+          .map((card) => card['NextReviewDate'] as String? ?? '')
+          .where((date) => date.isNotEmpty)
+          .toList()
+        ..sort();
+      return FolderSrsOverview(
+        folderId: lesson.id,
+        folderName: lesson.title,
+        totalCards: lessonItems.length,
+        newCards: lessonItems.length - learned,
+        dueCards: lessonCards.where((card) {
+          return SrsEngine.isScheduledReviewDue(
+            level: card['BoxLevel'] as int? ?? 0,
+            nextReviewDate: card['NextReviewDate'] as String? ?? '',
+          );
+        }).length,
+        learnedCards: learned,
+        masteredCards: lessonCards
+            .where((card) => (card['BoxLevel'] as int? ?? 0) >= 7)
+            .length,
+        todayNewLearned: lessonCards
+            .where((card) => learnedToday.contains((card['Id'] as num).toInt()))
+            .length,
+        nextDueAt: futureDates.isEmpty ? null : futureDates.first,
+        canSwitchFolder: true,
+      );
+    }).toList();
+  }
+
+  Future<FolderSrsSession?> getCachedLessonSrsSession() async {
+    final cacheKey = _lessonSrsCacheKey();
+    if (cacheKey == null) return null;
+    try {
+      final raw = (await SharedPreferences.getInstance()).getString(cacheKey);
+      if (raw == null) return null;
+      final payload = jsonDecode(raw) as Map<String, dynamic>;
+      if (payload['version'] != _lessonSrsCacheVersion) return null;
+      return _sessionFromJson(payload['session'] as Map<String, dynamic>);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> cacheLessonSrsSession(FolderSrsSession session) async {
+    final cacheKey = _lessonSrsCacheKey();
+    if (cacheKey == null) return;
+    try {
+      await (await SharedPreferences.getInstance()).setString(
+        cacheKey,
+        jsonEncode({
+          'version': _lessonSrsCacheVersion,
+          'savedAt': DateTime.now().toUtc().toIso8601String(),
+          'session': _sessionToJson(session),
+        }),
+      );
+    } catch (_) {
+      // The live review session remains usable when local storage is unavailable.
+    }
+  }
+
+  String? _lessonSrsCacheKey() {
+    final email = client.userEmail?.trim().toLowerCase();
+    if (email == null || email.isEmpty) return null;
+    final userScope = base64Url.encode(utf8.encode(email)).replaceAll('=', '');
+    return '$_lessonSrsCachePrefix$userScope';
+  }
+
+  Map<String, dynamic> _sessionToJson(FolderSrsSession session) => {
+        'folderId': session.folderId,
+        'folderName': session.folderName,
+        'overview': _overviewToJson(session.overview),
+        'cards': session.cards.map(_cardToJson).toList(),
+      };
+
+  Map<String, dynamic> _overviewToJson(FolderSrsOverview overview) => {
+        'folderId': overview.folderId,
+        'folderName': overview.folderName,
+        'totalCards': overview.totalCards,
+        'newCards': overview.newCards,
+        'dueCards': overview.dueCards,
+        'learnedCards': overview.learnedCards,
+        'masteredCards': overview.masteredCards,
+        'todayNewLearned': overview.todayNewLearned,
+        'nextDueAt': overview.nextDueAt,
+      };
+
+  Map<String, dynamic> _cardToJson(SRSCardDto card) => {
+        'id': card.id,
+        'userId': card.userId,
+        'folderId': card.folderId,
+        'type': card.type.name,
+        'vocabularyId': card.vocabularyId,
+        'kanjiId': card.kanjiId,
+        'word': card.word,
+        'pronunciation': card.pronunciation,
+        'meaning': card.meaning,
+        'character': card.character,
+        'amHanViet': card.amHanViet,
+        'radicalCharacter': card.radicalCharacter,
+        'radicalName': card.radicalName,
+        'onyomi': card.onyomi,
+        'kunyomi': card.kunyomi,
+        'examples': card.examples
+            .map((example) => {
+                  'word': example.word,
+                  'pronunciation': example.pronunciation,
+                  'meaning': example.meaning,
+                })
+            .toList(),
+        'strokeCount': card.strokeCount,
+        'boxLevel': card.boxLevel,
+        'wrongReviewCount': card.wrongReviewCount,
+        'nextReviewDate': card.nextReviewDate,
+        'isDue': card.isDue,
+        'isNew': card.isNew,
+      };
+
+  FolderSrsSession _sessionFromJson(Map<String, dynamic> json) {
+    final cards = (json['cards'] as List<dynamic>)
+        .cast<Map<String, dynamic>>()
+        .map(_cardFromJson)
+        .toList();
+    return FolderSrsSession(
+      folderId: (json['folderId'] as num).toInt(),
+      folderName: json['folderName'] as String,
+      overview: _overviewFromJson(json['overview'] as Map<String, dynamic>),
+      cards: cards,
+      flashcards: cards.where((card) => card.boxLevel == 0).toList(),
+      quizCards: cards
+          .where((card) => SrsEngine.isScheduledReviewDue(
+                level: card.boxLevel,
+                nextReviewDate: card.nextReviewDate,
+              ))
+          .toList(),
+    );
+  }
+
+  FolderSrsOverview _overviewFromJson(Map<String, dynamic> json) =>
+      FolderSrsOverview(
+        folderId: (json['folderId'] as num).toInt(),
+        folderName: json['folderName'] as String,
+        totalCards: (json['totalCards'] as num).toInt(),
+        newCards: (json['newCards'] as num).toInt(),
+        dueCards: (json['dueCards'] as num).toInt(),
+        learnedCards: (json['learnedCards'] as num).toInt(),
+        masteredCards: (json['masteredCards'] as num).toInt(),
+        todayNewLearned: (json['todayNewLearned'] as num).toInt(),
+        nextDueAt: json['nextDueAt'] as String?,
+        canSwitchFolder: true,
+      );
+
+  SRSCardDto _cardFromJson(Map<String, dynamic> json) => SRSCardDto(
+        id: (json['id'] as num).toInt(),
+        userId: (json['userId'] as num).toInt(),
+        folderId: (json['folderId'] as num).toInt(),
+        type: json['type'] == SrsItemType.kanji.name
+            ? SrsItemType.kanji
+            : SrsItemType.vocabulary,
+        vocabularyId: (json['vocabularyId'] as num?)?.toInt(),
+        kanjiId: (json['kanjiId'] as num?)?.toInt(),
+        word: json['word'] as String,
+        pronunciation: json['pronunciation'] as String?,
+        meaning: json['meaning'] as String,
+        character: json['character'] as String?,
+        amHanViet: json['amHanViet'] as String?,
+        radicalCharacter: json['radicalCharacter'] as String?,
+        radicalName: json['radicalName'] as String?,
+        onyomi: json['onyomi'] as String?,
+        kunyomi: json['kunyomi'] as String?,
+        examples: (json['examples'] as List<dynamic>? ?? const [])
+            .cast<Map<String, dynamic>>()
+            .map((example) => SrsVocabularyExample(
+                  word: example['word'] as String,
+                  pronunciation: example['pronunciation'] as String?,
+                  meaning: example['meaning'] as String,
+                ))
+            .toList(),
+        strokeCount: (json['strokeCount'] as num?)?.toInt(),
+        boxLevel: (json['boxLevel'] as num).toInt(),
+        wrongReviewCount: (json['wrongReviewCount'] as num?)?.toInt() ?? 0,
+        nextReviewDate: json['nextReviewDate'] as String,
+        isDue: json['isDue'] as bool? ?? false,
+        isNew: json['isNew'] as bool? ?? false,
+      );
 
   Future<FolderSrsSession> activateLesson(int lessonId) async {
     final session = await getLessonSrsSession(lessonId: lessonId);
@@ -2350,6 +2631,7 @@ class _SrsContext {
   final int todayNewLearned;
   final Map<int, int> wrongReviewCounts;
   final List<Map<String, dynamic>> cards;
+  final List<Map<String, dynamic>> lessonItems;
 
   _SrsContext({
     required this.folderId,
@@ -2361,6 +2643,7 @@ class _SrsContext {
     required this.todayNewLearned,
     required this.wrongReviewCounts,
     required this.cards,
+    this.lessonItems = const [],
   });
 }
 

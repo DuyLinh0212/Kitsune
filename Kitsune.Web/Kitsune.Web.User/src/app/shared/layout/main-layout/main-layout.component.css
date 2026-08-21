@@ -1,47 +1,5 @@
-/* ===== MAIN LAYOUT ===== */
-.main-layout {
-  display: flex;
-  min-height: 100vh;
-  background: var(--paper-base);
-  font-family: 'Inter', 'Segoe UI', system-ui, sans-serif;
-  color: var(--ink-primary);
-  transition: background 0.2s ease, color 0.2s ease;
-}
-
-/* ===== MAIN CONTENT ===== */
-.main-content {
-  flex: 1;
-  margin-left: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  transition: margin-left 0.25s ease;
-}
-
-.main-content.sidebar-open {
-  margin-left: 240px;
-}
-
-/* ===== PAGE CONTENT ===== */
-.page-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-/* Desktop: content luôn shift sang phải để nhường chỗ sidebar */
-@media (min-width: 769px) {
-  .main-content {
-    margin-left: 240px !important;
-  }
-}
-
-/* Mobile: không shift, sidebar overlay */
-@media (max-width: 768px) {
-  .main-content {
-    margin-left: 0;
-  }
-  .main-content.sidebar-open {
-    margin-left: 0;
-  }
-}
+.main-layout { min-height: 100vh; background: #fff8e8; color: #2b2417; font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+.main-content { min-height: 100vh; margin-left: 270px; transition: margin-left .26s cubic-bezier(.2,.8,.2,1); }
+.main-content--collapsed { margin-left: 82px; }
+.page-content { min-height: calc(100vh - 78px); }
+@media (max-width: 768px) { .main-content, .main-content--collapsed { margin-left: 0; }.page-content { min-height: calc(100vh - 68px); } }

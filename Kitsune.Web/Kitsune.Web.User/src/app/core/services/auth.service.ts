@@ -106,6 +106,10 @@ export class AuthService {
 		return this._currentUser$.getValue();
 	}
 
+	setCurrentUser(user: UserProfile | null): void {
+		this._currentUser$.next(user);
+	}
+
 	getToken(): string | null {
 		return (supabase.auth as any)['_session']?.access_token ?? null;
 	}
