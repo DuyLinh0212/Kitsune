@@ -31,7 +31,6 @@
   box-sizing: border-box;
 }
 
-.srs-shell--studying{height:calc(100dvh - 100px);min-height:0;overflow:hidden;padding:14px 32px}.srs-shell--studying .study-overlay{height:100%;max-width:880px;justify-content:center}
 
 
 /* ─── Toast ─────────────────────────────────────────────────────── */
