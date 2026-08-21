@@ -525,7 +525,7 @@ export class SrsService {
     }
 
     const cardByKey = new Map(cards.map((card) => [this.cardKey(card.VocabularyId, card.KanjiId), card]));
-    const links = items.flatMap((item) => {
+    const links = studiedItems.flatMap((item) => {
       const card = cardByKey.get(this.cardKey(item.VocabularyId, item.KanjiId));
       return card ? [{ UserId: userId, CardId: card.Id, LessonItemId: item.Id }] : [];
     });
