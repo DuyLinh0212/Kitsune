@@ -464,8 +464,12 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
     try {
       final repo = ref.read(kitsuneApiProvider);
-      final progress =
-          await repo.submitQuizAnswer(_quizQueue.first.id, isCorrect);
+      final progressRequest =
+          repo.submitQuizAnswer(_quizQueue.first.id, isCorrect);
+      // The answer and card are already fixed; keep persistence asynchronous so
+      // the learner can continue immediately after pressing OK.
+      setState(() => _isSubmitting = false);
+      final progress = await progressRequest;
       if (!mounted) {
         return;
       }
@@ -485,7 +489,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   void _continueAfterAnswer() {
-    if (_feedbackMessage == null || _isSubmitting || _quizQueue.isEmpty) return;
+    if (_feedbackMessage == null || _quizQueue.isEmpty) return;
     setState(() {
       final current = _quizQueue.first;
       final rest = _quizQueue.sublist(1);
@@ -1880,9 +1884,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           ),
           const SizedBox(height: AppTheme.space12),
           ElevatedButton(
-            onPressed: _isSubmitting ? null : _continueAfterAnswer,
-            child: Text(
-                _isSubmitting ? 'Đang lưu kết quả…' : 'OK · Câu tiếp theo'),
+            onPressed: _continueAfterAnswer,
+            child: const Text('OK · Câu tiếp theo'),
           ),
           const SizedBox(height: AppTheme.space12),
         ],

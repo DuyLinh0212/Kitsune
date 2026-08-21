@@ -554,8 +554,8 @@
                     {{ fb.message }}
                   </div>
                   <div class="quiz-actions quiz-actions--feedback">
-                    <button type="button" class="quiz-submit-btn" [disabled]="isSubmitting()" (click)="continueAfterAnswer()">
-                      {{ isSubmitting() ? 'Đang lưu kết quả…' : 'OK · Câu tiếp theo' }}
+                    <button type="button" class="quiz-submit-btn" (click)="continueAfterAnswer()">
+                      OK · Câu tiếp theo
                     </button>
                   </div>
                 }

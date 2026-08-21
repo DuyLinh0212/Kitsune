@@ -420,7 +420,11 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     }));
     this.isSubmitting.set(true);
     try {
-      const progress = await firstValueFrom(this.srsService.submitQuizAnswer(card.id, isCorrect));
+      const progressRequest = firstValueFrom(this.srsService.submitQuizAnswer(card.id, isCorrect));
+      // The queued answer is immutable at this point. Release the next question
+      // immediately; persistence continues in the background.
+      this.isSubmitting.set(false);
+      const progress = await progressRequest;
       this.applyLocalProgress(progress);
     } catch (error) {
       console.error(error);
@@ -433,7 +437,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
   continueAfterAnswer(): void {
     const feedback = this.answerFeedback();
-    if (!feedback || this.isSubmitting()) return;
+    if (!feedback) return;
     this.advanceQuizQueue(feedback.correct);
   }
 
