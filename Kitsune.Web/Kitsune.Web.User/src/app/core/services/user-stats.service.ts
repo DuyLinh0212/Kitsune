@@ -6,6 +6,7 @@ export interface UserStats {
   streak: number;
   totalXP: number;
   srsCardsDue: number;
+  todayReviewed: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -16,29 +17,37 @@ export class UserStatsService {
     streak: 0,
     totalXP: 0,
     srsCardsDue: 0,
+    todayReviewed: 0,
   });
+
+  private statsLoadVersion = 0;
 
   constructor() {
     this.authService.currentUser$.subscribe((user) => {
       if (user) {
-        this.loadAllStats(user.id);
+        void this.loadAllStats(user.id);
       } else {
-        this.stats.set({ streak: 0, totalXP: 0, srsCardsDue: 0 });
+        this.statsLoadVersion++;
+        this.stats.set({ streak: 0, totalXP: 0, srsCardsDue: 0, todayReviewed: 0 });
       }
     });
   }
 
   async loadAllStats(userId: number): Promise<void> {
-    const [streak, xp, dueCards] = await Promise.all([
+    const loadVersion = ++this.statsLoadVersion;
+    const [streak, xp, dueCards, todayReviewed] = await Promise.all([
       this.fetchStreak(userId),
       this.fetchXP(userId),
       this.fetchSrsDue(userId),
+      this.fetchTodayReviewed(userId),
     ]);
+    if (loadVersion !== this.statsLoadVersion) return;
 
     this.stats.set({
       streak,
       totalXP: xp,
       srsCardsDue: dueCards,
+      todayReviewed,
     });
   }
 
@@ -112,10 +121,37 @@ export class UserStatsService {
         .from('SRSCards')
         .select('Id', { count: 'exact', head: true })
         .eq('UserId', userId)
-        .or(`NextReviewDate.lte.${now},BoxLevel.eq.0`);
+        .gt('BoxLevel', 0)
+        .lte('NextReviewDate', now);
 
       if (error) return 0;
       return count ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  private async fetchTodayReviewed(userId: number): Promise<number> {
+    try {
+      const { data: cards, error: cardsError } = await supabase
+        .from('SRSCards')
+        .select('Id')
+        .eq('UserId', userId)
+        .gt('BoxLevel', 0);
+      if (cardsError) return 0;
+      const cardIds = (cards ?? []).map((card) => card.Id as number);
+      if (cardIds.length === 0) return 0;
+
+      const now = new Date();
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+      const { count, error } = await supabase
+        .from('SRSReviewLogs')
+        .select('CardId', { count: 'exact', head: true })
+        .in('CardId', cardIds)
+        .gte('ReviewedAt', start)
+        .lt('ReviewedAt', end);
+      return error ? 0 : count ?? 0;
     } catch {
       return 0;
     }

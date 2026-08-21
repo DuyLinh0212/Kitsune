@@ -1445,13 +1445,14 @@ class KitsuneApi {
         id: row['Id'] as int,
         userId: row['UserId'] as int,
         folderId: context.folderId,
-        type: vId != null ? SrsItemType.vocabulary : SrsItemType.kanji,
+        type: kId != null ? SrsItemType.kanji : SrsItemType.vocabulary,
         vocabularyId: vId,
         kanjiId: kId,
-        word: vocab?['Word'] as String? ?? kanji?['Character'] as String? ?? '',
-        pronunciation: vocab?['Pronunciation'] as String?,
+        word: kanji?['Character'] as String? ?? vocab?['Word'] as String? ?? '',
+        pronunciation:
+            kId == null ? (vocab?['Pronunciation'] as String?) : null,
         meaning:
-            vocab?['Meaning'] as String? ?? kanji?['Meaning'] as String? ?? '',
+            kanji?['Meaning'] as String? ?? vocab?['Meaning'] as String? ?? '',
         character: kanji?['Character'] as String?,
         amHanViet: kanji?['AmHanViet'] as String?,
         radicalCharacter: (kanji?['Radical']

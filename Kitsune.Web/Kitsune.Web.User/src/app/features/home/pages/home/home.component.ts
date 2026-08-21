@@ -31,7 +31,7 @@ export class HomeComponent implements OnInit {
   readonly streak = computed(() => this.userStatsService.stats().streak);
   readonly totalXP = computed(() => this.userStatsService.stats().totalXP);
   readonly srsCardsDue = computed(() => this.userStatsService.stats().srsCardsDue);
-  readonly completedToday = computed(() => Math.max(0, this.dailyTarget - Math.min(this.dailyTarget, this.srsCardsDue())));
+  readonly completedToday = computed(() => Math.min(this.dailyTarget, this.userStatsService.stats().todayReviewed));
   readonly dailyProgress = computed(() => Math.round((this.completedToday() / this.dailyTarget) * 100));
   readonly maxWeekValue = computed(() => Math.max(...this.weeklyHours(), .25));
   readonly totalWeekHours = computed(() => this.weeklyHours().reduce((sum, value) => sum + value, 0));
