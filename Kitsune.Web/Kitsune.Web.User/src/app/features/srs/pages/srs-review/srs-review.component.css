@@ -137,7 +137,6 @@
   line-height: 1.2;
 }
 
-/* ─── Folder Picker Dropdown ──────────────────────────────────── */
 .folder-picker {
   position: relative;
   z-index: 50;
@@ -155,7 +154,6 @@
   font-weight: 600;
   color: var(--text-main);
   cursor: pointer;
-  transition: all 0.2s;
   font-family: inherit;
   box-shadow: var(--shadow-soft);
   white-space: nowrap;
@@ -650,7 +648,7 @@
    STUDY OVERLAY
 ══════════════════════════════════════════════════════════════════ */
 .study-overlay {
-  max-width: 800px;
+  max-width: 720px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -755,7 +753,7 @@
 .study-area {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 14px;
 }
 
 .study-area--center {
@@ -1245,7 +1243,7 @@
 .quiz-prompt-card {
   background: var(--surface);
   border-radius: var(--radius-lg);
-  padding: 36px 32px;
+  padding: 20px 28px;
   box-shadow: var(--shadow-card);
   text-align: center;
   border: 1px solid var(--border-light);
@@ -1285,7 +1283,7 @@
 }
 
 .quiz-prompt-main {
-  font-size: 40px;
+  font-size: 32px;
   font-weight: 800;
   color: var(--text-main);
   line-height: 1.2;
@@ -1293,7 +1291,7 @@
 }
 
 .quiz-prompt-main--kanji {
-  font-size: 96px;
+  font-size: 72px;
   line-height: 1;
   color: var(--violet-dark);
   text-shadow: 0 4px 16px rgba(108,77,230,0.15);
@@ -1316,7 +1314,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 18px 20px;
+  padding: 13px 16px;
   background: var(--surface);
   border: 1.5px solid var(--border-light);
   border-radius: var(--radius-md);
@@ -1462,13 +1460,15 @@
   display: flex;
   justify-content: flex-end;
 }
+.quiz-actions--feedback { margin-top: 2px; }
 
 .quiz-submit-btn {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 16px 40px;
+  min-width: 184px;
+  padding: 12px 24px;
   background: linear-gradient(135deg, var(--violet), var(--violet-dark));
   color: #fff;
   border: none;

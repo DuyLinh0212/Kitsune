@@ -177,16 +177,12 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   });
 
   readonly totalDueCards = computed(() => {
-    return this.dashboardFolders().reduce((sum, f) => sum + (f.dueCards ?? 0) + (f.newCards ?? 0), 0);
+    const overview = this.activeSession()?.overview;
+    return (overview?.dueCards ?? 0) + (overview?.newCards ?? 0);
   });
 
   readonly nextDueAt = computed(() => {
-    const folders = this.dashboardFolders();
-    const dates = folders
-      .map((f) => f.nextDueAt)
-      .filter((d): d is string => !!d)
-      .sort();
-    return dates[0] ?? null;
+    return this.activeSession()?.overview.nextDueAt ?? null;
   });
 
   constructor() {}
@@ -227,7 +223,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       const requestedLessonId = Number(this.route.snapshot.queryParamMap.get('lessonId'));
       const preferredFolderId = (Number.isFinite(requestedLessonId) && requestedLessonId > 0 ? requestedLessonId : null)
         ?? this.srsService.getActiveLessonId()
-        ?? folders[0]?.id
+        ?? cachedSession?.folderId
         ?? null;
       const overviewsPromise = firstValueFrom(
         this.srsService.getLessonOverviews(folders.map((folder) => ({ id: folder.id, title: folder.title })))
@@ -407,36 +403,38 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   private async recordQuizResult(isCorrect: boolean, question: QuizQuestion): Promise<void> {
     const card = this.currentQuizCard();
     if (!card || this.isSubmitting()) return;
+    this.answerFeedback.set({
+      correct: isCorrect,
+      message: (isCorrect
+        ? `✓ Chính xác. Đáp án: "${question.correctAnswer}".`
+        : question.kind === 'drawing'
+          ? '✗ Nét viết chưa khớp. Hãy xem lại gợi ý rồi thử lại sau.'
+          : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}".`)
+        + (question.answerDetail ? `\n${question.answerDetail}` : ''),
+    });
+    this.stats.update((stats) => ({
+      ...stats,
+      quizCompleted: stats.quizCompleted + (isCorrect ? 1 : 0),
+      answersGiven: stats.answersGiven + 1,
+      mistakes: stats.mistakes + (isCorrect ? 0 : 1),
+    }));
     this.isSubmitting.set(true);
-
     try {
       const progress = await firstValueFrom(this.srsService.submitQuizAnswer(card.id, isCorrect));
       this.applyLocalProgress(progress);
-      this.answerFeedback.set({
-        correct: isCorrect,
-        message: (isCorrect
-          ? '✓ Chính xác! Thẻ này đã được lên lịch cho lần ôn tiếp theo.'
-          : question.kind === 'drawing'
-            ? '✗ Nét viết chưa khớp. Thẻ sẽ quay lại cuối hàng để bạn luyện lại.'
-            : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}". Thẻ sẽ quay lại cuối hàng.`)
-          + (question.answerDetail ? `\n${question.answerDetail}` : ''),
-      });
-      this.stats.update((stats) => ({
-        flashCompleted: stats.flashCompleted,
-        quizCompleted: stats.quizCompleted + (isCorrect ? 1 : 0),
-        answersGiven: stats.answersGiven + 1,
-        mistakes: stats.mistakes + (isCorrect ? 0 : 1),
-      }));
-
-      window.setTimeout(() => {
-        this.advanceQuizQueue(isCorrect);
-        this.isSubmitting.set(false);
-      }, isCorrect ? 800 : 1400);
     } catch (error) {
       console.error(error);
+      this.answerFeedback.set(null);
+      this.showToast('error', 'Không thể lưu kết quả ôn tập. Hãy thử lại.');
+    } finally {
       this.isSubmitting.set(false);
-      this.showToast('error', 'Không thể lưu kết quả ôn tập.');
     }
+  }
+
+  continueAfterAnswer(): void {
+    const feedback = this.answerFeedback();
+    if (!feedback || this.isSubmitting()) return;
+    this.advanceQuizQueue(feedback.correct);
   }
 
   async reloadActiveFolder(): Promise<void> {
