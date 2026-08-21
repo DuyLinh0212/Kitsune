@@ -6,21 +6,19 @@ import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { KanjiUserService, KanjiDetailDto } from '../../../../core/services/kanji-user.service';
-import { FolderService, FolderDto } from '../../../../core/services/folder.service';
 import { KanjiStrokeWriterComponent } from '../../components/kanji-stroke-writer/kanji-stroke-writer.component';
 import { CommentSectionComponent } from '../../../../shared/components/comment-section/comment-section.component';
-import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LookupFrameComponent } from '../../../../shared/components/lookup-frame/lookup-frame.component';
 
 @Component({
   selector: 'app-kanji-search',
   standalone: true,
-  imports: [CommonModule, FormsModule, KanjiStrokeWriterComponent, CommentSectionComponent, LoadingFoxComponent],
+  imports: [CommonModule, FormsModule, KanjiStrokeWriterComponent, CommentSectionComponent, LookupFrameComponent],
   templateUrl: './kanji-search.component.html',
   styleUrl: './kanji-search.component.css',
 })
 export class KanjiSearchComponent implements OnInit {
   private readonly kanjiService = inject(KanjiUserService);
-  private readonly folderService = inject(FolderService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly searchSubject = new Subject<string>();
@@ -39,13 +37,6 @@ export class KanjiSearchComponent implements OnInit {
   readonly isLoadingDetail = signal(false);
   readonly isRandomMode = signal(true);
   readonly autoOpenCharacter = signal<string | null>(null);
-
-  // Folder
-  readonly folders = signal<FolderDto[]>([]);
-  readonly showFolderModal = signal(false);
-  readonly isLoadingFolders = signal(false);
-  readonly isAddingToFolder = signal(false);
-  readonly newFolderName = signal('');
 
   readonly toast = signal<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -224,67 +215,6 @@ export class KanjiSearchComponent implements OnInit {
     const kanji = this.selectedKanji();
     if (!kanji) return;
     this.showToast('success', `Đã lưu "${kanji.character}" vào yêu thích!`);
-  }
-
-  // --- Folder ---
-  openFolderModal(): void {
-    this.showFolderModal.set(true);
-    this.newFolderName.set('');
-    if (this.folders().length === 0) this.loadFolders();
-  }
-
-  closeFolderModal(): void {
-    this.showFolderModal.set(false);
-  }
-
-  loadFolders(): void {
-    this.isLoadingFolders.set(true);
-    this.folderService.getFolders().subscribe({
-      next: (folders) => {
-        this.folders.set(folders);
-        this.isLoadingFolders.set(false);
-      },
-      error: () => this.isLoadingFolders.set(false),
-    });
-  }
-
-  createFolder(): void {
-    const name = this.newFolderName().trim();
-    if (!name) return;
-    this.folderService.create({ name }).subscribe({
-      next: (folder) => {
-        this.folders.update((f) => [folder, ...f]);
-        this.newFolderName.set('');
-        this.showToast('success', `Đã tạo thư mục "${folder.name}"`);
-      },
-      error: () => this.showToast('error', 'Không thể tạo thư mục'),
-    });
-  }
-
-  addKanjiToFolder(folderId: number, folderName: string): void {
-    const kanji = this.selectedKanji();
-    if (!kanji || this.isAddingToFolder()) return;
-    this.isAddingToFolder.set(true);
-    // Thêm kanji vào folder bằng cách tạo 1 vocabulary entry từ kanji
-    this.folderService.addVocabularyCopy(
-      folderId,
-      kanji.character,
-      kanji.onyomi ?? kanji.kunyomi ?? null,
-      `${kanji.meaning} (${kanji.amHanViet})`,
-      1, // Japanese language ID
-      kanji.id
-    ).subscribe({
-      next: () => {
-        this.isAddingToFolder.set(false);
-        this.closeFolderModal();
-        this.folderService.triggerVocabAdded(folderId);
-        this.showToast('success', `Đã thêm "${kanji.character}" vào thư mục "${folderName}"`);
-      },
-      error: () => {
-        this.isAddingToFolder.set(false);
-        this.showToast('error', 'Không thể thêm Kanji vào thư mục');
-      },
-    });
   }
 
   getJlptColor(level: number | null): string {

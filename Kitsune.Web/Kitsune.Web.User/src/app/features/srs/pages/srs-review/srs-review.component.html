@@ -20,11 +20,11 @@
       <!-- ── TOP BAR: Title + Lesson Picker ─────────────── -->
       <div class="dash-topbar">
         <div class="dash-topbar__title">
-          <p class="dash-eyebrow">Hệ thống ôn tập</p>
-          <h1 class="dash-title">Sổ tay SRS</h1>
+          <p class="dash-eyebrow">Ôn tập theo bài học</p>
+          <h1 class="dash-title">Bài cần ôn hôm nay</h1>
         </div>
 
-        <!-- Folder Picker Dropdown -->
+        <!-- Lesson picker -->
         <div class="folder-picker" [class.folder-picker--open]="showFolderDropdown()">
           <button
             type="button"
@@ -76,7 +76,7 @@
                   <div class="fd-item__meta">
                     <span>{{ folder.newCards }} mới</span>
                     <span>{{ folder.dueCards }} đến hạn</span>
-                    <span>{{ folder.totalCards }} thẻ</span>
+                    <span>{{ folder.totalCards }} thẻ trong bài</span>
                   </div>
                 </button>
               }

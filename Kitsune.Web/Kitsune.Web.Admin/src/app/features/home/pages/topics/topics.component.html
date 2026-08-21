@@ -32,6 +32,13 @@
             {{ topic.isPublished ? 'Đưa về nháp' : 'Xuất bản chủ đề' }}
           </button>
         </div>
+        <form class="topic-editor" (ngSubmit)="saveTopic()">
+          <div><p>Chỉnh sửa lộ trình</p><small>{{ topic.isPublished ? 'Chủ đề đã xuất bản: chỉ có thể đổi tên.' : 'Bản nháp: có thể đổi tên, mô tả và trình độ.' }}</small></div>
+          <input name="editTopicTitle" [(ngModel)]="editTopicTitle" placeholder="Tên chủ đề" required />
+          <textarea name="editTopicDescription" [(ngModel)]="editTopicDescription" placeholder="Mô tả chủ đề" [readonly]="topic.isPublished"></textarea>
+          <select name="editTopicJlpt" [(ngModel)]="editTopicJlpt" [disabled]="topic.isPublished"><option [ngValue]="null">Mọi trình độ</option>@for (level of [5,4,3,2,1]; track level) { <option [ngValue]="level">JLPT N{{ level }}</option> }</select>
+          <button class="primary" type="submit" [disabled]="busy()">Lưu thay đổi</button>
+        </form>
         <div class="lesson-tabs">
           @for (lesson of topic.lessons; track lesson.id) {
             <button type="button" [class.active]="lesson.id === selectedLessonId()" (click)="selectLesson(lesson.id)">
@@ -43,10 +50,18 @@
         @if (activeLesson(); as selectedLesson) {
           <div class="lesson-status">
             <span>{{ selectedLesson.isPublished ? 'Bài học đang hiển thị cho người học' : 'Bài học vẫn là bản nháp' }}</span>
-            <button type="button" class="publish-button" [class.published]="selectedLesson.isPublished" (click)="toggleLessonPublished()" [disabled]="busy()">
-              {{ selectedLesson.isPublished ? 'Đưa bài về nháp' : 'Xuất bản bài học' }}
+            <button type="button" class="publish-button" [class.published]="selectedLesson.isPublished" (click)="toggleLessonPublished()" [disabled]="busy() || selectedLesson.isPublished">
+              {{ selectedLesson.isPublished ? 'Nội dung đã khóa' : 'Xuất bản bài học' }}
             </button>
           </div>
+
+          <form class="lesson-editor" (ngSubmit)="saveLesson()">
+            <div><p>Chỉnh sửa bài học</p><small>{{ selectedLesson.isPublished ? 'Bài đã xuất bản: chỉ có thể đổi tên.' : 'Bản nháp: có thể chỉnh sửa nội dung và học liệu.' }}</small></div>
+            <input name="editLessonTitle" [(ngModel)]="editLessonTitle" placeholder="Tên bài học" required />
+            <input name="editLessonMinutes" [(ngModel)]="editLessonMinutes" type="number" min="1" max="180" aria-label="Số phút dự kiến" [readonly]="selectedLesson.isPublished" />
+            <textarea name="editLessonDescription" [(ngModel)]="editLessonDescription" placeholder="Mục tiêu bài học" [readonly]="selectedLesson.isPublished"></textarea>
+            <button class="primary" type="submit" [disabled]="busy()">{{ selectedLesson.isPublished ? 'Lưu tên mới' : 'Lưu thay đổi' }}</button>
+          </form>
 
           <section class="lesson-contents" aria-live="polite">
             <div class="lesson-contents__heading">
@@ -63,6 +78,7 @@
                   <article class="lesson-content-card" [class.lesson-content-card--kanji]="item.itemType === 'kanji'">
                     <small><span>{{ index + 1 }}</span>{{ item.itemType === 'vocabulary' ? 'Từ vựng' : 'Kanji' }}</small>
                     <strong>{{ item.word }}</strong><span>{{ item.pronunciation || '—' }}</span><em>{{ item.meaning }}</em>
+                    @if (!selectedLesson.isPublished) { <button type="button" class="remove-item" (click)="removeLessonItem(item)" [disabled]="busy()">Gỡ khỏi bài</button> }
                   </article>
                 }
               </div>
@@ -81,6 +97,7 @@
         </form>
 
         @if (activeLesson(); as lesson) {
+          @if (!lesson.isPublished) {
           <section class="catalog-picker">
             <div class="catalog-heading">
               <div><p>Kho học liệu</p><h3>Thêm vào {{ lesson.title }}</h3></div>
@@ -111,20 +128,9 @@
               <button type="button" class="primary import-button" (click)="addCatalogItems()" [disabled]="busy() || !selectedCatalogKeys().size">Thêm vào bài học</button>
             }
           </section>
-
-          <section class="folder-import">
-            <div><p>Nguồn bổ sung</p><h3>Nhập nhanh từ Folder → {{ lesson.title }}</h3></div>
-            <select [value]="selectedFolderId() ?? ''" (change)="loadFolderItems($any($event.target).value)"><option value="">Chọn Folder nguồn</option>@for (folder of folders(); track folder.id) { <option [value]="folder.id">{{ folder.name }}</option> }</select>
-            @if (folderItems().length) {
-              <div class="import-toolbar"><button type="button" (click)="toggleAll()">{{ selectedFolderKeys().size === folderItems().length ? 'Bỏ chọn tất cả' : 'Chọn tất cả' }}</button><strong>{{ selectedFolderKeys().size }} đã chọn</strong></div>
-              <div class="item-grid">
-                @for (item of folderItems(); track item.key) {
-                  <button type="button" [class.selected]="selectedFolderKeys().has(item.key)" (click)="toggleItem(item.key)"><span>{{ item.word }}</span><small>{{ item.pronunciation }}</small><em>{{ item.meaning }}</em></button>
-                }
-              </div>
-              <button type="button" class="primary import-button" (click)="importSelected()" [disabled]="busy()">Thêm mục đã chọn</button>
-            }
-          </section>
+          } @else {
+            <p class="locked-note">Học liệu của bài đã xuất bản được giữ nguyên để không làm thay đổi tiến độ người học.</p>
+          }
         }
       } @else if (!loading()) { <p class="empty">Hãy tạo chủ đề đầu tiên.</p> }
     </section>

@@ -1,4 +1,4 @@
-<div class="folder-detail-page">
+<div class="kanji-page">
   @if (toast()) {
   <div class="toast" [class.toast--error]="toast()!.type === 'error'">
     <span class="toast__icon">{{ toast()!.type === 'success' ? '✓' : '!' }}</span>
@@ -8,7 +8,11 @@
 
 
 
-  <section class="workspace-toolbar">
+  <app-lookup-frame activeMode="kanji" [query]="searchQuery()" [resultCount]="kanjis().length || null"
+    placeholder="Nhập Kanji, âm Hán Việt, Onyomi hoặc bộ thủ..." (queryChange)="onSearchInput($event)" (search)="onSearchEnter()">
+    <div lookup-frame-tools class="radical-filter-wrapper">
+    <!-- Legacy local search controls are replaced by LookupFrame. -->
+    <!--
     <label class="search-box">
       <span class="search-box__icon">Tìm</span>
       <input type="text" [ngModel]="searchQuery()" (ngModelChange)="onSearchInput($event)"
@@ -24,8 +28,9 @@
       }
       <button type="button" class="search-bar__btn" (click)="onSearchEnter()">Tra</button>
     </label>
+    -->
 
-    <div class="radical-filter-wrapper">
+    <div class="radical-filter-wrapper legacy-radical-filter">
       <button type="button" class="folder-radical-bar" [class.folder-radical-bar--active]="selectedRadicalId()"
         (click)="toggleRadicalPopover()">
         <span class="folder-radical-bar__label">Bộ thủ:</span>
@@ -57,7 +62,8 @@
       <div class="popover-backdrop" (click)="showRadicalPopover.set(false)"></div>
       }
     </div>
-  </section>
+    </div>
+  </app-lookup-frame>
 
   @if (isSearching() && kanjis().length === 0) {
   <section class="workspace-loading">
@@ -170,14 +176,6 @@
               </svg>
               Yêu thích
             </button>
-            <button type="button" class="action-btn action-btn--folder" (click)="openFolderModal()">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                <line x1="12" y1="11" x2="12" y2="17" />
-                <line x1="9" y1="14" x2="15" y2="14" />
-              </svg>
-              Thêm vào thư mục
-            </button>
           </div>
         </section>
       </div>
@@ -195,52 +193,3 @@
   </div>
   }
 </div>
-
-@if (showFolderModal()) {
-<div class="modal-overlay" (click)="closeFolderModal()">
-  <div class="folder-modal" (click)="$event.stopPropagation()">
-    <div class="folder-modal__header">
-      <h3>Thêm Kanji vào thư mục</h3>
-      <button type="button" class="modal-close" (click)="closeFolderModal()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    </div>
-
-    @if (selectedKanji()) {
-    <p class="folder-modal__word">{{ selectedKanji()!.character }} — {{ selectedKanji()!.amHanViet }}</p>
-    }
-
-    @if (isLoadingFolders()) {
-    <div class="folder-modal__loading"><app-loading-fox message="Đang tải thư mục..." [size]="56" /></div>
-    } @else if (folders().length === 0) {
-    <div class="folder-modal__empty">Bạn chưa có thư mục nào</div>
-    } @else {
-    <div class="folder-list">
-      @for (folder of folders(); track folder.id) {
-      <button type="button" class="folder-item" [disabled]="isAddingToFolder()"
-        (click)="addKanjiToFolder(folder.id, folder.name)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-        </svg>
-        <span>{{ folder.name }}</span>
-        @if (isAddingToFolder()) { <app-loading-fox [size]="24" /> }
-      </button>
-      }
-    </div>
-    }
-
-    <div class="folder-modal__create">
-      <div class="section-label">Tạo thư mục mới</div>
-      <div class="folder-create-row">
-        <input type="text" class="folder-create-input" placeholder="Tên thư mục..." [ngModel]="newFolderName()"
-          (ngModelChange)="newFolderName.set($event)" (keyup.enter)="createFolder()" />
-        <button type="button" class="folder-create-btn" (click)="createFolder()"
-          [disabled]="!newFolderName().trim()">Tạo</button>
-      </div>
-    </div>
-  </div>
-</div>
-}

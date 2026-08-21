@@ -7,11 +7,12 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { GrammarPointDto, GrammarService } from '../../../../core/services/grammar.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LookupFrameComponent } from '../../../../shared/components/lookup-frame/lookup-frame.component';
 
 @Component({
   selector: 'app-grammar-search',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoadingFoxComponent],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent, LookupFrameComponent],
   templateUrl: './grammar-search.component.html',
   styleUrl: './grammar-search.component.css'
 })
@@ -39,6 +40,10 @@ export class GrammarSearchComponent implements OnInit {
   onSearchInput(value: string): void {
     this.searchQuery.set(value);
     this.searchSubject.next(value);
+  }
+
+  onSearchEnter(): void {
+    this.doSearch();
   }
 
   onSelectLevel(level: number | null): void {

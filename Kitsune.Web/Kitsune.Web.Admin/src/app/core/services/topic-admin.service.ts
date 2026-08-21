@@ -23,10 +23,10 @@ export interface AdminTopic {
   lessons: AdminLesson[];
 }
 
-export interface FolderOption { id: number; name: string; }
 export type CatalogItemType = 'vocabulary' | 'kanji';
 export interface FolderLearningItem {
   key: string;
+  lessonItemId?: number;
   itemType: CatalogItemType;
   vocabularyId: number | null;
   kanjiId: number | null;
@@ -57,8 +57,6 @@ interface LessonItemRow {
 @Injectable({ providedIn: 'root' })
 export class TopicAdminService {
   getTopics(): Observable<AdminTopic[]> { return from(this.loadTopics()); }
-  getFolders(): Observable<FolderOption[]> { return from(this.loadFolders()); }
-  getFolderItems(folderId: number): Observable<FolderLearningItem[]> { return from(this.loadFolderItems(folderId)); }
   getLessonItems(lessonId: number): Observable<FolderLearningItem[]> { return from(this.loadLessonItems(lessonId)); }
   searchCatalog(itemType: CatalogItemType, query: string): Observable<FolderLearningItem[]> {
     return from(this.loadCatalogItems(itemType, query));
@@ -80,12 +78,20 @@ export class TopicAdminService {
     return from(this.updatePublished('Lessons', lessonId, isPublished));
   }
 
-  importFolderItems(lessonId: number, folderId: number, items: FolderLearningItem[]): Observable<number> {
-    return from(this.insertLearningItems(lessonId, items, folderId));
+  updateTopic(topicId: number, title: string, description: string, jlptLevel: number | null): Observable<void> {
+    return from(this.updateTopicDetails(topicId, title, description, jlptLevel));
+  }
+
+  updateLesson(lessonId: number, title: string, description: string, estimatedMinutes: number): Observable<void> {
+    return from(this.updateLessonDetails(lessonId, title, description, estimatedMinutes));
   }
 
   addCatalogItems(lessonId: number, items: FolderLearningItem[]): Observable<number> {
     return from(this.insertLearningItems(lessonId, items, null));
+  }
+
+  removeLessonItem(lessonItemId: number): Observable<void> {
+    return from(this.deleteLessonItem(lessonItemId));
   }
 
   generateAndSaveTopic(topicTitle: string, lessonCount: number): Observable<AiTopicCreation> {
@@ -120,39 +126,6 @@ export class TopicAdminService {
         itemCount: counts.get(lesson.Id) ?? 0,
       })),
     }));
-  }
-
-  private async loadFolders(): Promise<FolderOption[]> {
-    const { data, error } = await supabase.from('VocabularyFolder').select('Id, FolderName').order('CreatedAt', { ascending: false });
-    if (error) throw error;
-    return (data ?? []).map((row) => ({ id: row.Id, name: row.FolderName }));
-  }
-
-  private async loadFolderItems(folderId: number): Promise<FolderLearningItem[]> {
-    const { data: vocabs, error: vocabError } = await supabase
-      .from('Vocabularies')
-      .select('Id, Word, Pronunciation, Meaning, SpecificData')
-      .eq('FolderId', folderId)
-      .order('CreatedAt');
-    if (vocabError) throw vocabError;
-    const vocabIds = (vocabs ?? []).map((row) => row.Id);
-    const { data: components, error: componentError } = vocabIds.length
-      ? await supabase.from('KanjiComponents').select('VocabularyId, KanjiId, Kanji:KanjiId(Character, AmHanViet, Meaning)').in('VocabularyId', vocabIds).order('Order')
-      : { data: [], error: null };
-    if (componentError) throw componentError;
-    const componentByVocab = new Map<number, { KanjiId: number; Kanji: { Character: string; AmHanViet: string; Meaning: string } | null }>();
-    for (const raw of (components ?? []) as unknown[]) {
-      const component = raw as { VocabularyId: number; KanjiId: number; Kanji: { Character: string; AmHanViet: string; Meaning: string } | null };
-      if (!componentByVocab.has(component.VocabularyId)) componentByVocab.set(component.VocabularyId, component);
-    }
-    return (vocabs ?? []).map((vocab) => {
-      const specificData = vocab.SpecificData as Record<string, unknown> | null;
-      const component = componentByVocab.get(vocab.Id);
-      const kanjiOnly = specificData?.['_kitsuneItemType'] === 'kanji' && !!component;
-      return kanjiOnly
-        ? { key: `k-${component!.KanjiId}`, itemType: 'kanji' as const, vocabularyId: null, kanjiId: component!.KanjiId, word: component!.Kanji?.Character ?? vocab.Word, pronunciation: component!.Kanji?.AmHanViet ?? '', meaning: component!.Kanji?.Meaning ?? vocab.Meaning }
-        : { key: `v-${vocab.Id}`, itemType: 'vocabulary' as const, vocabularyId: vocab.Id, kanjiId: null, word: vocab.Word, pronunciation: vocab.Pronunciation ?? '', meaning: vocab.Meaning };
-    });
   }
 
   private async loadCatalogItems(itemType: CatalogItemType, query: string): Promise<FolderLearningItem[]> {
@@ -265,6 +238,29 @@ export class TopicAdminService {
     if (error) throw error;
   }
 
+  private async updateTopicDetails(topicId: number, title: string, description: string, jlptLevel: number | null): Promise<void> {
+    const { error } = await supabase.from('Topics').update({
+      Title: title.trim(),
+      Description: description.trim() || null,
+      JlptLevel: jlptLevel,
+    }).eq('Id', topicId);
+    if (error) throw error;
+  }
+
+  private async updateLessonDetails(lessonId: number, title: string, description: string, estimatedMinutes: number): Promise<void> {
+    const { error } = await supabase.from('Lessons').update({
+      Title: title.trim(),
+      Description: description.trim() || null,
+      EstimatedMinutes: Math.min(180, Math.max(1, Math.floor(estimatedMinutes))),
+    }).eq('Id', lessonId);
+    if (error) throw error;
+  }
+
+  private async deleteLessonItem(lessonItemId: number): Promise<void> {
+    const { error } = await supabase.from('LessonItems').delete().eq('Id', lessonItemId);
+    if (error) throw error;
+  }
+
   private async invokeAi(topic: string, lessonCount: number): Promise<AiTopicPlan> {
     const { data, error } = await supabase.functions.invoke<AiTopicPlan>('generate-topic-lessons', { body: { topic: topic.trim(), lessonCount } });
     if (error) throw await this.readFunctionError(error);
@@ -284,6 +280,7 @@ export class TopicAdminService {
       if (item.VocabularyId !== null && item.Vocabulary) {
         return [{
           key: `lesson-item-${item.Id}`,
+          lessonItemId: item.Id,
           itemType: 'vocabulary' as const,
           vocabularyId: item.VocabularyId,
           kanjiId: null,
@@ -295,6 +292,7 @@ export class TopicAdminService {
       if (item.KanjiId !== null && item.Kanji) {
         return [{
           key: `lesson-item-${item.Id}`,
+          lessonItemId: item.Id,
           itemType: 'kanji' as const,
           vocabularyId: null,
           kanjiId: item.KanjiId,

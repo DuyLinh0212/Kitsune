@@ -4,7 +4,7 @@ import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angula
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import { AdminTopic, AiTopicPlan, CatalogItemType, FolderLearningItem, FolderOption, TopicAdminService } from '../../../../core/services/topic-admin.service';
+import { AdminTopic, AiTopicPlan, CatalogItemType, FolderLearningItem, TopicAdminService } from '../../../../core/services/topic-admin.service';
 
 @Component({
   selector: 'app-topic-management',
@@ -18,15 +18,11 @@ export class TopicManagementComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
 
   readonly topics = signal<AdminTopic[]>([]);
-  readonly folders = signal<FolderOption[]>([]);
-  readonly folderItems = signal<FolderLearningItem[]>([]);
   readonly lessonItems = signal<FolderLearningItem[]>([]);
   readonly catalogItems = signal<FolderLearningItem[]>([]);
   readonly catalogItemType = signal<CatalogItemType>('vocabulary');
   readonly selectedTopicId = signal<number | null>(null);
   readonly selectedLessonId = signal<number | null>(null);
-  readonly selectedFolderId = signal<number | null>(null);
-  readonly selectedFolderKeys = signal<Set<string>>(new Set());
   readonly selectedCatalogKeys = signal<Set<string>>(new Set());
   readonly loading = signal(true);
   readonly lessonItemsLoading = signal(false);
@@ -44,9 +40,15 @@ export class TopicManagementComponent implements OnInit {
   topicTitle = '';
   topicDescription = '';
   topicJlpt: number | null = null;
+  editTopicTitle = '';
+  editTopicDescription = '';
+  editTopicJlpt: number | null = null;
   lessonTitle = '';
   lessonDescription = '';
   lessonMinutes = 10;
+  editLessonTitle = '';
+  editLessonDescription = '';
+  editLessonMinutes = 10;
   aiTopic = '';
   aiLessonCount = 5;
   catalogQuery = '';
@@ -70,7 +72,6 @@ export class TopicManagementComponent implements OnInit {
       },
       error: () => { this.message.set('Không thể tải Topics. Hãy chạy migration 005.'); this.loading.set(false); },
     });
-    this.service.getFolders().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({ next: (folders) => this.folders.set(folders) });
   }
 
   selectTopic(topicId: number): void {
@@ -79,12 +80,14 @@ export class TopicManagementComponent implements OnInit {
     this.selectedLessonId.set(topic?.lessons[0]?.id ?? null);
     this.loadSelectedLessonItems(this.selectedLessonId());
     this.resetCatalogPicker();
+    this.syncEditors();
   }
 
   selectLesson(lessonId: number): void {
     this.selectedLessonId.set(lessonId);
     this.loadSelectedLessonItems(lessonId);
     this.resetCatalogPicker();
+    this.syncEditors();
   }
 
   createTopic(): void {
@@ -126,7 +129,7 @@ export class TopicManagementComponent implements OnInit {
   toggleLessonPublished(): void {
     const lesson = this.activeLesson();
     const topic = this.activeTopic();
-    if (!lesson || !topic || this.busy()) return;
+    if (!lesson || !topic || lesson.isPublished || this.busy()) return;
     this.busy.set(true);
     this.service.setLessonPublished(lesson.id, !lesson.isPublished).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: () => {
@@ -134,41 +137,55 @@ export class TopicManagementComponent implements OnInit {
           ? { ...entry, lessons: entry.lessons.map((item) => item.id === lesson.id ? { ...item, isPublished: !item.isPublished } : item) }
           : entry));
         this.busy.set(false);
-        this.message.set(lesson.isPublished ? 'Đã đưa bài học về bản nháp.' : 'Đã xuất bản bài học.');
+        this.message.set('Đã xuất bản bài học. Nội dung bài học đã được khóa, chỉ còn có thể đổi tên.');
       },
       error: () => { this.busy.set(false); this.message.set('Không thể đổi trạng thái bài học.'); },
     });
   }
 
-  loadFolderItems(value: string): void {
-    const folderId = Number(value);
-    this.selectedFolderId.set(Number.isFinite(folderId) && folderId > 0 ? folderId : null);
-    this.selectedFolderKeys.set(new Set());
-    if (!this.selectedFolderId()) { this.folderItems.set([]); return; }
-    this.service.getFolderItems(folderId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (items) => this.folderItems.set(items),
-      error: () => this.message.set('Không thể đọc nội dung folder.'),
+  saveTopic(): void {
+    const topic = this.activeTopic();
+    if (!topic || !this.editTopicTitle.trim() || this.busy()) return;
+    this.busy.set(true);
+    const description = topic.isPublished ? topic.description : this.editTopicDescription;
+    const jlptLevel = topic.isPublished ? topic.jlptLevel : this.editTopicJlpt;
+    this.service.updateTopic(topic.id, this.editTopicTitle, description, jlptLevel).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.topics.update((topics) => topics.map((item) => item.id === topic.id ? { ...item, title: this.editTopicTitle.trim(), description: description.trim(), jlptLevel } : item));
+        this.busy.set(false);
+        this.message.set(topic.isPublished ? 'Đã đổi tên chủ đề đã xuất bản.' : 'Đã lưu thay đổi chủ đề.');
+      },
+      error: () => { this.busy.set(false); this.message.set('Không thể lưu thay đổi chủ đề.'); },
     });
   }
 
-  toggleItem(key: string): void {
-    this.selectedFolderKeys.update((keys) => { const next = new Set(keys); next.has(key) ? next.delete(key) : next.add(key); return next; });
-  }
-
-  toggleAll(): void {
-    this.selectedFolderKeys.set(this.selectedFolderKeys().size === this.folderItems().length ? new Set() : new Set(this.folderItems().map((item) => item.key)));
-  }
-
-  importSelected(): void {
-    const lessonId = this.selectedLessonId();
-    const folderId = this.selectedFolderId();
-    if (!lessonId || !folderId || this.busy()) return;
-    const selected = this.folderItems().filter((item) => this.selectedFolderKeys().has(item.key));
-    if (!selected.length) { this.message.set('Hãy chọn ít nhất một từ hoặc Kanji.'); return; }
+  saveLesson(): void {
+    const lesson = this.activeLesson();
+    const topic = this.activeTopic();
+    if (!lesson || !topic || !this.editLessonTitle.trim() || this.busy()) return;
     this.busy.set(true);
-    this.service.importFolderItems(lessonId, folderId, selected).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (count) => { this.busy.set(false); this.selectedFolderKeys.set(new Set()); this.message.set(`Đã thêm ${count} mục, gồm cả Kanji tự động từ từ vựng.`); this.reload(); },
-      error: () => { this.busy.set(false); this.message.set('Không thể chuyển mục; có thể mục đã tồn tại trong bài.'); },
+    const description = lesson.isPublished ? lesson.description : this.editLessonDescription;
+    const minutes = lesson.isPublished ? lesson.estimatedMinutes : this.editLessonMinutes;
+    this.service.updateLesson(lesson.id, this.editLessonTitle, description, minutes).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => {
+        this.topics.update((topics) => topics.map((entry) => entry.id === topic.id ? {
+          ...entry,
+          lessons: entry.lessons.map((item) => item.id === lesson.id ? { ...item, title: this.editLessonTitle.trim(), description: description.trim(), estimatedMinutes: minutes } : item),
+        } : entry));
+        this.busy.set(false);
+        this.message.set(lesson.isPublished ? 'Đã đổi tên bài học đã xuất bản.' : 'Đã lưu thay đổi bài học.');
+      },
+      error: () => { this.busy.set(false); this.message.set('Không thể lưu thay đổi bài học.'); },
+    });
+  }
+
+  removeLessonItem(item: FolderLearningItem): void {
+    const lesson = this.activeLesson();
+    if (!lesson || lesson.isPublished || !item.lessonItemId || this.busy()) return;
+    this.busy.set(true);
+    this.service.removeLessonItem(item.lessonItemId).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: () => { this.busy.set(false); this.message.set('Đã gỡ học liệu khỏi bài học nháp.'); this.reload(); },
+      error: () => { this.busy.set(false); this.message.set('Không thể gỡ học liệu khỏi bài học.'); },
     });
   }
 
@@ -207,7 +224,7 @@ export class TopicManagementComponent implements OnInit {
 
   addCatalogItems(): void {
     const lessonId = this.selectedLessonId();
-    if (!lessonId || this.busy()) return;
+    if (!lessonId || this.activeLesson()?.isPublished || this.busy()) return;
     const selected = this.catalogItems().filter((item) => this.selectedCatalogKeys().has(item.key));
     if (!selected.length) { this.message.set('Hãy chọn ít nhất một từ vựng hoặc Kanji.'); return; }
     this.busy.set(true);
@@ -248,6 +265,17 @@ export class TopicManagementComponent implements OnInit {
     this.selectedCatalogKeys.set(new Set());
   }
 
+  private syncEditors(): void {
+    const topic = this.activeTopic();
+    this.editTopicTitle = topic?.title ?? '';
+    this.editTopicDescription = topic?.description ?? '';
+    this.editTopicJlpt = topic?.jlptLevel ?? null;
+    const lesson = this.activeLesson();
+    this.editLessonTitle = lesson?.title ?? '';
+    this.editLessonDescription = lesson?.description ?? '';
+    this.editLessonMinutes = lesson?.estimatedMinutes ?? 10;
+  }
+
   private loadSelectedLessonItems(lessonId: number | null): void {
     this.lessonItems.set([]);
     this.lessonItemsError.set('');
@@ -261,6 +289,7 @@ export class TopicManagementComponent implements OnInit {
         if (this.selectedLessonId() !== lessonId) return;
         this.lessonItems.set(items);
         this.lessonItemsLoading.set(false);
+        this.syncEditors();
       },
       error: () => {
         if (this.selectedLessonId() !== lessonId) return;

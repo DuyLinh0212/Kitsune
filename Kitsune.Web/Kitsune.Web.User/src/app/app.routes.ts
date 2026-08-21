@@ -37,10 +37,6 @@ export const routes: Routes = [
       { path: 'exams/:id', loadComponent: () => import('./features/exams/pages/exam-play/exam-play.component').then((m) => m.ExamPlayComponent) },
       { path: 'exams/:id/result/:attemptId', loadComponent: () => import('./features/exams/pages/exam-result/exam-result.component').then((m) => m.ExamResultComponent) },
 
-      // Folders
-      { path: 'folders', loadComponent: () => import('./features/folders/pages/folder-list/folder-list.component').then((m) => m.FolderListComponent) },
-      { path: 'folders/:id', loadComponent: () => import('./features/folders/pages/folder-detail/folder-detail.component').then((m) => m.FolderDetailComponent) },
-
       // Quizzes
       { path: 'quizzes', loadComponent: () => import('./features/quizzes/pages/quiz-list/quiz-list.component').then((m) => m.QuizListComponent) },
       { path: 'my-quizzes', loadComponent: () => import('./features/quizzes/pages/my-quizzes/my-quizzes.component').then((m) => m.MyQuizzesComponent) },

@@ -47,3 +47,24 @@ button:focus-visible, a:focus-visible { outline: 3px solid rgba(216, 91, 63, .28
 @media (max-width: 800px) { .topic-hero, .learning-layout { grid-template-columns: 1fr; } .topic-rail { position: static; grid-template-columns: repeat(2, 1fr); } .rail-label { grid-column: 1 / -1; } .board-heading { align-items: flex-start; } }
 @media (max-width: 520px) { .topic-page { padding: 18px 14px 36px; } .topic-rail { grid-template-columns: 1fr; } .game-link { grid-template-columns: 52px 1fr; } .topic-progress { flex-basis: 82px; } .lesson-trail { padding-left: 0; } .lesson-trail::before { left: 19px; } .lesson-stop { gap: 9px; } .lesson-card { padding: 18px; } }
 @media (prefers-reduced-motion: reduce) { .lesson-card { transition: none; } }
+
+/* Lesson-first layout: compact, plain and quick to scan. */
+.topic-page { padding: clamp(18px,3vw,32px); background: var(--paper-base); color: var(--ink-primary); font-family: var(--font-ui); }
+.learning-toolbar { display:flex; align-items:center; justify-content:space-between; gap:18px; max-width:1240px; margin:0 auto 20px; padding:0 2px 16px; border-bottom:1px solid var(--line-delicate); }
+.learning-toolbar p { margin:0 0 4px; color:var(--accent-deep); font-size:11px; font-weight:800; letter-spacing:.12em; }
+.learning-toolbar h1 { margin:0; color:var(--ink-primary); font-size:clamp(22px,2.4vw,30px); font-weight:760; letter-spacing:-.025em; }
+.learning-toolbar a { padding:9px 12px; border:1px solid #e9d1b4; border-radius:10px; color:var(--accent-deep); background:#fffaf2; font-size:13px; font-weight:750; text-decoration:none; }
+.learning-layout { gap:18px; }
+.topic-rail,.lesson-board { border:1px solid var(--line-delicate); border-radius:16px; background:var(--panel-bg); box-shadow:none; }
+.topic-rail { padding:12px; }
+.lesson-board { padding:20px; }
+.topic-tab { border-radius:10px; font-family:var(--font-ui); }
+.topic-tab--active { box-shadow:none; border-color:#ead3b8; background:#fff4e4; }
+.board-heading h2 { font-size:22px; }
+.lesson-trail { gap:12px; }
+.lesson-stop { grid-template-columns:28px 1fr; gap:12px; }
+.trail-marker { width:28px; height:28px; margin-top:17px; border-width:4px; font-size:12px; }
+.lesson-trail::before { left:35px; }
+.lesson-card { border-radius:12px; box-shadow:none; padding:18px; }
+.lesson-card:hover { box-shadow:none; transform:none; border-color:#d8783c; }
+@media (max-width:800px) { .learning-toolbar { align-items:flex-start; flex-direction:column; } .lesson-board { padding:14px; } }

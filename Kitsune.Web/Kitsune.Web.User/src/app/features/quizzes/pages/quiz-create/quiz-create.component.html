@@ -128,7 +128,7 @@
         <span class="wizard-card-icon">📚</span>
         <div>
           <h2 class="wizard-card-title">Chọn nguồn nội dung</h2>
-          <p class="wizard-card-subtitle">Chọn từ vựng từ thư mục, tìm kiếm riêng lẻ, hoặc thêm Kanji</p>
+          <p class="wizard-card-subtitle">Tìm và chọn trực tiếp từ vựng hoặc Kanji cho quiz</p>
         </div>
         <div class="vocab-counter-badge">
           <span class="counter-num">{{ totalItemCount() }}</span>
@@ -138,43 +138,11 @@
 
       <!-- Tabs -->
       <div class="source-tabs">
-        <button class="tab-btn" [class.tab-active]="sourceTab() === 'folder'"
-          (click)="setTab('folder')" type="button">📁 Từ thư mục</button>
         <button class="tab-btn" [class.tab-active]="sourceTab() === 'search'"
           (click)="setTab('search')" type="button">🔍 Tìm từ vựng</button>
         <button class="tab-btn" [class.tab-active]="sourceTab() === 'kanji-search'"
           (click)="setTab('kanji-search')" type="button">🈳 Tìm Kanji</button>
       </div>
-
-      <!-- Tab: Folders -->
-      @if (sourceTab() === 'folder') {
-        <div class="tab-content">
-          @if (isFoldersLoading()) {
-            <div class="loading-inline"><app-loading-fox message="Đang tải thư mục..." [size]="56" /></div>
-          }
-          @if (!isFoldersLoading() && userFolders().length === 0) {
-            <div class="empty-state-sm">
-              <span class="empty-icon-sm">📂</span>
-              <p>Bạn chưa có thư mục từ vựng nào.</p>
-            </div>
-          }
-          @if (!isFoldersLoading() && userFolders().length > 0) {
-            <div class="folder-grid">
-              @for (folder of userFolders(); track folder.id) {
-                <div class="folder-card" [class.folder-selected]="isFolderSelected(folder.id)" (click)="toggleFolder(folder.id)">
-                  <div class="folder-icon-wrap">
-                    <span class="folder-emoji">{{ isFolderSelected(folder.id) ? '📂' : '📁' }}</span>
-                  </div>
-                  <span class="folder-name">{{ folder.name }}</span>
-                  <div class="folder-check">
-                    @if (isFolderSelected(folder.id)) { <span class="check-mark">✓</span> }
-                  </div>
-                </div>
-              }
-            </div>
-          }
-        </div>
-      }
 
       <!-- Tab: Vocab Search -->
       @if (sourceTab() === 'search') {

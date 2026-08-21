@@ -9,61 +9,13 @@
   </div>
   }
 
-  <!-- LOOKUP DOCK: the working surface for every dictionary search -->
-  <section class="lookup-dock" aria-label="Tra cứu tiếng Nhật">
-    <div class="lookup-dock__context">
-      <span class="lookup-dock__eyebrow">KITSUNE / TRA CỨU</span>
-      @if (searchResults().length > 0) {
-        <span class="result-badge">{{ searchResults().length }} kết quả</span>
-      }
+  <app-lookup-frame activeMode="vocabulary" [query]="searchQuery()" [resultCount]="searchResults().length || null"
+    placeholder="Ví dụ: 食べる, taberu, ăn uống..." (queryChange)="onSearchInput($event)" (search)="onSearchEnter()">
+    <div lookup-frame-tools class="lookup-frame-tools">
+      <button type="button" class="lookup-tool" (click)="selectedVocab() && speakWord(selectedVocab()!)"
+        [disabled]="!selectedVocab() || !ttsService.isSupported" title="Nghe cách đọc" aria-label="Nghe cách đọc">🔊</button>
     </div>
-
-    <div class="search-bar" [class.search-bar--active]="searchQuery()">
-      <svg class="search-bar__icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
-        <circle cx="11" cy="11" r="7.25" />
-        <line x1="16.3" y1="16.3" x2="21" y2="21" />
-      </svg>
-      <input type="text" class="search-bar__input" placeholder="Ví dụ: 食べる, taberu, ăn uống..." [ngModel]="searchQuery()"
-        (ngModelChange)="onSearchInput($event)" (keyup.enter)="onSearchEnter()" autocomplete="off" autocorrect="off"
-        spellcheck="false" aria-label="Nhập từ cần tra" />
-      @if (isSearching()) {
-        <div class="search-bar__spinner" aria-label="Đang tìm kiếm"></div>
-      } @else if (searchQuery()) {
-        <button type="button" class="search-bar__clear" (click)="clearSearch()" title="Xóa từ khóa" aria-label="Xóa từ khóa">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      }
-      <div class="lookup-tools" aria-label="Công cụ tra cứu">
-        <button type="button" class="lookup-tool" (click)="selectedVocab() && speakWord(selectedVocab()!)" [disabled]="!selectedVocab() || !ttsService.isSupported" title="Nghe cách đọc" aria-label="Nghe cách đọc">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-            <path d="M4 10v4h4l5 4V6L8 10H4z" /><path d="M16 9.5a4 4 0 0 1 0 5" /><path d="M18.5 7a7.5 7.5 0 0 1 0 10" />
-          </svg>
-        </button>
-        <button type="button" class="lookup-tool" (click)="openFolderModal()" [disabled]="!selectedVocab()" title="Lưu từ đang xem" aria-label="Lưu từ đang xem">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
-            <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11l2 2h4.5A2.5 2.5 0 0 1 20 7.5v10a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5v-12z" /><path d="M12 9v6M9 12h6" />
-          </svg>
-        </button>
-      </div>
-      <select class="lookup-language" [ngModel]="dictionaryLanguage()" (ngModelChange)="setDictionaryLanguage($event)" aria-label="Ngôn ngữ tra cứu">
-        <option value="ja-vi">Nhật - Việt</option>
-        <option value="ja-ja">Nhật - Nhật</option>
-      </select>
-      <button type="button" class="search-bar__btn" (click)="onSearchEnter()">Tra cứu</button>
-    </div>
-
-    <div class="lookup-tabs" role="tablist" aria-label="Chế độ tra cứu">
-      @for (mode of lookupModes; track mode.id) {
-        <button type="button" class="lookup-tab" [class.lookup-tab--active]="activeLookupMode() === mode.id"
-          [attr.aria-selected]="activeLookupMode() === mode.id" (click)="selectLookupMode(mode.id)">
-          {{ mode.label }}
-        </button>
-      }
-    </div>
-  </section>
+  </app-lookup-frame>
 
   <!-- EMPTY STATE (chưa tìm) -->
   @if (!isSearching() && searchResults().length === 0 && !searchQuery()) {
@@ -144,19 +96,6 @@
             @if (v.languageCode) {
             <span class="badge badge--lang">{{ v.languageName || v.languageCode }}</span>
             }
-            <button
-              type="button"
-              class="detail-quick-folder"
-              (click)="openFolderModal()"
-              title="Thêm nhanh vào thư mục"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-                <line x1="12" y1="10" x2="12" y2="16" />
-                <line x1="9" y1="13" x2="15" y2="13" />
-              </svg>
-              Thêm nhanh
-            </button>
           </div>
         </div>
       </div>
@@ -202,15 +141,6 @@
             {{ isTogglingBookmark() ? '...' : isBookmarked() ? 'Đã yêu thích' : 'Yêu thích' }}
           </button>
 
-          <!-- ADD TO FOLDER -->
-          <button class="action-btn action-btn--folder" (click)="openFolderModal()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-              <line x1="12" y1="11" x2="12" y2="17" />
-              <line x1="9" y1="14" x2="15" y2="14" />
-            </svg>
-            Thêm vào Thư mục
-          </button>
         </div>
       </div>
 
@@ -251,7 +181,7 @@
 
         <div class="insight-panel__tip">
           <span aria-hidden="true">狐</span>
-          <p>Lưu từ vào thư mục để đưa nó vào phiên ôn tập tiếp theo.</p>
+          <p>Bài học của bạn quyết định nội dung được đưa vào phiên ôn tập.</p>
         </div>
       } @else {
         <div class="insight-empty insight-empty--placeholder">
@@ -361,72 +291,7 @@
     </div>
     }
 
-    <div class="kanji-modal__actions">
-      <button type="button" class="kanji-add-folder-btn" (click)="openKanjiFolderModal()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-          <line x1="12" y1="10" x2="12" y2="16" />
-          <line x1="9" y1="13" x2="15" y2="13" />
-        </svg>
-        Thêm Kanji vào thư mục
-      </button>
-    </div>
     }
-  </div>
-</div>
-}
-
-<!-- ============================
-     ADD TO FOLDER MODAL
-     ============================ -->
-@if (showFolderModal()) {
-<div class="modal-overlay" (click)="closeFolderModal()">
-  <div class="folder-modal" (click)="$event.stopPropagation()">
-    <div class="folder-modal__header">
-      <h3>{{ folderModalTitle() }}</h3>
-      <button class="modal-close" (click)="closeFolderModal()">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-    </div>
-
-    @if (folderModalItemName()) {
-    <p class="folder-modal__word">{{ folderModalItemName() }}</p>
-    }
-
-    @if (isLoadingFolders()) {
-    <div class="folder-modal__loading"><app-loading-fox message="Đang tải thư mục..." [size]="56" /></div>
-    } @else if (folders().length === 0) {
-    <div class="folder-modal__empty">Bạn chưa có thư mục nào</div>
-    } @else {
-    <div class="folder-list">
-      @for (folder of folders(); track folder.id) {
-      <button class="folder-item" [disabled]="isAddingToFolder()" (click)="addToFolder(folder.id, folder.name)">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
-        </svg>
-        <span>{{ folder.name }}</span>
-        @if (isAddingToFolder()) {
-        <app-loading-fox [size]="24" />
-        }
-      </button>
-      }
-    </div>
-    }
-
-    <!-- CREATE NEW FOLDER -->
-    <div class="folder-modal__create">
-      <div class="section-label" style="margin-bottom: 10px;">Tạo thư mục mới</div>
-      <div class="folder-create-row">
-        <input type="text" class="folder-create-input" placeholder="Tên thư mục..." [ngModel]="newFolderName()"
-          (ngModelChange)="newFolderName.set($event)" (keyup.enter)="createFolder()" />
-        <button class="folder-create-btn" (click)="createFolder()" [disabled]="!newFolderName().trim()">
-          Tạo
-        </button>
-      </div>
-    </div>
   </div>
 </div>
 }

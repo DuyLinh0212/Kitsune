@@ -45,8 +45,8 @@ export class SidebarComponent implements OnInit {
   ];
 
   readonly utilityNavItems: NavItem[] = [
-    { id: 8, label: 'Nâng cấp', iconAsset: '/images/navigation/podium.png', route: '/profile', matchPrefixes: [] },
-    { id: 9, label: 'Cài đặt', iconAsset: '/images/navigation/console.png', route: '/profile', matchPrefixes: ['/profile'] },
+    { id: 8, label: 'Bảng xếp hạng', iconAsset: '/images/navigation/podium.png', route: '/leaderboard', matchPrefixes: ['/leaderboard'] },
+    { id: 9, label: 'Minigame', iconAsset: '/images/navigation/console.png', route: '/minigames', matchPrefixes: ['/minigames'] },
   ];
 
   ngOnInit(): void {
