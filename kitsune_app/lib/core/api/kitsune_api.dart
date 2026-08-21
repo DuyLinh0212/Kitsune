@@ -2253,7 +2253,8 @@ class KitsuneApi {
         'UserId': 'eq.$userId',
       },
     );
-    final cards = (cardResponse.data as List<dynamic>).cast<Map<String, dynamic>>();
+    final cards =
+        (cardResponse.data as List<dynamic>).cast<Map<String, dynamic>>();
     final vocabularyIds = cards
         .map((card) => (card['VocabularyId'] as num?)?.toInt())
         .whereType<int>()
@@ -2264,31 +2265,43 @@ class KitsuneApi {
         .whereType<int>()
         .toSet()
         .toList();
-    final content = await Future.wait([
+    final content = await Future.wait<dynamic>([
       vocabularyIds.isEmpty
-          ? Future.value(Response(data: <dynamic>[], requestOptions: RequestOptions()))
+          ? Future.value(
+              Response(data: <dynamic>[], requestOptions: RequestOptions()))
           : client.dio.get(client.table('Vocabularies'), queryParameters: {
               'select': 'Id,Word,Pronunciation,Meaning,FolderId,SpecificData',
               'Id': 'in.(${vocabularyIds.join(',')})',
             }),
       kanjiIds.isEmpty
-          ? Future.value(Response(data: <dynamic>[], requestOptions: RequestOptions()))
+          ? Future.value(
+              Response(data: <dynamic>[], requestOptions: RequestOptions()))
           : client.dio.get(client.table('Kanji'), queryParameters: {
               'select': SupabaseConfig.kanjiSelect,
               'Id': 'in.(${kanjiIds.join(',')})',
             }),
       _loadKanjiExamples(kanjiIds),
-      _loadTodayNewLearned(cards.map((card) => (card['Id'] as num).toInt()).toList()),
-      _loadWrongReviewCounts(cards.map((card) => (card['Id'] as num).toInt()).toList()),
+      _loadTodayNewLearned(
+          cards.map((card) => (card['Id'] as num).toInt()).toList()),
+      _loadWrongReviewCounts(
+          cards.map((card) => (card['Id'] as num).toInt()).toList()),
     ]);
-    final kanjiRows = (content[1].data as List<dynamic>).cast<Map<String, dynamic>>();
+    final vocabularyResponse = content[0] as Response<dynamic>;
+    final kanjiResponse = content[1] as Response<dynamic>;
+    final kanjiRows =
+        (kanjiResponse.data as List<dynamic>).cast<Map<String, dynamic>>();
     final context = _SrsContext(
       folderId: _globalSrsId,
       folderName: _globalSrsName,
       userId: userId,
-      vocabs: (content[0].data as List<dynamic>).cast<Map<String, dynamic>>(),
+      vocabs: (vocabularyResponse.data as List<dynamic>)
+          .cast<Map<String, dynamic>>(),
       kanjiComponents: kanjiRows
-          .map((kanji) => <String, dynamic>{'VocabularyId': 0, 'KanjiId': kanji['Id'], 'Kanji': kanji})
+          .map((kanji) => <String, dynamic>{
+                'VocabularyId': 0,
+                'KanjiId': kanji['Id'],
+                'Kanji': kanji
+              })
           .toList(),
       kanjiExamples: content[2] as Map<int, List<SrsVocabularyExample>>,
       todayNewLearned: content[3] as int,
@@ -2303,7 +2316,10 @@ class KitsuneApi {
       overview: overview,
       cards: mappedCards,
       flashcards: mappedCards.where((card) => card.boxLevel == 0).toList(),
-      quizCards: mappedCards.where((card) => SrsEngine.isScheduledReviewDue(level: card.boxLevel, nextReviewDate: card.nextReviewDate)).toList(),
+      quizCards: mappedCards
+          .where((card) => SrsEngine.isScheduledReviewDue(
+              level: card.boxLevel, nextReviewDate: card.nextReviewDate))
+          .toList(),
     );
   }
 
@@ -2569,7 +2585,8 @@ class KitsuneApi {
 
   Future<FolderSrsSession> activateLesson(int lessonId) async {
     final lessonSession = await getLessonSrsSession(lessonId: lessonId);
-    if (lessonSession == null) throw Exception('Không thể khởi tạo SRS cho bài học');
+    if (lessonSession == null)
+      throw Exception('Không thể khởi tạo SRS cho bài học');
     await setActiveLessonId(lessonId);
     final globalSession = await getGlobalSrsSession();
     if (globalSession == null) throw Exception('Không thể tải SRS chung');
