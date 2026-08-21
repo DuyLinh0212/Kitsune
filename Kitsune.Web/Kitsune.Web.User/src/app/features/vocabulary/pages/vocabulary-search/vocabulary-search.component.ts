@@ -4,12 +4,19 @@ import { FormsModule } from '@angular/forms';
 import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { VocabularyService, VocabularyDto } from '../../../../core/services/vocabulary.service';
 import { FolderService, FolderDto } from '../../../../core/services/folder.service';
 import { KanjiUserService, KanjiDetailDto } from '../../../../core/services/kanji-user.service';
 import { TtsService } from '../../../../core/services/tts.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+
+type LookupMode = 'ai' | 'vocabulary' | 'kanji' | 'sentence' | 'grammar' | 'japanese';
+
+interface LookupModeOption {
+  readonly id: LookupMode;
+  readonly label: string;
+}
 
 @Component({
   selector: 'app-vocabulary-search',
@@ -24,6 +31,7 @@ export class VocabularySearchComponent implements OnInit {
   private readonly kanjiService = inject(KanjiUserService);
   readonly ttsService = inject(TtsService);
   private readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly searchSubject = new Subject<string>();
 
@@ -52,6 +60,16 @@ export class VocabularySearchComponent implements OnInit {
   readonly toast = signal<{ type: 'success' | 'error'; message: string } | null>(null);
 
   readonly isRandomMode = signal(true);
+  readonly activeLookupMode = signal<LookupMode>('vocabulary');
+  readonly dictionaryLanguage = signal<'ja-vi' | 'ja-ja'>('ja-vi');
+  readonly lookupModes: readonly LookupModeOption[] = [
+    { id: 'ai', label: 'Chế độ AI' },
+    { id: 'vocabulary', label: 'Từ vựng' },
+    { id: 'kanji', label: 'Hán tự' },
+    { id: 'sentence', label: 'Mẫu câu' },
+    { id: 'grammar', label: 'Ngữ pháp' },
+    { id: 'japanese', label: 'Nhật - Nhật' },
+  ];
 
   ngOnInit(): void {
     this.loadFolders();
@@ -100,6 +118,34 @@ export class VocabularySearchComponent implements OnInit {
   onSearchEnter(): void {
     const q = this.searchQuery().trim();
     if (q) this.doSearch(q);
+  }
+
+  clearSearch(): void {
+    this.onSearchInput('');
+  }
+
+  setDictionaryLanguage(value: string): void {
+    this.dictionaryLanguage.set(value === 'ja-ja' ? 'ja-ja' : 'ja-vi');
+  }
+
+  selectLookupMode(mode: LookupMode): void {
+    if (mode === 'kanji') {
+      void this.router.navigate(['/kanji']);
+      return;
+    }
+
+    if (mode === 'grammar') {
+      void this.router.navigate(['/grammar']);
+      return;
+    }
+
+    if (mode === 'ai' || mode === 'sentence') {
+      this.showToast('success', mode === 'ai' ? 'Chế độ AI đang được hoàn thiện.' : 'Mẫu câu sẽ sớm có trong Tra cứu.');
+      return;
+    }
+
+    this.activeLookupMode.set(mode);
+    if (mode === 'japanese') this.dictionaryLanguage.set('ja-ja');
   }
 
   private doSearch(q: string): void {
