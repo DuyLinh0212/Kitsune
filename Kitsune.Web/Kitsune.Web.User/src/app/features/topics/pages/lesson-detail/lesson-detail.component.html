@@ -10,13 +10,16 @@
       <div class="header-meta">
         <span>{{ lesson.estimatedMinutes }} phút</span>
         <span>{{ lesson.items.length }} mục học</span>
-        <a [routerLink]="['/srs']" [queryParams]="{ lessonId: lesson.id }">Ôn bài này →</a>
       </div>
       <div class="page-progress"><i [style.width.%]="progressPercent()"></i></div>
     </header>
 
     @if (activeItem(); as item) {
-      <section class="study-card" [class.study-card--kanji]="item.kanjiId" [class.study-card--vocabulary]="item.vocabularyId">
+      <section
+        class="study-card"
+        [class.study-card--kanji]="item.kanjiId"
+        [class.study-card--vocabulary]="item.vocabularyId"
+      >
         <aside>
           <span>{{ activeIndex() + 1 }}</span>
           <small>/ {{ lesson.items.length }}</small>
@@ -27,20 +30,42 @@
             <strong>{{ item.kanjiId ? '漢' : '語' }}</strong>
             <span>{{ item.kanjiId ? 'Kanji' : 'Từ vựng' }}</span>
           </div>
-          <button type="button" class="speak" [class.speak--active]="tts.isSpeaking(item.word)" (click)="speak()" aria-label="Phát âm từ hiện tại">{{ tts.isSpeaking(item.word) ? '■' : '♪' }}</button>
+          <button
+            type="button"
+            class="speak"
+            [class.speak--active]="tts.isSpeaking(item.word)"
+            (click)="speak()"
+            aria-label="Phát âm từ hiện tại"
+          >
+            {{ tts.isSpeaking(item.word) ? '■' : '♪' }}
+          </button>
           <h2>{{ item.word }}</h2>
-          @if (item.pronunciation) { <p class="reading">{{ item.pronunciation }}</p> }
+          @if (item.pronunciation) {
+            <p class="reading">{{ item.pronunciation }}</p>
+          }
           @if (item.kanjiId) {
             <dl class="kanji-readings">
-              <div><dt>Âm On</dt><dd>{{ item.onyomi || '—' }}</dd></div>
-              <div><dt>Âm Kun</dt><dd>{{ item.kunyomi || '—' }}</dd></div>
+              <div>
+                <dt>Âm Hán Việt</dt>
+                <dd>{{ item.amHanViet || '—' }}</dd>
+              </div>
+              <div>
+                <dt>Âm On</dt>
+                <dd>{{ item.onyomi || '—' }}</dd>
+              </div>
+              <div>
+                <dt>Âm Kun</dt>
+                <dd>{{ item.kunyomi || '—' }}</dd>
+              </div>
             </dl>
           }
           <p class="meaning">{{ item.meaning }}</p>
           @if (item.exampleSentence) {
             <blockquote>
               <strong>{{ item.exampleSentence }}</strong>
-              @if (item.exampleTranslation) { <span>{{ item.exampleTranslation }}</span> }
+              @if (item.exampleTranslation) {
+                <span>{{ item.exampleTranslation }}</span>
+              }
             </blockquote>
           }
         </article>
@@ -50,7 +75,10 @@
         <button type="button" (click)="previous()" [disabled]="activeIndex() === 0">← Trước</button>
         <div class="item-dots">
           @for (entry of lesson.items; track entry.id; let index = $index) {
-            <i [class.item-dot--active]="index === activeIndex()" [class.item-dot--done]="index < activeIndex()"></i>
+            <i
+              [class.item-dot--active]="index === activeIndex()"
+              [class.item-dot--done]="index < activeIndex()"
+            ></i>
           }
         </div>
         <button type="button" class="next" (click)="next()" [disabled]="isSaving()">
@@ -61,5 +89,7 @@
       <p class="status">Bài học chưa có nội dung.</p>
     }
   }
-  @if (errorMessage()) { <p class="status status--error">{{ errorMessage() }}</p> }
+  @if (errorMessage()) {
+    <p class="status status--error">{{ errorMessage() }}</p>
+  }
 </main>

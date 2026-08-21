@@ -2630,16 +2630,6 @@ class KitsuneApi {
         isNew: json['isNew'] as bool? ?? false,
       );
 
-  Future<FolderSrsSession> activateLesson(int lessonId) async {
-    final lessonSession = await getLessonSrsSession(lessonId: lessonId);
-    if (lessonSession == null)
-      throw Exception('Không thể khởi tạo SRS cho bài học');
-    await setActiveLessonId(lessonId);
-    final globalSession = await getGlobalSrsSession();
-    if (globalSession == null) throw Exception('Không thể tải SRS chung');
-    return globalSession;
-  }
-
   Future<LessonDto> getLessonDetail(int lessonId) async {
     final responses = await Future.wait([
       client.dio.get(client.table('Lessons'), queryParameters: {
@@ -2649,7 +2639,7 @@ class KitsuneApi {
       }),
       client.dio.get(client.table('LessonItems'), queryParameters: {
         'select':
-            'Id,LessonId,VocabularyId,KanjiId,OrderIndex,ExampleSentence,ExampleTranslation,Vocabulary:VocabularyId(Word,Pronunciation,Meaning),Kanji:KanjiId(Character,Onyomi,Kunyomi,Meaning)',
+            'Id,LessonId,VocabularyId,KanjiId,OrderIndex,ExampleSentence,ExampleTranslation,Vocabulary:VocabularyId(Word,Pronunciation,Meaning),Kanji:KanjiId(Character,AmHanViet,Onyomi,Kunyomi,Meaning)',
         'LessonId': 'eq.$lessonId',
         'order': 'OrderIndex.asc',
       }),
@@ -2671,6 +2661,7 @@ class KitsuneApi {
             kanji?['Onyomi'] as String? ??
             kanji?['Kunyomi'] as String? ??
             '',
+        amHanViet: kanji?['AmHanViet'] as String?,
         meaning:
             vocab?['Meaning'] as String? ?? kanji?['Meaning'] as String? ?? '',
         exampleSentence: row['ExampleSentence'] as String?,

@@ -47,6 +47,7 @@ class LessonItemDto {
   final int? kanjiId;
   final String word;
   final String pronunciation;
+  final String? amHanViet;
   final String meaning;
   final String? exampleSentence;
   final String? exampleTranslation;
@@ -57,6 +58,7 @@ class LessonItemDto {
       this.kanjiId,
       required this.word,
       required this.pronunciation,
+      this.amHanViet,
       required this.meaning,
       this.exampleSentence,
       this.exampleTranslation});

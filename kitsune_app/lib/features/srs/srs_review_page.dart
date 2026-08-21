@@ -261,7 +261,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     }
   }
 
-  Future<void> _openFolder(int folderId, {required bool activate}) async {
+  Future<void> _openFolder(int folderId) async {
     if (_isSubmitting) {
       return;
     }
@@ -271,7 +271,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       final repo = ref.read(kitsuneApiProvider);
       final result = await Future.wait<dynamic>([
         repo.getDailySrsGoal(),
-        activate ? repo.activateLesson(folderId) : repo.getGlobalSrsSession(),
+        repo.getGlobalSrsSession(),
       ]);
       final dailyGoal = result[0] as int?;
       final session = result[1] as FolderSrsSession?;
@@ -932,7 +932,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   Future<void> _reloadActiveFolder() async {
-    await _openFolder(0, activate: false);
+    await _openFolder(0);
     if (!mounted) {
       return;
     }

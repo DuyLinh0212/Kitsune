@@ -1,7 +1,14 @@
 // Kitsune.Web/Kitsune.Web.User/src/app/core/services/topic.service.ts
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom, from, Observable } from 'rxjs';
-import { GameVocabulary, LessonDetail, LessonItem, LessonSummary, MinigameType, TopicSummary } from '../models/topic.model';
+import {
+  GameVocabulary,
+  LessonDetail,
+  LessonItem,
+  LessonSummary,
+  MinigameType,
+  TopicSummary,
+} from '../models/topic.model';
 import { SrsService } from './srs.service';
 import { supabase } from '../supabase/supabase.client';
 
@@ -32,7 +39,13 @@ interface LessonItemRow {
   ExampleSentence: string | null;
   ExampleTranslation: string | null;
   Vocabulary: { Word: string; Pronunciation: string | null; Meaning: string } | null;
-  Kanji: { Character: string; Onyomi: string | null; Kunyomi: string | null; Meaning: string } | null;
+  Kanji: {
+    Character: string;
+    AmHanViet: string | null;
+    Onyomi: string | null;
+    Kunyomi: string | null;
+    Meaning: string;
+  } | null;
 }
 
 interface ProgressRow {
@@ -56,7 +69,12 @@ export class TopicService {
     return from(this.loadLesson(lessonId));
   }
 
-  updateProgress(lessonId: number, completedItemCount: number, totalItems: number, lastItemId?: number): Observable<void> {
+  updateProgress(
+    lessonId: number,
+    completedItemCount: number,
+    totalItems: number,
+    lastItemId?: number,
+  ): Observable<void> {
     return from(this.saveProgress(lessonId, completedItemCount, totalItems, lastItemId));
   }
 
@@ -64,13 +82,28 @@ export class TopicService {
     return from(this.loadGameVocabulary(limit));
   }
 
-  recordGame(type: MinigameType, score: number, correct: number, wrong: number, durationSeconds: number): Observable<void> {
+  recordGame(
+    type: MinigameType,
+    score: number,
+    correct: number,
+    wrong: number,
+    durationSeconds: number,
+  ): Observable<void> {
     return from(this.saveGame(type, score, correct, wrong, durationSeconds));
   }
 
   private async loadTopics(): Promise<TopicSummary[]> {
-    const [{ data: topics, error: topicError }, { data: lessons, error: lessonError }, { data: items, error: itemError }, progress] = await Promise.all([
-      supabase.from('Topics').select('Id, Title, Description, ImageUrl, JlptLevel').eq('IsPublished', true).order('CreatedAt'),
+    const [
+      { data: topics, error: topicError },
+      { data: lessons, error: lessonError },
+      { data: items, error: itemError },
+      progress,
+    ] = await Promise.all([
+      supabase
+        .from('Topics')
+        .select('Id, Title, Description, ImageUrl, JlptLevel')
+        .eq('IsPublished', true)
+        .order('CreatedAt'),
       supabase.from('Lessons').select('Id, TopicId').eq('IsPublished', true),
       supabase.from('LessonItems').select('LessonId'),
       this.loadProgress(),
@@ -81,14 +114,18 @@ export class TopicService {
 
     const progressMap = new Map(progress.map((row) => [row.LessonId, row.CompletedItemCount]));
     const itemCounts = new Map<number, number>();
-    for (const item of items ?? []) itemCounts.set(item.LessonId, (itemCounts.get(item.LessonId) ?? 0) + 1);
+    for (const item of items ?? [])
+      itemCounts.set(item.LessonId, (itemCounts.get(item.LessonId) ?? 0) + 1);
     return ((topics ?? []) as TopicRow[]).map((topic) => {
       const topicLessons = (lessons ?? []).filter((lesson) => lesson.TopicId === topic.Id);
       const completed = topicLessons.filter((lesson) => {
         const itemCount = itemCounts.get(lesson.Id) ?? 0;
         return itemCount > 0 && (progressMap.get(lesson.Id) ?? 0) >= itemCount;
       }).length;
-      const totalItems = topicLessons.reduce((sum, lesson) => sum + (itemCounts.get(lesson.Id) ?? 0), 0);
+      const totalItems = topicLessons.reduce(
+        (sum, lesson) => sum + (itemCounts.get(lesson.Id) ?? 0),
+        0,
+      );
       const completedItems = topicLessons.reduce((sum, lesson) => {
         const itemCount = itemCounts.get(lesson.Id) ?? 0;
         return sum + Math.min(progressMap.get(lesson.Id) ?? 0, itemCount);
@@ -117,17 +154,35 @@ export class TopicService {
     if (error) throw error;
     const rows = (data ?? []) as LessonRow[];
     const lessonIds = rows.map((row) => row.Id);
-    const [itemCounts, progress] = await Promise.all([this.loadItemCounts(lessonIds), this.loadProgress(lessonIds)]);
+    const [itemCounts, progress] = await Promise.all([
+      this.loadItemCounts(lessonIds),
+      this.loadProgress(lessonIds),
+    ]);
     const progressMap = new Map(progress.map((row) => [row.LessonId, row.CompletedItemCount]));
-    return rows.map((row) => this.mapLesson(row, itemCounts.get(row.Id) ?? 0, progressMap.get(row.Id) ?? 0));
+    return rows.map((row) =>
+      this.mapLesson(row, itemCounts.get(row.Id) ?? 0, progressMap.get(row.Id) ?? 0),
+    );
   }
 
   private async loadLesson(lessonId: number): Promise<LessonDetail> {
-    const [{ data: lesson, error: lessonError }, { data: itemData, error: itemError }, progress] = await Promise.all([
-      supabase.from('Lessons').select('Id, TopicId, Title, Description, OrderIndex, EstimatedMinutes, Topic:TopicId(Title)').eq('Id', lessonId).single(),
-      supabase.from('LessonItems').select('Id, LessonId, VocabularyId, KanjiId, OrderIndex, ExampleSentence, ExampleTranslation, Vocabulary:VocabularyId(Word, Pronunciation, Meaning), Kanji:KanjiId(Character, Onyomi, Kunyomi, Meaning)').eq('LessonId', lessonId).order('OrderIndex'),
-      this.loadProgress([lessonId]),
-    ]);
+    const [{ data: lesson, error: lessonError }, { data: itemData, error: itemError }, progress] =
+      await Promise.all([
+        supabase
+          .from('Lessons')
+          .select(
+            'Id, TopicId, Title, Description, OrderIndex, EstimatedMinutes, Topic:TopicId(Title)',
+          )
+          .eq('Id', lessonId)
+          .single(),
+        supabase
+          .from('LessonItems')
+          .select(
+            'Id, LessonId, VocabularyId, KanjiId, OrderIndex, ExampleSentence, ExampleTranslation, Vocabulary:VocabularyId(Word, Pronunciation, Meaning), Kanji:KanjiId(Character, AmHanViet, Onyomi, Kunyomi, Meaning)',
+          )
+          .eq('LessonId', lessonId)
+          .order('OrderIndex'),
+        this.loadProgress([lessonId]),
+      ]);
     if (lessonError) throw lessonError;
     if (itemError) throw itemError;
     const row = lesson as unknown as LessonRow;
@@ -138,7 +193,9 @@ export class TopicService {
       kanjiId: item.KanjiId,
       orderIndex: item.OrderIndex,
       word: item.Vocabulary?.Word ?? item.Kanji?.Character ?? '',
-      pronunciation: item.Vocabulary?.Pronunciation ?? item.Kanji?.Onyomi ?? item.Kanji?.Kunyomi ?? null,
+      pronunciation:
+        item.Vocabulary?.Pronunciation ?? item.Kanji?.Onyomi ?? item.Kanji?.Kunyomi ?? null,
+      amHanViet: item.Kanji?.AmHanViet ?? null,
       onyomi: item.Kanji?.Onyomi ?? null,
       kunyomi: item.Kanji?.Kunyomi ?? null,
       meaning: item.Vocabulary?.Meaning ?? item.Kanji?.Meaning ?? '',
@@ -163,14 +220,20 @@ export class TopicService {
       estimatedMinutes: row.EstimatedMinutes,
       itemCount,
       completedItemCount: Math.min(completedItemCount, itemCount),
-      progressPercent: itemCount === 0 ? 0 : Math.round((Math.min(completedItemCount, itemCount) / itemCount) * 100),
+      progressPercent:
+        itemCount === 0
+          ? 0
+          : Math.round((Math.min(completedItemCount, itemCount) / itemCount) * 100),
     };
   }
 
   private async loadItemCounts(lessonIds: number[]): Promise<Map<number, number>> {
     const result = new Map<number, number>();
     if (lessonIds.length === 0) return result;
-    const { data, error } = await supabase.from('LessonItems').select('LessonId').in('LessonId', lessonIds);
+    const { data, error } = await supabase
+      .from('LessonItems')
+      .select('LessonId')
+      .in('LessonId', lessonIds);
     if (error) throw error;
     for (const row of data ?? []) result.set(row.LessonId, (result.get(row.LessonId) ?? 0) + 1);
     return result;
@@ -179,25 +242,36 @@ export class TopicService {
   private async loadProgress(lessonIds?: number[]): Promise<ProgressRow[]> {
     const userId = await this.getCurrentUserId(false);
     if (userId == null) return [];
-    let query = supabase.from('UserLessonProgress').select('LessonId, CompletedItemCount').eq('UserId', userId);
+    let query = supabase
+      .from('UserLessonProgress')
+      .select('LessonId, CompletedItemCount')
+      .eq('UserId', userId);
     if (lessonIds?.length) query = query.in('LessonId', lessonIds);
     const { data, error } = await query;
     if (error) throw error;
     return (data ?? []) as ProgressRow[];
   }
 
-  private async saveProgress(lessonId: number, completedItemCount: number, totalItems: number, lastItemId?: number): Promise<void> {
+  private async saveProgress(
+    lessonId: number,
+    completedItemCount: number,
+    totalItems: number,
+    lastItemId?: number,
+  ): Promise<void> {
     const userId = await this.getCurrentUserId(true);
     const completed = Math.max(0, Math.min(completedItemCount, totalItems));
     const now = new Date().toISOString();
-    const { error } = await supabase.from('UserLessonProgress').upsert({
-      UserId: userId,
-      LessonId: lessonId,
-      CompletedItemCount: completed,
-      LastItemId: lastItemId ?? null,
-      LastStudiedAt: now,
-      CompletedAt: totalItems > 0 && completed >= totalItems ? now : null,
-    }, { onConflict: 'UserId,LessonId' });
+    const { error } = await supabase.from('UserLessonProgress').upsert(
+      {
+        UserId: userId,
+        LessonId: lessonId,
+        CompletedItemCount: completed,
+        LastItemId: lastItemId ?? null,
+        LastStudiedAt: now,
+        CompletedAt: totalItems > 0 && completed >= totalItems ? now : null,
+      },
+      { onConflict: 'UserId,LessonId' },
+    );
     if (error) throw error;
     await firstValueFrom(this.srsService.getLessonSession(lessonId));
   }
@@ -210,10 +284,21 @@ export class TopicService {
       .limit(Math.max(10, Math.min(80, limit * 3)));
     if (error) throw error;
     const shuffled = [...(data ?? [])].sort(() => Math.random() - 0.5).slice(0, limit);
-    return shuffled.map((row) => ({ id: row.Id, word: row.Word, pronunciation: row.Pronunciation ?? '', meaning: row.Meaning }));
+    return shuffled.map((row) => ({
+      id: row.Id,
+      word: row.Word,
+      pronunciation: row.Pronunciation ?? '',
+      meaning: row.Meaning,
+    }));
   }
 
-  private async saveGame(type: MinigameType, score: number, correct: number, wrong: number, durationSeconds: number): Promise<void> {
+  private async saveGame(
+    type: MinigameType,
+    score: number,
+    correct: number,
+    wrong: number,
+    durationSeconds: number,
+  ): Promise<void> {
     const userId = await this.getCurrentUserId(true);
     const { error } = await supabase.from('MinigameSessions').insert({
       UserId: userId,
@@ -234,7 +319,11 @@ export class TopicService {
       if (required) throw new Error('Not authenticated');
       return null;
     }
-    const { data, error } = await supabase.from('Users').select('Id').eq('Email', email).maybeSingle();
+    const { data, error } = await supabase
+      .from('Users')
+      .select('Id')
+      .eq('Email', email)
+      .maybeSingle();
     if (error) throw error;
     if (!data && required) throw new Error('Không tìm thấy hồ sơ người dùng.');
     return data?.Id ?? null;

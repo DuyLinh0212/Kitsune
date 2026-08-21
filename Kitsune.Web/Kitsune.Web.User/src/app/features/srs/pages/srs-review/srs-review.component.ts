@@ -1,7 +1,7 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import {
   FolderSrsOverview,
@@ -54,12 +54,17 @@ interface LevelBucket {
 @Component({
   selector: 'app-srs-review',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, LoadingFoxComponent, KanjiDrawingReviewComponent],
+  imports: [
+    CommonModule,
+    FormsModule,
+    RouterLink,
+    LoadingFoxComponent,
+    KanjiDrawingReviewComponent,
+  ],
   templateUrl: './srs-review.component.html',
   styleUrl: './srs-review.component.css',
 })
 export class SrsReviewComponent implements OnInit, OnDestroy {
-  private readonly route = inject(ActivatedRoute);
   private readonly srsService = inject(SrsService);
   readonly ttsService = inject(TtsService);
 
@@ -111,35 +116,36 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   readonly currentFlashcard = computed(() => this.flashQueue()[0] ?? null);
   readonly currentQuizCard = computed(() => this.quizQueue()[0] ?? null);
   readonly currentCard = computed(() =>
-    this.phase() === 'flashcard' ? this.currentFlashcard() : this.currentQuizCard()
+    this.phase() === 'flashcard' ? this.currentFlashcard() : this.currentQuizCard(),
   );
   readonly totalStudyUnits = computed(() => {
     return this.dueQueue().length;
   });
   readonly completedUnits = computed(
-    () => this.stats().flashCompleted + this.stats().quizCompleted
+    () => this.stats().flashCompleted + this.stats().quizCompleted,
   );
   readonly progressPercent = computed(() => {
     const total = this.totalStudyUnits();
     if (total === 0) return 0;
     return Math.round((this.completedUnits() / total) * 100);
   });
-  readonly activeFolder = computed(() =>
-    this.dashboardFolders().find((folder) => folder.folderId === this.activeFolderId()) ?? null
+  readonly activeFolder = computed(
+    () =>
+      this.dashboardFolders().find((folder) => folder.folderId === this.activeFolderId()) ?? null,
   );
   readonly queueCount = computed(() =>
-    this.phase() === 'flashcard' ? this.flashQueue().length : this.quizQueue().length
+    this.phase() === 'flashcard' ? this.flashQueue().length : this.quizQueue().length,
   );
   readonly accuracyPercent = computed(() => {
     const answers = this.stats().answersGiven;
     if (answers === 0) return 100;
     return Math.round(((answers - this.stats().mistakes) / answers) * 100);
   });
-  readonly todayNewLearned = computed(() =>
-    (this.activeSession()?.overview.todayNewLearned ?? 0) + this.stats().flashCompleted
+  readonly todayNewLearned = computed(
+    () => (this.activeSession()?.overview.todayNewLearned ?? 0) + this.stats().flashCompleted,
   );
   readonly remainingDailyGoal = computed(() =>
-    Math.max(0, (this.dailyGoal() ?? 0) - this.todayNewLearned())
+    Math.max(0, (this.dailyGoal() ?? 0) - this.todayNewLearned()),
   );
 
   /** Bar chart: count cards by boxLevel 0–7 (all 8 levels) */
@@ -198,10 +204,6 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   async loadDashboard(): Promise<void> {
     this.isLoading.set(true);
     try {
-      const requestedLessonId = Number(this.route.snapshot.queryParamMap.get('lessonId'));
-      if (Number.isFinite(requestedLessonId) && requestedLessonId > 0) {
-        await firstValueFrom(this.srsService.activateLesson(requestedLessonId));
-      }
       const session = await firstValueFrom(this.srsService.getGlobalSession());
       if (!session) {
         this.activeSession.set(null);
@@ -218,14 +220,12 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     }
   }
 
-  async openFolder(folderId: number, userInitiated = true): Promise<void> {
+  async openFolder(folderId: number): Promise<void> {
     if (this.isSubmitting()) return;
 
     this.isSwitchingFolder.set(folderId);
     try {
-      const session = userInitiated
-        ? await firstValueFrom(this.srsService.activateLesson(folderId))
-        : await firstValueFrom(this.srsService.getGlobalSession());
+      const session = await firstValueFrom(this.srsService.getGlobalSession());
 
       if (!session) {
         this.activeFolderId.set(folderId);
@@ -272,7 +272,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
   async selectFolder(folderId: number): Promise<void> {
     this.showFolderDropdown.set(false);
-    await this.openFolder(folderId, true);
+    await this.openFolder(folderId);
   }
 
   // ─── Flashcard ──────────────────────────────────────────────────────────────
@@ -287,27 +287,25 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.ttsService.speak(card.word);
   }
 
-  async markFlashcardLearned(): Promise<void> {
+  markFlashcardLearned(): void {
     const card = this.currentFlashcard();
     if (!card || this.isSubmitting()) return;
 
     this.isSubmitting.set(true);
-    try {
-      const progress = await firstValueFrom(this.srsService.completeFlashcard(card.id));
-      this.applyLocalProgress(progress);
-      this.flashQueue.update((queue) => queue.slice(1));
-      this.stats.update((stats) => ({
-        ...stats,
-        flashCompleted: stats.flashCompleted + 1,
-      }));
-      this.isCardFlipped.set(false);
-      this.syncPhaseAfterFlash();
-    } catch (error) {
+    const progress = this.srsService.previewCardProgress(card, true, true);
+    this.applyLocalProgress(progress);
+    this.flashQueue.update((queue) => queue.slice(1));
+    this.stats.update((stats) => ({
+      ...stats,
+      flashCompleted: stats.flashCompleted + 1,
+    }));
+    this.isCardFlipped.set(false);
+    this.isSubmitting.set(false);
+    this.syncPhaseAfterFlash();
+    void firstValueFrom(this.srsService.completeFlashcard(card)).catch((error: unknown) => {
       console.error(error);
-      this.showToast('error', 'Không thể ghi nhận lượt học flashcard.');
-    } finally {
-      this.isSubmitting.set(false);
-    }
+      this.showToast('error', 'Chưa thể đồng bộ lượt học flashcard.');
+    });
   }
 
   /** Push current flashcard to end of queue ("xem lại") */
@@ -330,36 +328,37 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.selectedOption.set(option);
   }
 
-  async submitQuizAnswer(): Promise<void> {
+  submitQuizAnswer(): void {
     const card = this.currentQuizCard();
     const question = this.currentQuestion();
     if (!card || !question || this.isSubmitting()) return;
 
-    const answer = question.kind === 'mc' ? this.selectedOption()?.trim() ?? '' : '';
+    const answer = question.kind === 'mc' ? (this.selectedOption()?.trim() ?? '') : '';
 
     if (!answer) return;
 
     const isCorrect = this.normalize(answer) === this.normalize(question.correctAnswer);
-    await this.recordQuizResult(isCorrect, question);
+    this.recordQuizResult(isCorrect, question);
   }
 
-  async submitDrawingAnswer(isCorrect: boolean): Promise<void> {
+  submitDrawingAnswer(isCorrect: boolean): void {
     const question = this.currentQuestion();
     if (!question || question.kind !== 'drawing') return;
-    await this.recordQuizResult(isCorrect, question);
+    this.recordQuizResult(isCorrect, question);
   }
 
-  private async recordQuizResult(isCorrect: boolean, question: QuizQuestion): Promise<void> {
+  private recordQuizResult(isCorrect: boolean, question: QuizQuestion): void {
     const card = this.currentQuizCard();
     if (!card || this.isSubmitting()) return;
     this.answerFeedback.set({
       correct: isCorrect,
-      message: (isCorrect
-        ? `✓ Chính xác. Đáp án: "${question.correctAnswer}".`
-        : question.kind === 'drawing'
-          ? '✗ Nét viết chưa khớp. Hãy xem lại gợi ý rồi thử lại sau.'
-          : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}".`)
-        + (question.answerDetail ? `\n${question.answerDetail}` : ''),
+      message:
+        (isCorrect
+          ? `✓ Chính xác. Đáp án: "${question.correctAnswer}".`
+          : question.kind === 'drawing'
+            ? '✗ Nét viết chưa khớp. Hãy xem lại gợi ý rồi thử lại sau.'
+            : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}".`) +
+        (question.answerDetail ? `\n${question.answerDetail}` : ''),
     });
     this.stats.update((stats) => ({
       ...stats,
@@ -368,20 +367,15 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       mistakes: stats.mistakes + (isCorrect ? 0 : 1),
     }));
     this.isSubmitting.set(true);
-    try {
-      const progressRequest = firstValueFrom(this.srsService.submitQuizAnswer(card.id, isCorrect));
-      // The queued answer is immutable at this point. Release the next question
-      // immediately; persistence continues in the background.
-      this.isSubmitting.set(false);
-      const progress = await progressRequest;
-      this.applyLocalProgress(progress);
-    } catch (error) {
-      console.error(error);
-      this.answerFeedback.set(null);
-      this.showToast('error', 'Không thể lưu kết quả ôn tập. Hãy thử lại.');
-    } finally {
-      this.isSubmitting.set(false);
-    }
+    const progress = this.srsService.previewCardProgress(card, isCorrect, false);
+    this.applyLocalProgress(progress);
+    this.isSubmitting.set(false);
+    void firstValueFrom(this.srsService.submitQuizAnswer(card, isCorrect)).catch(
+      (error: unknown) => {
+        console.error(error);
+        this.showToast('error', 'Chưa thể đồng bộ kết quả ôn tập.');
+      },
+    );
   }
 
   continueAfterAnswer(): void {
@@ -474,7 +468,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.dueQueue.set([...session.quizCards]);
     this.phase.set('prompt_review');
   }
-  
+
   chooseDailyGoal(limit: number): void {
     const session = this.activeSession();
     if (!session) return;
@@ -520,29 +514,29 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.selectedLimit.set(session.quizCards.length + newCount);
     this.dueQueue.set([...session.quizCards]);
     this.newQueue.set(session.flashcards.slice(0, newCount));
-    
+
     if (this.dueQueue().length > 0) {
       this.phase.set('prompt_review');
     } else {
       this.startStudyingQueues();
     }
   }
-  
+
   startStudyingQueues(): void {
     this.quizQueue.set([...this.dueQueue()]);
     this.flashQueue.set([...this.newQueue()]);
-    
+
     if (this.quizQueue().length > 0) {
       this.phase.set('quiz');
       this.prepareNextQuestion();
       return;
     }
-    
+
     if (this.flashQueue().length > 0) {
       this.phase.set('flashcard');
       return;
     }
-    
+
     this.phase.set('summary');
   }
 
@@ -611,7 +605,11 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
         isDue: isNew || new Date(progress.nextReviewDate).getTime() <= now,
       };
     });
-    const overview = this.buildLocalOverview(session.overview, cards, session.overview.todayNewLearned);
+    const overview = this.buildLocalOverview(
+      session.overview,
+      cards,
+      session.overview.todayNewLearned,
+    );
     const updatedSession: FolderSrsSession = {
       ...session,
       overview,
@@ -627,14 +625,17 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   private buildLocalOverview(
     base: FolderSrsOverview,
     cards: SRSCardDto[],
-    todayNewLearned: number
+    todayNewLearned: number,
   ): FolderSrsOverview {
     const totalCards = cards.length;
     const newCards = cards.filter((card) => card.boxLevel === 0).length;
     const dueCards = cards.filter((card) => this.isScheduledReviewDue(card)).length;
     const futureCards = cards
       .filter((card) => card.boxLevel > 0 && !this.isScheduledReviewDue(card))
-      .sort((left, right) => new Date(left.nextReviewDate).getTime() - new Date(right.nextReviewDate).getTime());
+      .sort(
+        (left, right) =>
+          new Date(left.nextReviewDate).getTime() - new Date(right.nextReviewDate).getTime(),
+      );
 
     return {
       ...base,
@@ -682,9 +683,10 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       };
     }
 
-    const modes = card.type === 'vocabulary'
-      ? this.shuffle<SrsMode>(['MEAN_FROM_WORD', 'WORD_FROM_MEAN', 'FILL_BLANK'])
-      : this.shuffle<SrsMode>(['ON_KUN_READ', 'HAN_VIET', 'COMPOSE_KANJI']);
+    const modes =
+      card.type === 'vocabulary'
+        ? this.shuffle<SrsMode>(['MEAN_FROM_WORD', 'WORD_FROM_MEAN', 'FILL_BLANK'])
+        : this.shuffle<SrsMode>(['ON_KUN_READ', 'HAN_VIET', 'COMPOSE_KANJI']);
 
     // Always try to create a multiple-choice question
     for (const mode of modes) {
@@ -710,7 +712,11 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
           prompt: card.character ?? '',
           promptLabel: 'Chọn âm Hán Việt của kanji này',
           helper: `Nét: ${card.strokeCount ?? '—'}`,
-          options: this.buildOptions(card.amHanViet ?? 'Vô', [], ['Tâm', 'Hải', 'Hỏa', 'Thủy', 'Mộc']),
+          options: this.buildOptions(
+            card.amHanViet ?? 'Vô',
+            [],
+            ['Tâm', 'Hải', 'Hỏa', 'Thủy', 'Mộc'],
+          ),
           correctAnswer: card.amHanViet ?? 'Vô',
         };
   }
@@ -718,15 +724,24 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   private tryCreateQuestion(
     mode: SrsMode,
     card: SRSCardDto,
-    pool: SRSCardDto[]
+    pool: SRSCardDto[],
   ): QuizQuestion | null {
     if (card.type === 'vocabulary') {
       if (mode === 'MEAN_FROM_WORD') {
-        const fallbacks = ['Gia đình', 'Nhà', 'Người', 'Thời gian', 'Lịch', 'Sách', 'Trường học', 'Ngôn ngữ'];
+        const fallbacks = [
+          'Gia đình',
+          'Nhà',
+          'Người',
+          'Thời gian',
+          'Lịch',
+          'Sách',
+          'Trường học',
+          'Ngôn ngữ',
+        ];
         const options = this.buildOptions(
           card.meaning,
           pool.filter((item) => item.type === 'vocabulary').map((item) => item.meaning),
-          fallbacks
+          fallbacks,
         );
         return {
           mode,
@@ -744,19 +759,25 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
         const options = this.buildOptions(
           card.word,
           pool.filter((item) => item.type === 'vocabulary').map((item) => item.word),
-          fallbacks
+          fallbacks,
         );
         const hasSentence = mode === 'FILL_BLANK' && !!card.exampleSentence;
         const sentence = card.exampleSentence ?? '';
         const blankSentence = hasSentence
-          ? (sentence.includes(card.word) ? sentence.replace(card.word, '＿＿＿＿') : `${sentence} ＿＿＿＿`)
+          ? sentence.includes(card.word)
+            ? sentence.replace(card.word, '＿＿＿＿')
+            : `${sentence} ＿＿＿＿`
           : card.meaning;
         return {
           mode,
           kind: 'mc',
           prompt: blankSentence,
           promptLabel: hasSentence ? 'Chọn từ điền vào chỗ trống' : 'Chọn từ tiếng Nhật đúng',
-          helper: hasSentence ? 'Chọn từ phù hợp với ngữ cảnh.' : (card.pronunciation ? `Gợi ý: ${card.pronunciation}` : 'Ưu tiên đúng chính tả.'),
+          helper: hasSentence
+            ? 'Chọn từ phù hợp với ngữ cảnh.'
+            : card.pronunciation
+              ? `Gợi ý: ${card.pronunciation}`
+              : 'Ưu tiên đúng chính tả.',
           options,
           correctAnswer: card.word,
           answerDetail: hasSentence
@@ -773,7 +794,18 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
         .filter((item) => item.type === 'kanji')
         .map((item) => item.onyomi ?? item.kunyomi)
         .filter((value): value is string => !!value);
-      const fallbacks = ['ジン', 'カ', 'ガク', 'ゴ', 'ホン', 'セイ', 'セン', 'ニチ', 'ゲツ', 'スイ'];
+      const fallbacks = [
+        'ジン',
+        'カ',
+        'ガク',
+        'ゴ',
+        'ホン',
+        'セイ',
+        'セン',
+        'ニチ',
+        'ゲツ',
+        'スイ',
+      ];
       const options = this.buildOptions(correct, readings, fallbacks);
       return {
         mode,
@@ -793,7 +825,18 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
         .filter((item) => item.type === 'kanji')
         .map((item) => item.amHanViet)
         .filter((value): value is string => !!value);
-      const fallbacks = ['Nhân', 'Gia', 'Học', 'Ngữ', 'Bản', 'Sinh', 'Tiên', 'Nhật', 'Nguyệt', 'Hỏa'];
+      const fallbacks = [
+        'Nhân',
+        'Gia',
+        'Học',
+        'Ngữ',
+        'Bản',
+        'Sinh',
+        'Tiên',
+        'Nhật',
+        'Nguyệt',
+        'Hỏa',
+      ];
       const options = this.buildOptions(correct, poolItems, fallbacks);
       return {
         mode,
@@ -831,15 +874,15 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
   private buildOptions(correct: string, pool: string[], fallbacks: string[]): string[] {
     let unique = [...new Set(pool.filter((value) => value && value !== correct))];
-    
+
     // If not enough unique options in pool, pull from fallbacks
     if (unique.length < 3) {
       const additional = fallbacks.filter((value) => value !== correct && !unique.includes(value));
       unique = [...unique, ...additional];
     }
-    
+
     const wrongs = this.shuffle(unique).slice(0, 3);
-    
+
     // Even after fallbacks if we still don't have 3 wrongs, just duplicate some or use empty strings (should rarely happen with good fallbacks)
     while (wrongs.length < 3) {
       wrongs.push(`Lựa chọn ${wrongs.length + 1}`);
@@ -849,13 +892,14 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   }
 
   private shouldUseDrawing(card: SRSCardDto): boolean {
-    const probability = card.wrongReviewCount >= 3
-      ? 0.8
-      : card.wrongReviewCount === 2
-        ? 0.6
-        : card.wrongReviewCount === 1
-          ? 0.38
-          : 0.15;
+    const probability =
+      card.wrongReviewCount >= 3
+        ? 0.8
+        : card.wrongReviewCount === 2
+          ? 0.6
+          : card.wrongReviewCount === 1
+            ? 0.38
+            : 0.15;
     return Math.random() < probability;
   }
 
@@ -909,7 +953,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
     this.countdownDisplay.set(
-      `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`,
     );
   }
 

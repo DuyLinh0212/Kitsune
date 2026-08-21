@@ -30,6 +30,7 @@ export interface LessonItem {
   orderIndex: number;
   word: string;
   pronunciation: string | null;
+  amHanViet: string | null;
   onyomi: string | null;
   kunyomi: string | null;
   meaning: string;
