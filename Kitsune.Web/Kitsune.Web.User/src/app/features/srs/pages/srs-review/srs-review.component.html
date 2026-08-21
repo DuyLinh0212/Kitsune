@@ -102,7 +102,6 @@
           </div>
           <div class="chart-summary-pills">
             @if (activeFolder(); as folder) {
-              <span class="summary-chip summary-chip--new">{{ folder.newCards }} mới</span>
               <span class="summary-chip summary-chip--due">{{ activeSession()?.quizCards?.length ?? 0 }} cần ôn</span>
               <span class="summary-chip summary-chip--master">{{ activeFolder()?.masteredCards ?? 0 }} master</span>
             }
@@ -170,7 +169,6 @@
               <p class="action-bar__folder-name">SRS chung</p>
               <p class="action-bar__folder-stats">
                 {{ folder.learnedCards }} đã học •
-                <span class="text-orange">{{ folder.newCards }} mới</span> •
                 <span class="text-green">{{ folder.masteredCards }} thành thạo</span>
               </p>
             </div>

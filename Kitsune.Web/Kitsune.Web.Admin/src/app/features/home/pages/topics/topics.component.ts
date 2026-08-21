@@ -339,6 +339,12 @@ export class TopicManagementComponent implements OnInit {
       next: (items) => {
         if (this.selectedLessonId() !== lessonId) return;
         this.lessonItems.set(items);
+        this.topics.update((topics) => topics.map((topic) => ({
+          ...topic,
+          lessons: topic.lessons.map((lesson) =>
+            lesson.id === lessonId ? { ...lesson, itemCount: items.length } : lesson
+          ),
+        })));
         this.lessonItemsLoading.set(false);
         this.syncEditors();
       },

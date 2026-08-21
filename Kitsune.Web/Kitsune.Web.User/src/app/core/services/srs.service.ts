@@ -408,7 +408,8 @@ export class SrsService {
     const { data: cardData, error: cardError } = await supabase
       .from('SRSCards')
       .select('Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate, LastReviewedAt')
-      .eq('UserId', userId);
+      .eq('UserId', userId)
+      .gt('BoxLevel', 0);
     if (cardError) throw cardError;
 
     const cards = (cardData ?? []) as DbCardRow[];
@@ -465,8 +466,9 @@ export class SrsService {
     const items = (itemData ?? []) as LessonSrsItemRow[];
     const completedItemCount = Math.min((progressData as LessonProgressRow | null)?.CompletedItemCount ?? 0, items.length);
     const studiedItemIds = new Set(items.slice(0, completedItemCount).map((item) => item.Id));
-    const vocabularyIds = items.map((item) => item.VocabularyId).filter((id): id is number => id != null);
-    const kanjiIds = items.map((item) => item.KanjiId).filter((id): id is number => id != null);
+    const studiedItems = items.filter((item) => studiedItemIds.has(item.Id));
+    const vocabularyIds = studiedItems.map((item) => item.VocabularyId).filter((id): id is number => id != null);
+    const kanjiIds = studiedItems.map((item) => item.KanjiId).filter((id): id is number => id != null);
 
     const [{ data: vocabData, error: vocabError }, { data: kanjiData, error: kanjiError }] = await Promise.all([
       vocabularyIds.length
@@ -485,7 +487,7 @@ export class SrsService {
     const existingKeys = new Set(cards.map((card) => this.cardKey(card.VocabularyId, card.KanjiId)));
     const now = new Date().toISOString();
     const inserts: Record<string, unknown>[] = [];
-    for (const item of items) {
+    for (const item of studiedItems) {
       const key = this.cardKey(item.VocabularyId, item.KanjiId);
       if (existingKeys.has(key)) continue;
       inserts.push({
@@ -541,7 +543,7 @@ export class SrsService {
     const vocabMap = new Map(vocabs.map((vocab) => [vocab.Id, vocab]));
     const kanjiMap = new Map(kanji.map((entry) => [entry.Id, entry]));
     const nowMs = Date.now();
-    const itemByKey = new Map(items.map((item) => [this.cardKey(item.VocabularyId, item.KanjiId), item]));
+    const itemByKey = new Map(studiedItems.map((item) => [this.cardKey(item.VocabularyId, item.KanjiId), item]));
     const mapped = cards
       .filter((card) => (card.VocabularyId != null && vocabularyIds.includes(card.VocabularyId)) || (card.KanjiId != null && kanjiIds.includes(card.KanjiId)))
       .map((card) => {

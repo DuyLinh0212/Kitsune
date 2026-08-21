@@ -180,12 +180,13 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       return;
     }
 
-    if (session.flashcards.isEmpty && session.quizCards.isEmpty) {
+    if (session.quizCards.isEmpty) {
       _phase = _StudyPhase.summary;
       return;
     }
 
-    _phase = _StudyPhase.setupQuantity;
+    _dueQueue = List.from(session.quizCards);
+    _phase = _StudyPhase.promptReview;
   }
 
   Future<void> _chooseDailyGoal(int limit) async {
@@ -270,9 +271,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       final repo = ref.read(kitsuneApiProvider);
       final result = await Future.wait<dynamic>([
         repo.getDailySrsGoal(),
-        activate
-            ? repo.activateLesson(folderId)
-            : repo.getGlobalSrsSession(),
+        activate ? repo.activateLesson(folderId) : repo.getGlobalSrsSession(),
       ]);
       final dailyGoal = result[0] as int?;
       final session = result[1] as FolderSrsSession?;
@@ -913,7 +912,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
   List<_LevelBucket> get _levelBuckets {
     final cards = _session?.cards ?? const <SRSCardDto>[];
-    return List.generate(8, (level) {
+    return List.generate(7, (index) {
+      final level = index + 1;
       return _LevelBucket(
         level: level,
         count: cards.where((card) => card.boxLevel == level).length,
@@ -997,7 +997,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
               ),
               alignment: Alignment.center,
               child: Text(
-                '${_dashboardFolders.fold<int>(0, (sum, item) => sum + item.overview.dueCards + item.overview.newCards)}',
+                '${_dashboardFolders.fold<int>(0, (sum, item) => sum + item.overview.dueCards)}',
                 style: AppTheme.numeralStyle(
                   fontSize: 30,
                   color: KitsuneColors.secondary,
@@ -1020,14 +1020,6 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                   const SizedBox(height: AppTheme.space14),
                   Row(
                     children: [
-                      Expanded(
-                        child: KitsuneStatTile(
-                          label: 'Mới',
-                          value: '${_activeFolder!.overview.newCards}',
-                          color: KitsuneColors.info,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
                       Expanded(
                         child: KitsuneStatTile(
                           label: 'Đến hạn',

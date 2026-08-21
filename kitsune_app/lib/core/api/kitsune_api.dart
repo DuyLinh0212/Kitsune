@@ -947,17 +947,32 @@ class KitsuneApi {
         'LessonId': 'eq.$lessonId',
         'order': 'OrderIndex.asc',
       }),
+      client.dio.get(client.table('UserLessonProgress'), queryParameters: {
+        'select': 'CompletedItemCount',
+        'UserId': 'eq.$userId',
+        'LessonId': 'eq.$lessonId',
+        'limit': '1',
+      }),
     ]);
     final lessonRows = responses[0].data as List<dynamic>;
     if (lessonRows.isEmpty) throw Exception('Không tìm thấy bài học');
     final lesson = lessonRows.first as Map<String, dynamic>;
     final items =
         (responses[1].data as List<dynamic>).cast<Map<String, dynamic>>();
-    final vocabularyIds = items
+    final progressRows = responses[2].data as List<dynamic>;
+    final completedItemCount = progressRows.isEmpty
+        ? 0
+        : (progressRows.first as Map<String, dynamic>)['CompletedItemCount']
+                as num? ??
+            0;
+    final boundedCompletedCount =
+        completedItemCount.toInt().clamp(0, items.length).toInt();
+    final studiedItems = items.take(boundedCompletedCount).toList();
+    final vocabularyIds = studiedItems
         .map((row) => (row['VocabularyId'] as num?)?.toInt())
         .whereType<int>()
         .toList();
-    final kanjiIds = items
+    final kanjiIds = studiedItems
         .map((row) => (row['KanjiId'] as num?)?.toInt())
         .whereType<int>()
         .toList();
@@ -1006,7 +1021,7 @@ class KitsuneApi {
       todayNewLearned: details[1] as int,
       wrongReviewCounts: details[2] as Map<int, int>,
       cards: cards,
-      lessonItems: items,
+      lessonItems: studiedItems,
     );
   }
 
@@ -1267,7 +1282,8 @@ class KitsuneApi {
     }
   }
 
-  Future<bool> _ensureSrsCards(_SrsContext context) async {
+  Future<bool> _ensureSrsCards(_SrsContext context,
+      {bool learned = false}) async {
     final existingKeys = <String>{};
     for (final card in context.cards) {
       existingKeys.add(SrsEngine.encodeKey(
@@ -1284,11 +1300,12 @@ class KitsuneApi {
         'UserId': context.userId,
         'VocabularyId': vocab['Id'],
         'KanjiId': null,
-        'BoxLevel': 0,
+        'BoxLevel': learned ? 1 : 0,
         'EaseFactor': 2.5,
-        'IntervalDays': 0,
-        'Repetitions': 0,
+        'IntervalDays': learned ? 1 : 0,
+        'Repetitions': learned ? 1 : 0,
         'NextReviewDate': now,
+        'LastReviewedAt': learned ? now : null,
       });
       existingKeys.add(key);
     }
@@ -1301,17 +1318,44 @@ class KitsuneApi {
         'UserId': context.userId,
         'VocabularyId': null,
         'KanjiId': kanji['Id'],
-        'BoxLevel': 0,
+        'BoxLevel': learned ? 1 : 0,
         'EaseFactor': 2.5,
-        'IntervalDays': 0,
-        'Repetitions': 0,
+        'IntervalDays': learned ? 1 : 0,
+        'Repetitions': learned ? 1 : 0,
         'NextReviewDate': now,
+        'LastReviewedAt': learned ? now : null,
       });
       existingKeys.add(key);
     }
 
     if (inserts.isEmpty) return false;
     await client.dio.post(client.table('SRSCards'), data: inserts);
+    return true;
+  }
+
+  Future<bool> _promoteStudiedLessonCards(_SrsContext context) async {
+    final cardIds = context.cards
+        .where((card) => (card['BoxLevel'] as num?)?.toInt() == 0)
+        .map((card) => (card['Id'] as num).toInt())
+        .toList();
+    if (cardIds.isEmpty) return false;
+
+    final now = DateTime.now().toUtc().toIso8601String();
+    await client.dio.patch(
+      client.table('SRSCards'),
+      queryParameters: {
+        'Id': 'in.(${cardIds.join(',')})',
+        'UserId': 'eq.${context.userId}',
+      },
+      data: {
+        'BoxLevel': 1,
+        'EaseFactor': 2.5,
+        'IntervalDays': 1,
+        'Repetitions': 1,
+        'NextReviewDate': now,
+        'LastReviewedAt': now,
+      },
+    );
     return true;
   }
 
@@ -2222,8 +2266,9 @@ class KitsuneApi {
     }
     final userId = await getCurrentUserId();
     var context = await _loadLessonSrsContext(resolvedId, userId);
-    final insertedCards = await _ensureSrsCards(context);
-    if (insertedCards) {
+    final insertedCards = await _ensureSrsCards(context, learned: true);
+    final promotedCards = await _promoteStudiedLessonCards(context);
+    if (insertedCards || promotedCards) {
       context = await _loadLessonSrsContext(resolvedId, userId);
     }
     await _linkLessonCards(userId, context.lessonItems, context.cards);
@@ -2251,6 +2296,7 @@ class KitsuneApi {
       queryParameters: {
         'select': SupabaseConfig.srsCardSelect,
         'UserId': 'eq.$userId',
+        'BoxLevel': 'gt.0',
       },
     );
     final cards =
@@ -2661,6 +2707,7 @@ class KitsuneApi {
             totalItems > 0 && completedItemCount >= totalItems ? now : null,
       },
     );
+    await getLessonSrsSession(lessonId: lessonId);
   }
 
   Future<List<GameVocabularyDto>> getGameVocabulary({int limit = 30}) async {

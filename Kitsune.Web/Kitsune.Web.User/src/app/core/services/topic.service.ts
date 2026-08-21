@@ -1,7 +1,8 @@
 // Kitsune.Web/Kitsune.Web.User/src/app/core/services/topic.service.ts
-import { Injectable } from '@angular/core';
-import { from, Observable } from 'rxjs';
+import { inject, Injectable } from '@angular/core';
+import { firstValueFrom, from, Observable } from 'rxjs';
 import { GameVocabulary, LessonDetail, LessonItem, LessonSummary, MinigameType, TopicSummary } from '../models/topic.model';
+import { SrsService } from './srs.service';
 import { supabase } from '../supabase/supabase.client';
 
 interface TopicRow {
@@ -41,6 +42,8 @@ interface ProgressRow {
 
 @Injectable({ providedIn: 'root' })
 export class TopicService {
+  private readonly srsService = inject(SrsService);
+
   getTopics(): Observable<TopicSummary[]> {
     return from(this.loadTopics());
   }
@@ -196,6 +199,7 @@ export class TopicService {
       CompletedAt: totalItems > 0 && completed >= totalItems ? now : null,
     }, { onConflict: 'UserId,LessonId' });
     if (error) throw error;
+    await firstValueFrom(this.srsService.getLessonSession(lessonId));
   }
 
   private async loadGameVocabulary(limit: number): Promise<GameVocabulary[]> {

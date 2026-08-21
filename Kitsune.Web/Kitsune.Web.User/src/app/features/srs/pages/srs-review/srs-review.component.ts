@@ -114,7 +114,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.phase() === 'flashcard' ? this.currentFlashcard() : this.currentQuizCard()
   );
   readonly totalStudyUnits = computed(() => {
-    return this.dueQueue().length + this.newQueue().length;
+    return this.dueQueue().length;
   });
   readonly completedUnits = computed(
     () => this.stats().flashCompleted + this.stats().quizCompleted
@@ -149,7 +149,6 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
     // 8 levels: 0=New, 1–4=Learning, 5–6=Reviewing, 7=Master
     const config: { level: number; label: string; color: string }[] = [
-      { level: 0, label: 'Mới',    color: '#94a3b8' },
       { level: 1, label: 'Cấp 1', color: '#ef4444' },
       { level: 2, label: 'Cấp 2', color: '#f97316' },
       { level: 3, label: 'Cấp 3', color: '#f59e0b' },
@@ -176,7 +175,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
   readonly totalDueCards = computed(() => {
     const overview = this.activeSession()?.overview;
-    return (overview?.dueCards ?? 0) + (overview?.newCards ?? 0);
+    return overview?.dueCards ?? 0;
   });
 
   readonly nextDueAt = computed(() => {
@@ -466,19 +465,14 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.isCardFlipped.set(false);
     this.clearAnswerState();
 
-    if (session.flashcards.length === 0 && session.quizCards.length === 0) {
+    if (session.quizCards.length === 0) {
       this.phase.set('summary');
       return;
     }
 
-    if (session.flashcards.length === 0) {
-      this.selectedLimit.set(session.quizCards.length);
-      this.dueQueue.set([...session.quizCards]);
-      this.phase.set('prompt_review');
-      return;
-    }
-
-    this.phase.set('setup_quantity');
+    this.selectedLimit.set(session.quizCards.length);
+    this.dueQueue.set([...session.quizCards]);
+    this.phase.set('prompt_review');
   }
   
   chooseDailyGoal(limit: number): void {
