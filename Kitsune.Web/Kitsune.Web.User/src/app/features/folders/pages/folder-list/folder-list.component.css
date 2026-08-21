@@ -11,7 +11,7 @@
   --panel: rgba(255, 251, 244, 0.92);
   --shadow: 0 18px 60px rgba(79, 54, 28, 0.16);
   color: var(--ink);
-  font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
+  font-family: var(--font-ui);
 }
 
 .page-container {
@@ -42,7 +42,7 @@
 }
 
 .page-title {
-  font-family: 'Noto Serif JP', Georgia, serif;
+  font-family: var(--font-ui);
   font-size: 2.8rem;
   font-weight: 800;
   color: var(--ink);
@@ -122,7 +122,7 @@
 }
 
 .dossier-row__index {
-  font-family: 'Noto Serif JP', serif;
+  font-family: var(--font-ui);
   font-size: 1.8rem;
   font-weight: 800;
   color: rgba(34, 29, 26, 0.15);
@@ -525,7 +525,7 @@ input:checked + .toggle-slider:before {
 }
 
 .empty-title {
-  font-family: 'Noto Serif JP', serif;
+  font-family: var(--font-ui);
   font-size: 2rem;
   margin: 0 0 12px;
 }

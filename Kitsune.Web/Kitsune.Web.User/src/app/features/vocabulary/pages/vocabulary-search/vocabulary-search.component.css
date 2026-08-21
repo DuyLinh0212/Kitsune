@@ -17,7 +17,7 @@
   --shadow-hover: var(--shadow-ink);
   --glass-bg: rgba(255, 251, 244, 0.7);
   --glass-border: rgba(255, 251, 244, 0.8);
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
 }
 
 /* ===================================
@@ -73,7 +73,7 @@
 }
 
 .vocab-title {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 28px;
   font-weight: 800;
   color: var(--text-main);
@@ -210,12 +210,12 @@
   font-weight: 900;
   color: #e5e7eb;
   margin-bottom: 20px;
-  font-family: serif;
+  font-family: var(--font-ui);
   line-height: 1;
 }
 
 .empty-state h3 {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 20px;
   font-weight: 700;
   color: var(--text-main);

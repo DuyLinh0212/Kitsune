@@ -2,7 +2,7 @@
 
 <aside class="sidebar" [class.sidebar--collapsed]="collapsed()" [class.sidebar--expanded]="!collapsed()">
   <a class="sidebar-brand" routerLink="/home" (click)="navClick.emit()" aria-label="Về trang Tổng quan Kitsune">
-    <span class="brand-mark" aria-hidden="true"><img src="/Logo.png" alt="" /></span>
+    <span class="brand-mark" aria-hidden="true"><img src="/LogoMark.png" alt="" /></span>
     <span class="brand-copy"><strong>KITSUNE</strong><small>Học tiếng Nhật</small></span>
   </a>
 
@@ -10,7 +10,7 @@
     @for (item of primaryNavItems; track item.id) {
       <a class="nav-link" [class.nav-link--active]="isActive(item)" [routerLink]="item.route" [attr.aria-label]="item.label"
         [attr.title]="collapsed() ? item.label : null" (click)="navClick.emit()">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" [innerHTML]="svgIcon(item.icon)"></svg>
+        <span class="nav-icon-shell" aria-hidden="true"><img class="nav-icon" [src]="item.iconAsset" alt="" /></span>
         <span class="nav-label">{{ item.label }}</span>
       </a>
     }
@@ -24,7 +24,7 @@
     @for (item of utilityNavItems; track item.id) {
       <a class="nav-link nav-link--utility" [class.nav-link--active]="isActive(item)" [routerLink]="item.route"
         [attr.aria-label]="item.label" [attr.title]="collapsed() ? item.label : null" (click)="navClick.emit()">
-        <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" [innerHTML]="svgIcon(item.icon)"></svg>
+        <span class="nav-icon-shell" aria-hidden="true"><img class="nav-icon" [src]="item.iconAsset" alt="" /></span>
         <span class="nav-label">{{ item.label }}</span>
       </a>
     }

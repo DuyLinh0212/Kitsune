@@ -4,10 +4,11 @@ import 'colors.dart';
 
 class AppTheme {
   /// Body copy — Vietnamese UI text, buttons, inputs. Full diacritic coverage.
-  static final String fontFamily = GoogleFonts.notoSans().fontFamily!;
+  static final String fontFamily = GoogleFonts.beVietnamPro().fontFamily!;
 
   /// Numerals, wordmark, nav chrome — used sparingly via [numeralStyle].
-  static final String displayFontFamily = GoogleFonts.manrope().fontFamily!;
+  static final String displayFontFamily =
+      GoogleFonts.beVietnamPro().fontFamily!;
 
   /// Japanese script — apply only to widgets rendering real kanji/kana.
   static final String japaneseFontFamily = GoogleFonts.notoSansJp().fontFamily!;
@@ -19,7 +20,7 @@ class AppTheme {
     Color? color,
     double? letterSpacing,
   }) {
-    return GoogleFonts.manrope(
+    return GoogleFonts.beVietnamPro(
       fontSize: fontSize,
       fontWeight: fontWeight,
       color: color,
@@ -187,7 +188,8 @@ class AppTheme {
             horizontal: space24,
             vertical: space16,
           ),
-          side: const BorderSide(color: KitsuneColors.surfaceBorder, width: 1.3),
+          side:
+              const BorderSide(color: KitsuneColors.surfaceBorder, width: 1.3),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
@@ -201,7 +203,8 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: KitsuneColors.primary,
-          padding: const EdgeInsets.symmetric(horizontal: space8, vertical: space4),
+          padding:
+              const EdgeInsets.symmetric(horizontal: space8, vertical: space4),
           textStyle: TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w600,
@@ -363,7 +366,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(radiusSm),
         ),
         side: const BorderSide(color: KitsuneColors.surfaceBorder),
-        padding: const EdgeInsets.symmetric(horizontal: space8, vertical: space4),
+        padding:
+            const EdgeInsets.symmetric(horizontal: space8, vertical: space4),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: KitsuneColors.primary,
