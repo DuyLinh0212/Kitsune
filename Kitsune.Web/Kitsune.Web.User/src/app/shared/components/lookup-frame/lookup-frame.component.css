@@ -1,0 +1,17 @@
+:host { display: block; }
+.lookup-frame { position: relative; overflow: hidden; margin: 0 auto 18px; padding: 15px; border: 1px solid #efd9bd; border-radius: 22px; background: linear-gradient(105deg,#fffdf8,#fff4e4); box-shadow: 0 14px 32px rgba(111,55,19,.06); }
+.lookup-frame::after { content: '辞'; position: absolute; top: -34px; right: 24px; color: rgba(214,103,37,.07); font: 800 126px/1 'Noto Sans JP',sans-serif; pointer-events: none; }
+.lookup-frame__meta { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; padding: 0 5px 9px; color: #a75527; font-size: 10px; font-weight: 850; letter-spacing: .15em; }
+.lookup-frame__meta strong { padding: 5px 9px; border-radius: 99px; background: #fff0d9; color: #9a4a23; font-size: 11px; letter-spacing: 0; }
+.lookup-frame__search { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; min-height: 58px; padding: 5px 6px 5px 17px; border: 1px solid #ecd7bd; border-radius: 15px; background: rgba(255,254,251,.94); color: #9d633c; }
+.lookup-frame__search:focus-within { border-color: #d86d31; box-shadow: 0 0 0 4px rgba(216,109,49,.11); }
+.lookup-frame__search input { flex: 1; min-width: 90px; border: 0; outline: 0; background: transparent; color: #40291c; font: 650 15px 'Be Vietnam Pro','Noto Sans JP',sans-serif; }
+.lookup-frame__search input::placeholder { color: #b89a80; }
+.lookup-frame__clear { display: grid; width: 28px; height: 28px; place-items: center; border: 1px solid #edddcb; border-radius: 8px; background: #fffaf3; color: #9a6849; font-size: 20px; cursor: pointer; }
+.lookup-frame__tools { display: flex; align-items: center; gap: 6px; padding-left: 10px; border-left: 1px solid #efdfcd; }
+.lookup-frame__submit { min-height: 40px; padding: 0 17px; border: 0; border-radius: 10px; background: linear-gradient(135deg,#db6c2f,#a94c25); color: #fffaf3; font: 800 13px 'Be Vietnam Pro',sans-serif; cursor: pointer; box-shadow: 0 6px 14px rgba(157,68,25,.2); }
+.lookup-frame__tabs { position: relative; z-index: 1; display: flex; gap: 5px; padding: 11px 2px 0; }
+.lookup-frame__tabs a { min-height: 34px; display: inline-flex; align-items: center; padding: 0 13px; border-radius: 9px; color: #8f705a; font: 750 13px 'Be Vietnam Pro',sans-serif; text-decoration: none; }
+.lookup-frame__tabs a:hover { background: #ffead0; color: #8c3f1d; }
+.lookup-frame__tab--active { background: #fbe3c0; color: #a34720 !important; box-shadow: inset 0 -2px #d6672d; }
+@media (max-width: 640px) { .lookup-frame { padding: 11px; border-radius: 18px; } .lookup-frame__search { flex-wrap: wrap; } .lookup-frame__tools { order: 3; padding: 7px 0 0; border-top: 1px solid #efdfcd; border-left: 0; } .lookup-frame__submit { margin-left: auto; } }

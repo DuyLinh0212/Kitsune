@@ -1,17 +1,9 @@
 <!-- Kitsune.Web/Kitsune.Web.User/src/app/features/topics/pages/topic-list/topic-list.component.html -->
 <main class="topic-page">
-  <header class="topic-hero">
-    <div>
-      <p class="eyebrow">Lộ trình v3.0</p>
-      <h1>Học theo một hành trình,<br /><em>không học rời rạc.</em></h1>
-      <p>Chọn chủ đề, đi lần lượt qua từng bài và để SRS giữ nhịp ôn đúng lúc.</p>
-    </div>
-    <a class="game-link" routerLink="/minigames">
-      <span aria-hidden="true">遊</span>
-      <strong>Giải lao bằng minigame</strong>
-      <small>4 thử thách từ vựng →</small>
-    </a>
-  </header>
+  <div class="learning-toolbar">
+    <div><p>HỌC TẬP</p><h1>Chọn bài học và bắt đầu.</h1></div>
+    <a routerLink="/minigames">Minigame <span>→</span></a>
+  </div>
 
   @if (errorMessage()) {
     <p class="status status--error">{{ errorMessage() }}</p>

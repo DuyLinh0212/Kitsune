@@ -193,16 +193,18 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (!text) throw new Error('Gemini không trả về kế hoạch bài học.');
 
     const generated = JSON.parse(text) as GeneratedPlan;
-    if (!Array.isArray(generated.lessons) || generated.lessons.length !== lessonCount) {
-      throw new Error('Gemini không trả về đúng số bài học yêu cầu.');
-    }
+    // Gemini occasionally returns one fewer or one extra lesson despite a strict prompt.
+    // Keep the request deterministic for the admin: trim extras and let the catalog-backed
+    // normalizer complete any missing lesson rather than rejecting an otherwise usable plan.
+    const generatedLessons = Array.isArray(generated.lessons) ? generated.lessons.slice(0, lessonCount) : [];
+    while (generatedLessons.length < lessonCount) generatedLessons.push({});
     const vocabularyIds = new Set(vocabularyCatalog.map((entry) => entry.Id));
     const kanjiIds = new Set(kanjiCatalog.map((entry) => entry.Id));
     const orderedVocabularyIds = vocabularyCatalog.map((entry) => entry.Id);
     const usedVocabularyIds = new Set<number>();
     const safePlan = {
       topicDescription: typeof generated.topicDescription === 'string' ? generated.topicDescription : '',
-      lessons: generated.lessons.map((lesson, index) => {
+      lessons: generatedLessons.map((lesson, index) => {
         const safeVocabularyIds = [...new Set((lesson.vocabularyIds ?? []).filter((id) => Number.isInteger(id) && vocabularyIds.has(id)))]
           .filter((id) => !usedVocabularyIds.has(id))
           .slice(0, maximumVocabularyPerLesson);

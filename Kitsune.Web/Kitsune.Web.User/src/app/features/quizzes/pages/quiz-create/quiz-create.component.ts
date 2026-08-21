@@ -11,7 +11,6 @@ export interface VocabItem {
   word: string;
   pronunciation: string | null;
   meaning: string;
-  folderId: number | null;
 }
 
 export interface KanjiItem {
@@ -21,11 +20,6 @@ export interface KanjiItem {
   meaning: string;
   onyomi: string | null;
   kunyomi: string | null;
-}
-
-interface FolderItem {
-  id: number;
-  name: string;
 }
 
 interface QuizMode {
@@ -68,10 +62,7 @@ export class QuizCreateComponent implements OnInit {
   readonly isProtected = signal(false);
 
   // Step 2 — Vocabulary
-  readonly sourceTab = signal<'folder' | 'search' | 'kanji-search'>('folder');
-  readonly userFolders = signal<FolderItem[]>([]);
-  readonly selectedFolderIds = signal<Set<number>>(new Set());
-  readonly isFoldersLoading = signal(false);
+  readonly sourceTab = signal<'search' | 'kanji-search'>('search');
   readonly searchQuery = signal('');
   readonly searchResults = signal<VocabItem[]>([]);
   readonly isSearching = signal(false);
@@ -101,8 +92,6 @@ export class QuizCreateComponent implements OnInit {
   ];
 
   readonly totalItemCount = computed(() => this.allSelectedVocabs().length + this.allSelectedKanjis().length);
-  readonly selectedFolderIdsArray = computed(() => Array.from(this.selectedFolderIds()));
-
   readonly vocabModesCount = computed(() => {
     const vocabModes = ['MEAN_FROM_WORD', 'WORD_FROM_MEAN', 'FILL_BLANK'];
     return Array.from(this.selectedModes()).filter(m => vocabModes.includes(m)).length;
@@ -128,9 +117,7 @@ export class QuizCreateComponent implements OnInit {
 
   constructor(private router: Router) {}
 
-  ngOnInit(): void {
-    this.loadUserFolders();
-  }
+  ngOnInit(): void {}
 
   // ─── Navigation ────────────────────────────────────────────────────────────
 
@@ -155,77 +142,6 @@ export class QuizCreateComponent implements OnInit {
     else if (this.step() === 3) this.step.set(2);
   }
 
-  // ─── Step 2: Folders ────────────────────────────────────────────────────────
-
-  private async loadUserFolders(): Promise<void> {
-    this.isFoldersLoading.set(true);
-    try {
-      const userId = await this.getCurrentUserId();
-      const { data, error } = await supabase
-        .from('VocabularyFolder')
-        .select('Id, FolderName')
-        .eq('UserId', userId)
-        .order('FolderName');
-      if (error) throw error;
-      this.userFolders.set((data ?? []).map((r: Record<string, unknown>) => ({
-        id: r['Id'] as number,
-        name: r['FolderName'] as string,
-      })));
-    } catch (err) {
-      console.error(err);
-      this.showToast('Không thể tải danh sách thư mục.', 'error');
-    } finally {
-      this.isFoldersLoading.set(false);
-    }
-  }
-
-  async toggleFolder(folderId: number): Promise<void> {
-    const current = new Set(this.selectedFolderIds());
-    if (current.has(folderId)) {
-      current.delete(folderId);
-      this.selectedFolderIds.set(current);
-      this.allSelectedVocabs.update(vs => vs.filter(v => v.folderId !== folderId));
-      this.selectedVocabIds.update(ids => {
-        const next = new Set(ids);
-        this.allSelectedVocabs().filter(v => v.folderId === folderId).forEach(v => next.delete(v.id));
-        return next;
-      });
-    } else {
-      current.add(folderId);
-      this.selectedFolderIds.set(current);
-      await this.fetchAndAddFolderVocabs(folderId);
-    }
-  }
-
-  private async fetchAndAddFolderVocabs(folderId: number): Promise<void> {
-    try {
-      const { data, error } = await supabase
-        .from('Vocabularies')
-        .select('Id, Word, Pronunciation, Meaning, FolderId')
-        .eq('FolderId', folderId);
-      if (error) throw error;
-      const newVocabs: VocabItem[] = (data ?? []).map((r: Record<string, unknown>) => ({
-        id: r['Id'] as number,
-        word: r['Word'] as string,
-        pronunciation: (r['Pronunciation'] as string | null) ?? null,
-        meaning: r['Meaning'] as string,
-        folderId: r['FolderId'] as number,
-      }));
-      this.allSelectedVocabs.update(existing => {
-        const existingIds = new Set(existing.map(v => v.id));
-        return [...existing, ...newVocabs.filter(v => !existingIds.has(v.id))];
-      });
-      this.selectedVocabIds.update(ids => {
-        const next = new Set(ids);
-        newVocabs.forEach(v => next.add(v.id));
-        return next;
-      });
-    } catch (err) {
-      console.error(err);
-      this.showToast('Không thể tải từ vựng từ thư mục này.', 'error');
-    }
-  }
-
   // ─── Step 2: Vocab Search ────────────────────────────────────────────────────
 
   onSearchInput(value: string): void {
@@ -242,7 +158,7 @@ export class QuizCreateComponent implements OnInit {
     try {
       const { data, error } = await supabase
         .from('Vocabularies')
-        .select('Id, Word, Pronunciation, Meaning, FolderId')
+        .select('Id, Word, Pronunciation, Meaning')
         .or(`Word.ilike.%${q}%,Meaning.ilike.%${q}%`)
         .limit(30);
       if (error) throw error;
@@ -251,7 +167,6 @@ export class QuizCreateComponent implements OnInit {
         word: r['Word'] as string,
         pronunciation: (r['Pronunciation'] as string | null) ?? null,
         meaning: r['Meaning'] as string,
-        folderId: (r['FolderId'] as number | null) ?? null,
       })));
     } catch (err) {
       console.error(err);
@@ -275,8 +190,6 @@ export class QuizCreateComponent implements OnInit {
       this.allSelectedVocabs.update(list => list.find(v => v.id === vocab.id) ? list : [...list, vocab]);
     }
   }
-
-  isFolderSelected(folderId: number): boolean { return this.selectedFolderIds().has(folderId); }
 
   // ─── Step 2: Kanji Search ────────────────────────────────────────────────────
 
@@ -429,7 +342,7 @@ export class QuizCreateComponent implements OnInit {
     this.timeLimitSeconds.set(Number(value));
   }
 
-  setTab(tab: 'folder' | 'search' | 'kanji-search'): void {
+  setTab(tab: 'search' | 'kanji-search'): void {
     this.sourceTab.set(tab);
   }
 }

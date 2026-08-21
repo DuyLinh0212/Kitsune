@@ -34,7 +34,7 @@
         </div>
         <p class="vocab-reading">{{ v.pronunciation || '' }}</p>
       </div>
-      <span class="vocab-folder-badge">{{ v.folderName || 'Từ vựng' }}</span>
+      <span class="vocab-folder-badge">Từ vựng</span>
     </div>
 
     <!-- MEANING -->
@@ -62,58 +62,16 @@
     <!-- ACTIONS -->
     <div class="vocab-actions">
       <button class="btn-action btn-srs" (click)="addToSRS()">
-        {{ isInSRS() ? '✓ Đã thêm vào SRS' : '📅 Thêm vào Ôn tập (SRS)' }}
+        {{ isInSRS() ? '✓ Đã thêm vào Ôn tập' : '📅 Thêm vào Ôn tập' }}
       </button>
       <button class="btn-action btn-fav" (click)="toggleBookmark()">
         {{ isBookmarked() ? '★ Đã lưu' : '☆ Thêm vào Yêu thích' }}
       </button>
-      <button class="btn-action btn-folder" (click)="openFolderModal()">
-        📁 Thêm vào thư mục
-      </button>
-    </div>
-
-    <!-- FOLDER SELECTOR -->
-    <div class="vocab-section">
-      <h3>Thư mục</h3>
-      @if (isLoadingFolders()) {
-      <app-loading-fox message="Đang tải thư mục..." [size]="48" />
-      } @else {
-      <div class="folder-chips">
-        @for (folder of folders(); track folder.id) {
-        <button class="folder-chip" (click)="addToFolder(folder.id)">
-          📁 {{ folder.name }}
-        </button>
-        }
-        <button class="folder-chip folder-chip--new" (click)="openFolderModal()">
-          + Tạo mới
-        </button>
-      </div>
-      }
     </div>
 
     <!-- COMMENTS -->
     <div class="vocab-section">
       <app-comment-section [vocabularyId]="v.id"></app-comment-section>
-    </div>
-  </div>
-  }
-
-  <!-- CREATE FOLDER MODAL -->
-  @if (showFolderModal()) {
-  <div class="modal-overlay" (click)="closeFolderModal()">
-    <div class="modal-card" (click)="$event.stopPropagation()">
-      <h3>Tạo thư mục mới</h3>
-      <input
-        type="text"
-        [(ngModel)]="newFolderName"
-        (keyup.enter)="createFolder()"
-        placeholder="Tên thư mục..."
-        class="modal-input"
-      />
-      <div class="modal-actions">
-        <button class="btn-cancel" (click)="closeFolderModal()">Hủy</button>
-        <button class="btn-confirm" (click)="createFolder()" [disabled]="!newFolderName().trim()">Tạo</button>
-      </div>
     </div>
   </div>
   }

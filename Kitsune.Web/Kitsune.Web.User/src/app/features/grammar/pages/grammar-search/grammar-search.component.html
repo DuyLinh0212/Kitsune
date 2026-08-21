@@ -1,26 +1,6 @@
 <div class="grammar-page">
-  <!-- ── Header ─────────────────────────────────────────────────────── -->
-  <header class="page-header">
-    <div class="header-left">
-      <h1 class="page-title">Ngữ pháp</h1>
-      <p class="page-subtitle">Tra cứu mẫu ngữ pháp tiếng Nhật kèm cấu trúc và ví dụ</p>
-    </div>
-  </header>
-
-  <!-- ── Search ─────────────────────────────────────────────────────── -->
-  <div class="search-bar-wrapper">
-    <span class="search-icon">🔍</span>
-    <input
-      type="search"
-      class="search-input"
-      placeholder="Nhập mẫu ngữ pháp hoặc nghĩa (vd: 〜ので, tại vì...)"
-      [ngModel]="searchQuery()"
-      (ngModelChange)="onSearchInput($event)"
-    />
-    @if (searchQuery()) {
-      <button type="button" class="search-clear" (click)="onSearchInput('')" aria-label="Xóa">✕</button>
-    }
-  </div>
+  <app-lookup-frame activeMode="grammar" [query]="searchQuery()" [resultCount]="results().length || null"
+    placeholder="Nhập mẫu ngữ pháp hoặc nghĩa, ví dụ 〜ので..." (queryChange)="onSearchInput($event)" (search)="onSearchEnter()" />
 
   <!-- ── JLPT filter ────────────────────────────────────────────────── -->
   <div class="level-filter">
