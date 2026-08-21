@@ -5,7 +5,7 @@
   --shadow: var(--shadow-ink);
   --sage: var(--accent-leaf);
   color: var(--ink-primary);
-  font-family: 'Segoe UI', 'Noto Sans JP', sans-serif;
+  font-family: var(--font-ui);
 }
 
 .folder-detail-page {
@@ -413,7 +413,7 @@
   border: 1px solid var(--line);
   background: rgba(255, 255, 255, 0.72);
   color: var(--ink-primary);
-  font-family: 'Noto Serif JP', serif;
+  font-family: var(--font-ui);
   font-size: 18px;
   cursor: pointer;
   display: inline-flex;
@@ -437,7 +437,7 @@
 .radical-chip__clear {
   margin-left: 6px;
   font-size: 14px;
-  font-family: sans-serif;
+  font-family: var(--font-ui);
   opacity: 0.7;
 }
 .radical-chip__clear:hover {

@@ -20,7 +20,7 @@
   --orange: #f59e0b;
   --red: #ef4444;
   --blue: #3b82f6;
-  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-family: var(--font-ui);
 }
 
 /* ─── Shell ─────────────────────────────────────────────────────── */
@@ -129,7 +129,7 @@
 }
 
 .dash-title {
-  font-family: 'Outfit', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 28px;
   font-weight: 800;
   color: var(--text-main);
@@ -1002,7 +1002,7 @@
 }
 
 .fc-han-viet {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 36px;
   font-weight: 800;
   color: #fff;
@@ -1518,7 +1518,7 @@
 }
 
 .summary-title {
-  font-family: 'Outfit', sans-serif;
+  font-family: var(--font-ui);
   font-size: 32px;
   font-weight: 800;
   color: var(--text-main);

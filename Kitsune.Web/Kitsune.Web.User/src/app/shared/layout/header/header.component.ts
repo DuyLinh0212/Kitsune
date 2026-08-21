@@ -49,6 +49,7 @@ export class HeaderComponent implements OnInit {
     if (url.startsWith('/topics') || url.startsWith('/grammar') || url.startsWith('/minigames')) return 'Học tập';
     if (url.startsWith('/srs')) return 'Ôn tập';
     if (url.startsWith('/quizzes')) return 'Quizzes';
+    if (url.startsWith('/exams')) return 'Đề kiểm tra';
     if (url.startsWith('/leaderboard') || url.startsWith('/posts') || url.startsWith('/messages')) return 'Cộng đồng';
     if (url.startsWith('/profile')) return 'Tài khoản';
     return 'Hôm nay';

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/models/topic.dart';
 import 'package:kitsune_app/core/services/tts_service.dart';
+import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -144,10 +145,10 @@ class _Hero extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.6)),
               const SizedBox(height: 8),
-              const Text('Học theo\nchủ đề.',
+              Text('Học theo\nchủ đề.',
                   style: TextStyle(
                       color: Color(0xFF272238),
-                      fontFamily: 'serif',
+                      fontFamily: AppTheme.displayFontFamily,
                       fontSize: 37,
                       height: .95,
                       fontWeight: FontWeight.w700)),

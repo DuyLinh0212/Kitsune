@@ -1,5 +1,5 @@
-.main-layout { min-height: 100vh; background: #fff8e8; color: #2b2417; font-family: Inter, "Segoe UI", system-ui, sans-serif; }
-.main-content { min-height: 100vh; margin-left: 270px; transition: margin-left .26s cubic-bezier(.2,.8,.2,1); }
-.main-content--collapsed { margin-left: 82px; }
+.main-layout { min-height: 100vh; background: #fff8e8; color: #2b2417; font-family: var(--font-ui); }
+.main-content { min-height: 100vh; margin-left: 224px; transition: margin-left .24s cubic-bezier(.2,.8,.2,1); }
+.main-content--collapsed { margin-left: 68px; }
 .page-content { min-height: calc(100vh - 78px); }
 @media (max-width: 768px) { .main-content, .main-content--collapsed { margin-left: 0; }.page-content { min-height: calc(100vh - 68px); } }

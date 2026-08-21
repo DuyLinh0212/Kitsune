@@ -155,7 +155,7 @@
 
 .stroke-stage__error-icon {
   color: var(--seal);
-  font-family: 'Noto Serif JP', serif;
+  font-family: var(--font-ui);
   font-size: 36px;
   font-weight: 900;
   line-height: 1;
