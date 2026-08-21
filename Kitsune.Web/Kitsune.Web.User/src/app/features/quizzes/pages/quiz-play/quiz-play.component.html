@@ -11,8 +11,7 @@
   <!-- ── Loading State ──────────────────────────────────────────────────── -->
   @if (quizState() === 'loading') {
     <div class="state-center">
-      <div class="spinner"></div>
-      <p class="loading-text">Đang tải quiz...</p>
+      <app-loading-fox message="Đang tải quiz..." />
     </div>
   }
 
@@ -58,7 +57,7 @@
           </div>
         } @else {
           <button class="btn-start" (click)="startQuiz()" [disabled]="isGenerating()">
-            @if (isGenerating()) { <span class="spinner-sm"></span> Đang chuẩn bị... }
+            @if (isGenerating()) { <app-loading-fox [size]="24" /> Đang chuẩn bị... }
             @else { ▶ Bắt đầu }
           </button>
         }

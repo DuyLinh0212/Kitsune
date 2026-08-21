@@ -8,11 +8,13 @@ import { ActivatedRoute } from '@angular/router';
 import { VocabularyService, VocabularyDto } from '../../../../core/services/vocabulary.service';
 import { FolderService, FolderDto } from '../../../../core/services/folder.service';
 import { KanjiUserService, KanjiDetailDto } from '../../../../core/services/kanji-user.service';
+import { TtsService } from '../../../../core/services/tts.service';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 @Component({
   selector: 'app-vocabulary-search',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent],
   templateUrl: './vocabulary-search.component.html',
   styleUrl: './vocabulary-search.component.css',
 })
@@ -20,6 +22,7 @@ export class VocabularySearchComponent implements OnInit {
   private readonly vocabularyService = inject(VocabularyService);
   private readonly folderService = inject(FolderService);
   private readonly kanjiService = inject(KanjiUserService);
+  readonly ttsService = inject(TtsService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
   private readonly searchSubject = new Subject<string>();
@@ -31,6 +34,7 @@ export class VocabularySearchComponent implements OnInit {
   readonly folders = signal<FolderDto[]>([]);
   readonly selectedKanji = signal<KanjiDetailDto | null>(null);
   readonly newFolderName = signal('');
+  readonly folderTarget = signal<'vocabulary' | 'kanji'>('vocabulary');
 
   // Trạng thái loading
   readonly isSearching = signal(false);
@@ -146,6 +150,15 @@ export class VocabularySearchComponent implements OnInit {
 
   // --- Folder ---
   openFolderModal(): void {
+    if (!this.selectedVocab()) return;
+    this.folderTarget.set('vocabulary');
+    this.showFolderModal.set(true);
+    this.newFolderName.set('');
+  }
+
+  openKanjiFolderModal(): void {
+    if (!this.selectedKanji()) return;
+    this.folderTarget.set('kanji');
     this.showFolderModal.set(true);
     this.newFolderName.set('');
   }
@@ -161,7 +174,7 @@ export class VocabularySearchComponent implements OnInit {
       next: (folder) => {
         this.folders.update((f) => [folder, ...f]);
         this.newFolderName.set('');
-        this.showFolderModal.set(false);
+        this.addToFolder(folder.id, folder.name);
         this.showToast('success', `Đã tạo thư mục "${folder.name}"`);
       },
       error: () => this.showToast('error', 'Không thể tạo thư mục'),
@@ -169,6 +182,11 @@ export class VocabularySearchComponent implements OnInit {
   }
 
   addToFolder(folderId: number, folderName: string): void {
+    if (this.folderTarget() === 'kanji') {
+      this.addKanjiToFolder(folderId, folderName);
+      return;
+    }
+
     const vocab = this.selectedVocab();
     if (!vocab || this.isAddingToFolder()) return;
     this.isAddingToFolder.set(true);
@@ -201,6 +219,36 @@ export class VocabularySearchComponent implements OnInit {
         });
       },
     });
+  }
+
+  private addKanjiToFolder(folderId: number, folderName: string): void {
+    const kanji = this.selectedKanji();
+    if (!kanji || this.isAddingToFolder()) return;
+
+    this.isAddingToFolder.set(true);
+    this.folderService.addVocabularyCopy(
+      folderId,
+      kanji.character,
+      kanji.onyomi ?? kanji.kunyomi ?? null,
+      `${kanji.meaning} (${kanji.amHanViet})`,
+      1,
+      kanji.id
+    ).subscribe({
+      next: () => {
+        this.isAddingToFolder.set(false);
+        this.closeFolderModal();
+        this.folderService.triggerVocabAdded(folderId);
+        this.showToast('success', `Đã thêm kanji ${kanji.character} vào thư mục "${folderName}"`);
+      },
+      error: () => {
+        this.isAddingToFolder.set(false);
+        this.showToast('error', 'Không thể thêm kanji vào thư mục. Kanji có thể đã tồn tại trong thư mục này.');
+      },
+    });
+  }
+
+  speakWord(vocab: VocabularyDto): void {
+    this.ttsService.speak(vocab.word);
   }
 
   // --- Bookmark (Yêu thích) ---
@@ -241,6 +289,16 @@ export class VocabularySearchComponent implements OnInit {
   closeKanjiModal(): void {
     this.showKanjiModal.set(false);
     this.selectedKanji.set(null);
+  }
+
+  folderModalTitle(): string {
+    return this.folderTarget() === 'kanji' ? 'Thêm kanji vào thư mục' : 'Thêm từ vào thư mục';
+  }
+
+  folderModalItemName(): string {
+    return this.folderTarget() === 'kanji'
+      ? (this.selectedKanji()?.character ?? '')
+      : (this.selectedVocab()?.word ?? '');
   }
 
   // --- Helpers ---

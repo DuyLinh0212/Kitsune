@@ -4,17 +4,19 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/constants/app_constants.dart';
-import 'package:kitsune_app/core/models/folder.dart';
+import 'package:kitsune_app/core/models/topic.dart';
+import 'package:kitsune_app/core/services/srs_notification_service.dart';
 import 'package:kitsune_app/core/models/quiz.dart';
 import 'package:kitsune_app/core/models/srs.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
+import 'package:kitsune_app/features/kanji/widgets/kanji_drawing_review.dart';
 import 'package:kitsune_app/providers/dashboard_provider.dart';
-import 'package:kitsune_app/providers/folder_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
-enum _StudyPhase { idle, flashcard, quiz, summary }
+enum _StudyPhase { idle, setupQuantity, promptReview, flashcard, quiz, summary }
 
 class _QuizPrompt {
   const _QuizPrompt({
@@ -24,6 +26,7 @@ class _QuizPrompt {
     required this.helper,
     required this.options,
     required this.correctAnswer,
+    this.isDrawing = false,
   });
 
   final QuizMode mode;
@@ -32,15 +35,16 @@ class _QuizPrompt {
   final String helper;
   final List<String> options;
   final String correctAnswer;
+  final bool isDrawing;
 }
 
 class _DashboardFolder {
   const _DashboardFolder({
-    required this.folder,
+    required this.lesson,
     required this.overview,
   });
 
-  final FolderDto folder;
+  final LessonDto lesson;
   final FolderSrsOverview overview;
 }
 
@@ -58,10 +62,14 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   bool _isSubmitting = false;
   bool _showStudyOverlay = false;
   bool _isCardFlipped = false;
+  bool _showLevelDetails = false;
   int? _selectedFolderId;
   FolderSrsSession? _session;
   List<_DashboardFolder> _dashboardFolders = const [];
   _StudyPhase _phase = _StudyPhase.idle;
+  int? _dailyGoal;
+  List<SRSCardDto> _dueQueue = const [];
+  List<SRSCardDto> _newQueue = const [];
   List<SRSCardDto> _flashQueue = const [];
   List<SRSCardDto> _quizQueue = const [];
   _QuizPrompt? _currentQuestion;
@@ -74,6 +82,15 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   Timer? _feedbackTimer;
   Timer? _countdownTimer;
   String _countdownText = '';
+  String? _speakingWord;
+
+  Future<void> _speak(String word) async {
+    setState(() => _speakingWord = word);
+    await ref.read(ttsServiceProvider).speak(word);
+    if (mounted) {
+      setState(() => _speakingWord = null);
+    }
+  }
 
   @override
   void initState() {
@@ -92,42 +109,74 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   Future<void> _loadDashboard() async {
-    setState(() => _isLoading = true);
-    try {
-      final folders = await ref.read(foldersProvider.future);
-      final repo = ref.read(kitsuneApiProvider);
-      final dashboards = <_DashboardFolder>[];
-      for (final folder in folders) {
-        try {
-          final overview = await repo.getFolderOverview(folder.id);
-          dashboards.add(_DashboardFolder(folder: folder, overview: overview));
-        } catch (_) {
-          dashboards.add(
-            _DashboardFolder(
-              folder: folder,
-              overview: FolderSrsOverview(
-                folderId: folder.id,
-                folderName: folder.name,
-                totalCards: 0,
-                newCards: 0,
-                dueCards: 0,
-                learnedCards: 0,
-                masteredCards: 0,
-                nextDueAt: null,
-                canSwitchFolder: true,
-              ),
+    final repo = ref.read(kitsuneApiProvider);
+    final cachedSession = await repo.getCachedLessonSrsSession();
+    if (cachedSession != null && mounted) {
+      setState(() {
+        _dashboardFolders = [
+          _DashboardFolder(
+            lesson: LessonDto(
+              id: cachedSession.folderId,
+              topicId: 0,
+              title: cachedSession.folderName,
+              description: '',
+              orderIndex: 0,
+              estimatedMinutes: 0,
+              itemCount: cachedSession.overview.totalCards,
             ),
-          );
-        }
-      }
+            overview: cachedSession.overview,
+          ),
+        ];
+        _selectedFolderId = cachedSession.folderId;
+        _session = cachedSession;
+        _resetStudyState(cachedSession);
+        _isLoading = false;
+      });
+    } else if (mounted) {
+      setState(() => _isLoading = true);
+    }
 
-      final preferredFolderId = await repo.getActiveFolderId() ??
-          (dashboards.isNotEmpty ? dashboards.first.folder.id : null);
-
-      FolderSrsSession? session;
-      if (preferredFolderId != null) {
-        session = await repo.getFolderSession(folderId: preferredFolderId);
-      }
+    try {
+      final initialData = await Future.wait<dynamic>([
+        repo.getTopicsWithLessons(),
+        repo.getActiveLessonId(),
+        repo.getDailySrsGoal(),
+      ]);
+      final folders = (initialData[0] as List<TopicDto>)
+          .expand((topic) => topic.lessons)
+          .toList();
+      final preferredFolderId = initialData[1] as int? ??
+          (folders.isNotEmpty ? folders.first.id : null);
+      final dailyGoal = initialData[2] as int?;
+      final overviewsFuture = repo.getLessonSrsOverviews(folders);
+      final sessionFuture = preferredFolderId == null
+          ? Future<FolderSrsSession?>.value(null)
+          : repo.getLessonSrsSession(lessonId: preferredFolderId);
+      final overviews = await overviewsFuture;
+      final session = await sessionFuture;
+      final overviewByLesson = {
+        for (final overview in overviews) overview.folderId: overview,
+      };
+      final dashboards = folders
+          .map(
+            (lesson) => _DashboardFolder(
+              lesson: lesson,
+              overview: overviewByLesson[lesson.id] ??
+                  FolderSrsOverview(
+                    folderId: lesson.id,
+                    folderName: lesson.title,
+                    totalCards: 0,
+                    newCards: 0,
+                    dueCards: 0,
+                    learnedCards: 0,
+                    masteredCards: 0,
+                    todayNewLearned: 0,
+                    nextDueAt: null,
+                    canSwitchFolder: true,
+                  ),
+            ),
+          )
+          .toList();
 
       if (!mounted) {
         return;
@@ -137,9 +186,11 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         _dashboardFolders = dashboards;
         _selectedFolderId = preferredFolderId;
         _session = session;
+        _dailyGoal = dailyGoal;
         _resetStudyState(session);
         _isLoading = false;
       });
+      await _scheduleNextReview(dashboards);
     } catch (error) {
       if (!mounted) {
         return;
@@ -151,8 +202,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   void _resetStudyState(FolderSrsSession? session) {
-    _flashQueue = [...?session?.flashcards];
-    _quizQueue = [...?session?.quizCards];
+    _flashQueue = [];
+    _quizQueue = [];
+    _dueQueue = [];
+    _newQueue = [];
     _flashCompleted = 0;
     _answersGiven = 0;
     _mistakes = 0;
@@ -169,18 +222,84 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       return;
     }
 
-    if (_flashQueue.isNotEmpty) {
-      _phase = _StudyPhase.flashcard;
+    if (session.flashcards.isEmpty && session.quizCards.isEmpty) {
+      _phase = _StudyPhase.summary;
       return;
     }
+
+    _phase = _StudyPhase.setupQuantity;
+  }
+
+  Future<void> _chooseDailyGoal(int limit) async {
+    if (_session == null) return;
+    final resolved = limit == -1 ? _session!.flashcards.length : limit;
+    final goal = max(1, resolved).toInt();
+    await ref.read(kitsuneApiProvider).setDailySrsGoal(goal);
+    if (!mounted) return;
+    setState(() => _dailyGoal = goal);
+    _prepareQueues(resolved);
+  }
+
+  void _continueDailyGoal() => _prepareQueues(_remainingDailyGoal);
+
+  Future<void> _learnMore(int limit) async {
+    if (_session == null) return;
+    final resolved = limit == -1 ? _session!.flashcards.length : limit;
+    final nextGoal = _todayNewLearned + max(1, resolved).toInt();
+    await ref.read(kitsuneApiProvider).setDailySrsGoal(nextGoal);
+    if (!mounted) return;
+    setState(() => _dailyGoal = nextGoal);
+    _prepareQueues(resolved);
+  }
+
+  void _reviewOnly() {
+    final session = _session;
+    if (session == null) return;
+    if (session.quizCards.isEmpty) {
+      setState(() => _showStudyOverlay = false);
+      _showMessage(_nextReviewWaitMessage(session.overview.nextDueAt));
+      return;
+    }
+    _dueQueue = List.from(session.quizCards);
+    _newQueue = [];
+    _startStudyingQueues();
+  }
+
+  void _prepareQueues(int newCardLimit) {
+    final session = _session;
+    if (session == null) return;
+
+    final newCount = min(max(0, newCardLimit), session.flashcards.length);
+    _dueQueue = List.from(session.quizCards);
+    _newQueue = session.flashcards.take(newCount).toList();
+
+    if (_dueQueue.isNotEmpty) {
+      setState(() {
+        _phase = _StudyPhase.promptReview;
+      });
+    } else {
+      _startStudyingQueues();
+    }
+  }
+
+  void _startStudyingQueues() {
+    _quizQueue = List.from(_dueQueue);
+    _flashQueue = List.from(_newQueue);
 
     if (_quizQueue.isNotEmpty) {
-      _phase = _StudyPhase.quiz;
-      _currentQuestion = _buildQuestion(_quizQueue.first, session.cards);
-      return;
+      setState(() {
+        _phase = _StudyPhase.quiz;
+        _currentQuestion = _buildQuestion(_quizQueue.first, _session!.cards);
+      });
+    } else if (_flashQueue.isNotEmpty) {
+      setState(() {
+        _phase = _StudyPhase.flashcard;
+      });
+    } else {
+      setState(() {
+        _phase = _StudyPhase.summary;
+      });
     }
-
-    _phase = _StudyPhase.summary;
   }
 
   Future<void> _openFolder(int folderId, {required bool activate}) async {
@@ -191,9 +310,14 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     setState(() => _isSubmitting = true);
     try {
       final repo = ref.read(kitsuneApiProvider);
-      final session = activate
-          ? await repo.activateFolder(folderId)
-          : await repo.getFolderSession(folderId: folderId);
+      final result = await Future.wait<dynamic>([
+        repo.getDailySrsGoal(),
+        activate
+            ? repo.activateLesson(folderId)
+            : repo.getLessonSrsSession(lessonId: folderId),
+      ]);
+      final dailyGoal = result[0] as int?;
+      final session = result[1] as FolderSrsSession?;
 
       if (!mounted) {
         return;
@@ -202,9 +326,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       setState(() {
         _selectedFolderId = folderId;
         _session = session;
+        _dailyGoal = dailyGoal;
         _resetStudyState(session);
       });
-      await _refreshOverview(folderId);
+      _refreshOverview(folderId, session?.overview);
     } catch (error) {
       _showError(error);
     } finally {
@@ -214,36 +339,43 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     }
   }
 
-  Future<void> _refreshOverview(int folderId) async {
-    final repo = ref.read(kitsuneApiProvider);
-    try {
-      final overview = await repo.getFolderOverview(folderId);
-      if (!mounted) {
-        return;
-      }
+  void _refreshOverview(int folderId, FolderSrsOverview? overview) {
+    if (overview == null || !mounted) return;
+    setState(() {
+      _dashboardFolders = _dashboardFolders.map((item) {
+        if (item.lesson.id != folderId) return item;
+        return _DashboardFolder(lesson: item.lesson, overview: overview);
+      }).toList();
+    });
+    unawaited(_scheduleNextReview(_dashboardFolders));
+  }
 
-      setState(() {
-        _dashboardFolders = _dashboardFolders.map((item) {
-          if (item.folder.id != folderId) {
-            return item;
-          }
-          return _DashboardFolder(folder: item.folder, overview: overview);
-        }).toList();
-      });
-    } catch (_) {}
+  Future<void> _scheduleNextReview(List<_DashboardFolder> folders) async {
+    final dates = folders
+        .map((item) => item.overview.nextDueAt)
+        .whereType<String>()
+        .map(DateTime.tryParse)
+        .whereType<DateTime>()
+        .where((date) => date.isAfter(DateTime.now()))
+        .toList()
+      ..sort();
+    await SrsNotificationService.instance
+        .scheduleNextReview(dates.isEmpty ? null : dates.first);
   }
 
   Future<void> _startStudy() async {
     if (_session == null || _selectedFolderId == null) {
       return;
     }
-
-    if (_session!.flashcards.isEmpty && _session!.quizCards.isEmpty) {
-      _showMessage('Folder nay hien chua co the den luot hoc.');
+    final session = _session!;
+    if (session.flashcards.isEmpty && session.quizCards.isEmpty) {
+      _showMessage(_nextReviewWaitMessage(session.overview.nextDueAt));
       return;
     }
-
-    setState(() => _showStudyOverlay = true);
+    setState(() {
+      _resetStudyState(session);
+      _showStudyOverlay = true;
+    });
   }
 
   Future<void> _markFlashcardLearned() async {
@@ -254,17 +386,22 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     setState(() => _isSubmitting = true);
     try {
       final repo = ref.read(kitsuneApiProvider);
-      await repo.completeFlashcard(_flashQueue.first.id);
+      final progress = await repo.completeFlashcard(_flashQueue.first.id);
 
       if (!mounted) {
         return;
       }
 
       setState(() {
+        _applyLocalProgress(progress);
         _flashQueue = _flashQueue.sublist(1);
         _flashCompleted += 1;
         _isCardFlipped = false;
       });
+      final session = _session;
+      if (session != null) {
+        unawaited(repo.cacheLessonSrsSession(session));
+      }
       _syncPhase();
     } catch (error) {
       _showError(error);
@@ -288,7 +425,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   Future<void> _submitQuizAnswer() async {
-    if (_quizQueue.isEmpty || _currentQuestion == null || _selectedOption == null || _isSubmitting) {
+    if (_quizQueue.isEmpty ||
+        _currentQuestion == null ||
+        _selectedOption == null ||
+        _isSubmitting) {
       return;
     }
 
@@ -296,6 +436,21 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     final isCorrect =
         _normalize(answer) == _normalize(_currentQuestion!.correctAnswer);
 
+    await _recordQuizResult(isCorrect);
+  }
+
+  Future<void> _submitDrawingAnswer(bool isCorrect) async {
+    if (_quizQueue.isEmpty ||
+        _currentQuestion == null ||
+        !_currentQuestion!.isDrawing ||
+        _isSubmitting) {
+      return;
+    }
+    await _recordQuizResult(isCorrect);
+  }
+
+  Future<void> _recordQuizResult(bool isCorrect) async {
+    if (_quizQueue.isEmpty || _currentQuestion == null || _isSubmitting) return;
     setState(() {
       _isSubmitting = true;
       _answersGiven += 1;
@@ -304,13 +459,24 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       }
       _lastAnswerCorrect = isCorrect;
       _feedbackMessage = isCorrect
-          ? 'Chinh xac. The nay da duoc day toi lan on tiep theo.'
-          : 'Chua dung. Dap an dung la "${_currentQuestion!.correctAnswer}".';
+          ? 'Chính xác. Thẻ này đã được đẩy tới lần ôn tiếp theo.'
+          : _currentQuestion!.isDrawing
+              ? 'Nét viết chưa khớp. Thẻ này sẽ quay lại cuối hàng để luyện lại.'
+              : 'Chưa đúng. Đáp án đúng là "${_currentQuestion!.correctAnswer}".';
     });
 
     try {
       final repo = ref.read(kitsuneApiProvider);
-      await repo.submitQuizAnswer(_quizQueue.first.id, isCorrect);
+      final progress =
+          await repo.submitQuizAnswer(_quizQueue.first.id, isCorrect);
+      if (!mounted) {
+        return;
+      }
+      setState(() => _applyLocalProgress(progress));
+      final session = _session;
+      if (session != null) {
+        unawaited(repo.cacheLessonSrsSession(session));
+      }
       _feedbackTimer?.cancel();
       _feedbackTimer = Timer(
         Duration(milliseconds: isCorrect ? 850 : 1350),
@@ -340,23 +506,31 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   void _syncPhase() {
-    if (_flashQueue.isNotEmpty) {
-      setState(() => _phase = _StudyPhase.flashcard);
-      return;
-    }
-
     if (_quizQueue.isNotEmpty) {
       setState(() {
         _phase = _StudyPhase.quiz;
-        _currentQuestion = _buildQuestion(_quizQueue.first, _session?.cards ?? _quizQueue);
+        _currentQuestion =
+            _buildQuestion(_quizQueue.first, _session?.cards ?? _quizQueue);
       });
       return;
     }
 
-    setState(() => _phase = _StudyPhase.summary);
-    if (_selectedFolderId != null) {
-      _refreshOverview(_selectedFolderId!);
+    if (_flashQueue.isNotEmpty) {
+      if (_phase == _StudyPhase.quiz) {
+        // Just transitioned from quiz to flashcard
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Ôn tập xong. Bắt đầu học từ mới!'),
+            backgroundColor: KitsuneColors.primary,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+      setState(() => _phase = _StudyPhase.flashcard);
+      return;
     }
+
+    setState(() => _phase = _StudyPhase.summary);
     _invalidateDashboard();
   }
 
@@ -366,7 +540,144 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     ref.invalidate(weekChartProvider);
   }
 
+  void _applyLocalProgress(SrsCardProgressUpdate progress) {
+    final session = _session;
+    if (session == null) return;
+
+    SRSCardDto? previous;
+    for (final card in session.cards) {
+      if (card.id == progress.cardId) {
+        previous = card;
+        break;
+      }
+    }
+    if (previous == null) return;
+    final previousCard = previous;
+
+    final now = DateTime.now();
+    final cards = session.cards.map((card) {
+      if (card.id != progress.cardId) return card;
+      final dueAt = DateTime.tryParse(progress.nextReviewDate);
+      return SRSCardDto(
+        id: card.id,
+        userId: card.userId,
+        folderId: card.folderId,
+        type: card.type,
+        vocabularyId: card.vocabularyId,
+        kanjiId: card.kanjiId,
+        word: card.word,
+        pronunciation: card.pronunciation,
+        meaning: card.meaning,
+        character: card.character,
+        amHanViet: card.amHanViet,
+        radicalCharacter: card.radicalCharacter,
+        radicalName: card.radicalName,
+        onyomi: card.onyomi,
+        kunyomi: card.kunyomi,
+        examples: card.examples,
+        strokeCount: card.strokeCount,
+        boxLevel: progress.boxLevel,
+        wrongReviewCount:
+            card.wrongReviewCount + progress.wrongReviewCountDelta,
+        nextReviewDate: progress.nextReviewDate,
+        isDue: progress.boxLevel == 0 || (dueAt != null && !dueAt.isAfter(now)),
+        isNew: progress.boxLevel == 0,
+      );
+    }).toList();
+    final overview = _buildLocalOverview(
+      session.overview,
+      cards,
+      session.overview.todayNewLearned + (previousCard.isNew ? 1 : 0),
+    );
+
+    _session = FolderSrsSession(
+      folderId: session.folderId,
+      folderName: session.folderName,
+      overview: overview,
+      cards: cards,
+      flashcards: cards.where((card) => card.boxLevel == 0).toList(),
+      quizCards: cards.where(_isScheduledReviewDue).toList(),
+    );
+    _dashboardFolders = _dashboardFolders.map((item) {
+      if (item.lesson.id != session.folderId) return item;
+      return _DashboardFolder(
+        lesson: item.lesson,
+        overview: _buildLocalOverview(
+          item.overview,
+          cards,
+          item.overview.todayNewLearned + (previousCard.isNew ? 1 : 0),
+        ),
+      );
+    }).toList();
+    _countdownText = _computeCountdown();
+  }
+
+  FolderSrsOverview _buildLocalOverview(
+    FolderSrsOverview base,
+    List<SRSCardDto> cards,
+    int todayNewLearned,
+  ) {
+    final future = cards
+        .where((card) =>
+            card.boxLevel > 0 &&
+            !_isScheduledReviewDue(card) &&
+            card.nextReviewDate.isNotEmpty)
+        .toList()
+      ..sort((a, b) => a.nextReviewDate.compareTo(b.nextReviewDate));
+    final newCards = cards.where((card) => card.boxLevel == 0).length;
+    return FolderSrsOverview(
+      folderId: base.folderId,
+      folderName: base.folderName,
+      totalCards: cards.length,
+      newCards: newCards,
+      dueCards: cards.where(_isScheduledReviewDue).length,
+      learnedCards: cards.length - newCards,
+      masteredCards: cards.where((card) => card.boxLevel >= 7).length,
+      todayNewLearned: todayNewLearned,
+      nextDueAt: future.isEmpty ? null : future.first.nextReviewDate,
+      canSwitchFolder: base.canSwitchFolder,
+    );
+  }
+
+  bool _isScheduledReviewDue(SRSCardDto card) {
+    if (card.boxLevel <= 0) return false;
+    final dueAt = DateTime.tryParse(card.nextReviewDate);
+    return dueAt != null && !dueAt.isAfter(DateTime.now());
+  }
+
+  String _nextReviewWaitMessage(String? nextDueAt) {
+    final dueAt = nextDueAt == null ? null : DateTime.tryParse(nextDueAt);
+    if (dueAt == null) return 'Chưa có thẻ nào đến hạn để ôn tập.';
+
+    final remaining = dueAt.difference(DateTime.now());
+    if (remaining.isNegative || remaining == Duration.zero) {
+      return 'Chưa có thẻ nào đến hạn để ôn tập.';
+    }
+
+    final hours = remaining.inHours.toString().padLeft(2, '0');
+    final minutes = (remaining.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+    return 'Chưa đến lượt ôn. Còn $hours:$minutes:$seconds.';
+  }
+
   _QuizPrompt _buildQuestion(SRSCardDto card, List<SRSCardDto> pool) {
+    if (card.type == SrsItemType.kanji &&
+        card.character?.trim().isNotEmpty == true &&
+        _shouldUseDrawing(card)) {
+      return _QuizPrompt(
+        mode: QuizMode.drawKanji,
+        prompt: card.amHanViet?.trim().isNotEmpty == true
+            ? card.amHanViet!
+            : 'Âm Hán Việt chưa có',
+        promptLabel: 'Viết Kanji theo âm Hán Việt',
+        helper: card.radicalCharacter?.trim().isNotEmpty == true
+            ? 'Gợi ý bộ thủ: ${card.radicalCharacter}${card.radicalName?.trim().isNotEmpty == true ? ' · ${card.radicalName}' : ''}'
+            : 'Gợi ý: đối chiếu nghĩa và bộ thủ bạn đã học.',
+        options: const [],
+        correctAnswer: card.character!,
+        isDrawing: true,
+      );
+    }
     final modes = card.type == SrsItemType.vocabulary
         ? _shuffle(QuizMode.vocabModes)
         : _shuffle(QuizMode.kanjiModes);
@@ -382,11 +693,14 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         ? _QuizPrompt(
             mode: QuizMode.wordFromMean,
             prompt: card.meaning,
-            promptLabel: 'Chon tu tieng Nhat dung voi nghia nay',
-            helper: card.pronunciation ?? 'Chon dap an phu hop nhat.',
+            promptLabel: 'Chọn từ tiếng Nhật đúng với nghĩa này',
+            helper: card.pronunciation ?? 'Chọn đáp án phù hợp nhất.',
             options: _buildOptions(
               card.word,
-              pool.where((item) => item.type == SrsItemType.vocabulary).map((item) => item.word).toList(),
+              pool
+                  .where((item) => item.type == SrsItemType.vocabulary)
+                  .map((item) => item.word)
+                  .toList(),
               const ['家族', '時間', '学校', '先生', '学生'],
             ),
             correctAnswer: card.word,
@@ -394,29 +708,43 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         : _QuizPrompt(
             mode: QuizMode.hanViet,
             prompt: card.character ?? '',
-            promptLabel: 'Chon am Han Viet cua kanji nay',
-            helper: 'So net: ${card.strokeCount ?? '-'}',
+            promptLabel: 'Chọn âm Hán Việt của kanji này',
+            helper: 'Số nét: ${card.strokeCount ?? '-'}',
             options: _buildOptions(
               card.amHanViet ?? '',
-              pool.where((item) => item.type == SrsItemType.kanji).map((item) => item.amHanViet ?? '').toList(),
-              const ['Tam', 'Hoa', 'Moc', 'Thuy', 'Nhan'],
+              pool
+                  .where((item) => item.type == SrsItemType.kanji)
+                  .map((item) => item.amHanViet ?? '')
+                  .toList(),
+              const ['Tâm', 'Hỏa', 'Mộc', 'Thủy', 'Nhân'],
             ),
             correctAnswer: card.amHanViet ?? '',
           );
   }
 
-  _QuizPrompt? _tryBuildQuestion(QuizMode mode, SRSCardDto card, List<SRSCardDto> pool) {
+  _QuizPrompt? _tryBuildQuestion(
+      QuizMode mode, SRSCardDto card, List<SRSCardDto> pool) {
     if (card.type == SrsItemType.vocabulary) {
       if (mode == QuizMode.meanFromWord) {
         return _QuizPrompt(
           mode: mode,
           prompt: card.word,
-          promptLabel: 'Chon nghia dung cua tu nay',
-          helper: card.pronunciation ?? 'Dua tren tu dang hien thi.',
+          promptLabel: 'Chọn nghĩa đúng của từ này',
+          helper: card.pronunciation ?? 'Dựa trên từ đang hiển thị.',
           options: _buildOptions(
             card.meaning,
-            pool.where((item) => item.type == SrsItemType.vocabulary).map((item) => item.meaning).toList(),
-            const ['Gia dinh', 'Thoi gian', 'Ngon ngu', 'Sach', 'Nha', 'Hoc sinh'],
+            pool
+                .where((item) => item.type == SrsItemType.vocabulary)
+                .map((item) => item.meaning)
+                .toList(),
+            const [
+              'Gia đình',
+              'Thời gian',
+              'Ngôn ngữ',
+              'Sách',
+              'Nhà',
+              'Học sinh'
+            ],
           ),
           correctAnswer: card.meaning,
         );
@@ -427,14 +755,17 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           mode: mode,
           prompt: card.meaning,
           promptLabel: mode == QuizMode.fillBlank
-              ? 'Chon tu dung de dien vao cho trong'
-              : 'Chon tu tieng Nhat dung',
+              ? 'Chọn từ đúng để điền vào chỗ trống'
+              : 'Chọn từ tiếng Nhật đúng',
           helper: card.pronunciation != null
-              ? 'Goi y: ${card.pronunciation}'
-              : 'Uu tien dung chinh ta.',
+              ? 'Gợi ý: ${card.pronunciation}'
+              : 'Ưu tiên đúng chính tả.',
           options: _buildOptions(
             card.word,
-            pool.where((item) => item.type == SrsItemType.vocabulary).map((item) => item.word).toList(),
+            pool
+                .where((item) => item.type == SrsItemType.vocabulary)
+                .map((item) => item.word)
+                .toList(),
             const ['家族', '家', '人', '時間', '本', '学校', '言語', '先生'],
           ),
           correctAnswer: card.word,
@@ -451,11 +782,14 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         return _QuizPrompt(
           mode: mode,
           prompt: card.character ?? '',
-          promptLabel: 'Chon cach doc dung cua kanji nay',
-          helper: 'Dung onyomi neu co, neu khong thi dung kunyomi.',
+          promptLabel: 'Chọn cách đọc đúng của kanji này',
+          helper: 'Dùng onyomi nếu có, nếu không thì dùng kunyomi.',
           options: _buildOptions(
             correct,
-            pool.where((item) => item.type == SrsItemType.kanji).map((item) => item.onyomi ?? item.kunyomi ?? '').toList(),
+            pool
+                .where((item) => item.type == SrsItemType.kanji)
+                .map((item) => item.onyomi ?? item.kunyomi ?? '')
+                .toList(),
             const ['ジン', 'カ', 'ガク', 'ゴ', 'ホン', 'セイ', 'セン', 'ニチ'],
           ),
           correctAnswer: correct,
@@ -469,12 +803,15 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         return _QuizPrompt(
           mode: mode,
           prompt: card.character ?? '',
-          promptLabel: 'Chon am Han Viet dung',
-          helper: 'So net: ${card.strokeCount ?? '-'}',
+          promptLabel: 'Chọn âm Hán Việt đúng',
+          helper: 'Số nét: ${card.strokeCount ?? '-'}',
           options: _buildOptions(
             card.amHanViet!,
-            pool.where((item) => item.type == SrsItemType.kanji).map((item) => item.amHanViet ?? '').toList(),
-            const ['Nhan', 'Gia', 'Hoc', 'Ngu', 'Ban', 'Sinh', 'Tien', 'Nhat'],
+            pool
+                .where((item) => item.type == SrsItemType.kanji)
+                .map((item) => item.amHanViet ?? '')
+                .toList(),
+            const ['Nhân', 'Gia', 'Học', 'Ngữ', 'Bản', 'Sinh', 'Tiên', 'Nhật'],
           ),
           correctAnswer: card.amHanViet!,
         );
@@ -486,12 +823,17 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         }
         return _QuizPrompt(
           mode: mode,
-          prompt: card.amHanViet?.trim().isNotEmpty == true ? card.amHanViet! : card.meaning,
-          promptLabel: 'Chon dung kanji theo am Han Viet',
+          prompt: card.amHanViet?.trim().isNotEmpty == true
+              ? card.amHanViet!
+              : card.meaning,
+          promptLabel: 'Chọn đúng kanji theo âm Hán Việt',
           helper: card.meaning,
           options: _buildOptions(
             card.character!,
-            pool.where((item) => item.type == SrsItemType.kanji).map((item) => item.character ?? '').toList(),
+            pool
+                .where((item) => item.type == SrsItemType.kanji)
+                .map((item) => item.character ?? '')
+                .toList(),
             const ['人', '家', '学', '語', '本', '生', '先', '日'],
           ),
           correctAnswer: card.character!,
@@ -502,20 +844,32 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     return null;
   }
 
-  List<String> _buildOptions(String correct, List<String> pool, List<String> fallbacks) {
+  List<String> _buildOptions(
+      String correct, List<String> pool, List<String> fallbacks) {
     final uniquePool = <String>{
       for (final item in pool)
         if (item.trim().isNotEmpty && item != correct) item,
     }.toList();
     final extra = <String>[
       ...uniquePool,
-      ...fallbacks.where((item) => item != correct && !uniquePool.contains(item)),
+      ...fallbacks
+          .where((item) => item != correct && !uniquePool.contains(item)),
     ];
     final wrongs = _shuffle(extra).take(3).toList();
     while (wrongs.length < 3) {
-      wrongs.add('Lua chon ${wrongs.length + 1}');
+      wrongs.add('Lựa chọn ${wrongs.length + 1}');
     }
     return _shuffle([correct, ...wrongs]);
+  }
+
+  bool _shouldUseDrawing(SRSCardDto card) {
+    final probability = switch (card.wrongReviewCount) {
+      >= 3 => 0.8,
+      2 => 0.6,
+      1 => 0.38,
+      _ => 0.15,
+    };
+    return _rng.nextDouble() < probability;
   }
 
   List<T> _shuffle<T>(List<T> items) {
@@ -554,7 +908,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
     final diff = DateTime.parse(dates.first).difference(DateTime.now());
     if (diff.isNegative) {
-      return 'Den han roi';
+      return 'Đến hạn rồi';
     }
 
     final hours = diff.inHours.toString().padLeft(2, '0');
@@ -563,7 +917,14 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     return '$hours:$minutes:$seconds';
   }
 
-  int get _totalUnits => (_session?.flashcards.length ?? 0) + (_session?.quizCards.length ?? 0);
+  int get _totalUnits {
+    return _dueQueue.length + _newQueue.length;
+  }
+
+  int get _todayNewLearned =>
+      (_session?.overview.todayNewLearned ?? 0) + _flashCompleted;
+
+  int get _remainingDailyGoal => max(0, (_dailyGoal ?? 0) - _todayNewLearned);
 
   int get _progressPercent {
     if (_totalUnits == 0) {
@@ -586,7 +947,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       return null;
     }
     for (final item in _dashboardFolders) {
-      if (item.folder.id == id) {
+      if (item.lesson.id == id) {
         return item;
       }
     }
@@ -599,6 +960,14 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       return _LevelBucket(
         level: level,
         count: cards.where((card) => card.boxLevel == level).length,
+        kanjiCount: cards
+            .where((card) =>
+                card.boxLevel == level && card.type == SrsItemType.kanji)
+            .length,
+        vocabularyCount: cards
+            .where((card) =>
+                card.boxLevel == level && card.type == SrsItemType.vocabulary)
+            .length,
         label: AppConstants.srsLevelLabels[level] ?? 'Level $level',
         color: KitsuneColors.srsLevelColors[level],
       );
@@ -620,7 +989,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     if (!mounted) {
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _showError(Object error) {
@@ -638,10 +1008,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('On tap SRS')),
+      appBar: AppBar(title: const Text('Ôn tập SRS')),
       body: KitsuneBackdrop(
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const KitsuneLoadingFox(message: 'Đang tải dữ liệu ôn tập...')
             : Stack(
                 children: [
                   _buildDashboard(),
@@ -659,11 +1029,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
-          KitsunePassportHeader(
-            eyebrow: 'SRS review',
-            title: 'So tay on tap voi 6 che do cau hoi nhu ben web.',
+          KitsuneHeroCard(
+            title: 'Sổ tay ôn tập với 6 chế độ câu hỏi như bên web.',
             subtitle:
-                'Chon folder, xem phan bo cap do, roi mo luot hoc khi co the moi hoac the den han.',
+                'Chọn bài học, xem phân bố cấp độ, rồi mở lượt học khi có thẻ mới hoặc thẻ đến hạn.',
             accent: KitsuneColors.secondary,
             trailing: Container(
               width: 96,
@@ -675,9 +1044,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
               alignment: Alignment.center,
               child: Text(
                 '${_dashboardFolders.fold<int>(0, (sum, item) => sum + item.overview.dueCards + item.overview.newCards)}',
-                style: const TextStyle(
+                style: AppTheme.numeralStyle(
                   fontSize: 30,
-                  fontWeight: FontWeight.w800,
                   color: KitsuneColors.secondary,
                 ),
               ),
@@ -692,7 +1060,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                   KitsuneSectionHeader(
                     title: _activeFolder!.overview.folderName,
                     subtitle:
-                        '${_activeFolder!.overview.totalCards} the tong • ${_activeFolder!.overview.learnedCards} da hoc',
+                        '${_activeFolder!.overview.totalCards} thẻ tổng • ${_activeFolder!.overview.learnedCards} đã học',
                     accent: KitsuneColors.primary,
                   ),
                   const SizedBox(height: AppTheme.space14),
@@ -700,7 +1068,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                     children: [
                       Expanded(
                         child: KitsuneStatTile(
-                          label: 'Moi',
+                          label: 'Mới',
                           value: '${_activeFolder!.overview.newCards}',
                           color: KitsuneColors.info,
                         ),
@@ -708,7 +1076,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                       const SizedBox(width: 10),
                       Expanded(
                         child: KitsuneStatTile(
-                          label: 'Den han',
+                          label: 'Đến hạn',
                           value: '${_activeFolder!.overview.dueCards}',
                           color: KitsuneColors.warning,
                         ),
@@ -729,12 +1097,12 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                   ElevatedButton.icon(
                     onPressed: _isSubmitting ? null : _startStudy,
                     icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Bat dau on tap'),
+                    label: const Text('Bắt đầu ôn tập'),
                   ),
                   if (_countdownText.isNotEmpty) ...[
                     const SizedBox(height: AppTheme.space10),
                     Text(
-                      'Luot tiep theo sau: $_countdownText',
+                      'Lượt tiếp theo sau: $_countdownText',
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                   ],
@@ -743,24 +1111,25 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
             ),
           const SizedBox(height: AppTheme.space16),
           const KitsuneSectionHeader(
-            title: 'Folder SRS',
-            subtitle: 'Doi folder o day va giu nhip on rieng cho tung bo hoc.',
+            title: 'Bài học SRS',
+            subtitle: 'Đổi bài học ở đây và giữ nhịp ôn theo đúng lộ trình.',
             accent: KitsuneColors.stamp,
           ),
           const SizedBox(height: AppTheme.space12),
           if (_dashboardFolders.isEmpty)
             const KitsuneEmptyState(
-              icon: Icons.folder_open_rounded,
-              title: 'Chua co folder nao',
-              message: 'Tao folder va them tu vung truoc khi bat dau mot luot SRS.',
+              icon: Icons.route_rounded,
+              title: 'Chưa có bài học nào',
+              message:
+                  'Admin cần xuất bản Topic và Lesson trước khi bắt đầu SRS.',
             )
           else
             ..._dashboardFolders.asMap().entries.map((entry) {
               final index = entry.key;
               final item = entry.value;
-              final color =
-                  KitsuneColors.folderColors[index % KitsuneColors.folderColors.length];
-              final isActive = _selectedFolderId == item.folder.id;
+              final color = KitsuneColors
+                  .folderColors[index % KitsuneColors.folderColors.length];
+              final isActive = _selectedFolderId == item.lesson.id;
 
               return Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -770,7 +1139,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                       : KitsuneColors.surface,
                   onTap: _isSubmitting
                       ? null
-                      : () => _openFolder(item.folder.id, activate: true),
+                      : () => _openFolder(item.lesson.id, activate: true),
                   child: Row(
                     children: [
                       Container(
@@ -780,7 +1149,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                           color: color.withValues(alpha: 0.14),
                           borderRadius: BorderRadius.circular(18),
                         ),
-                        child: Icon(Icons.folder_rounded, color: color),
+                        child: Icon(Icons.route_rounded, color: color),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -791,14 +1160,15 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                               children: [
                                 Expanded(
                                   child: Text(
-                                    item.folder.name,
-                                    style: Theme.of(context).textTheme.titleLarge,
+                                    item.lesson.title,
+                                    style:
+                                        Theme.of(context).textTheme.titleLarge,
                                   ),
                                 ),
                                 if (isActive)
                                   const KitsuneActionBadge(
                                     icon: Icons.check_circle_rounded,
-                                    label: 'Dang hoc',
+                                    label: 'Đang học',
                                     color: KitsuneColors.primary,
                                     isActive: true,
                                   ),
@@ -824,8 +1194,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
   Widget _buildLevelChart() {
     final buckets = _levelBuckets;
-    final maxCount =
-        buckets.fold<int>(1, (max, bucket) => bucket.count > max ? bucket.count : max);
+    final maxCount = buckets.fold<int>(
+        1, (max, bucket) => bucket.count > max ? bucket.count : max);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -881,19 +1251,53 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           children: buckets.map((bucket) {
             return KitsuneActionBadge(
               icon: Icons.circle,
-              label: bucket.label,
+              label: '${bucket.label}: ${bucket.count} thẻ',
               color: bucket.color,
               isActive: bucket.count > 0,
             );
           }).toList(),
         ),
+        const SizedBox(height: AppTheme.space10),
+        OutlinedButton.icon(
+          onPressed: () =>
+              setState(() => _showLevelDetails = !_showLevelDetails),
+          icon: Icon(
+              _showLevelDetails ? Icons.remove_rounded : Icons.add_rounded),
+          label: Text(_showLevelDetails
+              ? 'Ẩn chi tiết từng cấp'
+              : 'Xem chi tiết từng cấp'),
+        ),
+        if (_showLevelDetails) ...[
+          const SizedBox(height: AppTheme.space10),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: buckets.map((bucket) {
+              return Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                decoration: BoxDecoration(
+                  color: KitsuneColors.surface,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: KitsuneColors.surfaceBorder),
+                ),
+                child: Text(
+                  '${bucket.label}: ${bucket.kanjiCount} Kanji · ${bucket.vocabularyCount} từ',
+                  style: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+              );
+            }).toList(),
+          ),
+        ],
       ],
     );
   }
 
   Widget _buildStudyOverlay() {
-    final ringColor =
-        _phase == _StudyPhase.quiz ? KitsuneColors.secondary : KitsuneColors.primary;
+    final ringColor = _phase == _StudyPhase.quiz
+        ? KitsuneColors.secondary
+        : KitsuneColors.primary;
 
     return Container(
       color: KitsuneColors.background,
@@ -907,7 +1311,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                   TextButton.icon(
                     onPressed: () => setState(() => _showStudyOverlay = false),
                     icon: const Icon(Icons.arrow_back_rounded),
-                    label: const Text('Ve dashboard'),
+                    label: const Text('Về dashboard'),
                   ),
                   const Spacer(),
                   Text(
@@ -930,7 +1334,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                               value: value,
                               strokeWidth: 4,
                               backgroundColor: KitsuneColors.surfaceVariant,
-                              valueColor: AlwaysStoppedAnimation<Color>(ringColor),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(ringColor),
                             );
                           },
                         ),
@@ -952,7 +1357,12 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 28),
                 children: [
-                  if (_phase == _StudyPhase.flashcard && _flashQueue.isNotEmpty)
+                  if (_phase == _StudyPhase.setupQuantity)
+                    _buildSetupQuantity()
+                  else if (_phase == _StudyPhase.promptReview)
+                    _buildPromptReview()
+                  else if (_phase == _StudyPhase.flashcard &&
+                      _flashQueue.isNotEmpty)
                     _buildFlashcard()
                   else if (_phase == _StudyPhase.quiz && _quizQueue.isNotEmpty)
                     _buildQuiz()
@@ -964,6 +1374,118 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSetupQuantity() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 32),
+        const Icon(Icons.psychology_rounded,
+            size: 64, color: KitsuneColors.primary),
+        const SizedBox(height: 24),
+        if (_dailyGoal == null) ...[
+          Text(
+            'Hôm nay bạn muốn học bao nhiêu từ mới?',
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          const Text(
+            'Thẻ đến hạn luôn được ôn riêng và không trừ vào số từ mới.',
+            textAlign: TextAlign.center,
+            style:
+                TextStyle(color: KitsuneColors.onSurfaceVariant, height: 1.45),
+          ),
+          const SizedBox(height: 28),
+          ...[10, 20, 30, -1].map((limit) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: ElevatedButton(
+                  onPressed: () => _chooseDailyGoal(limit),
+                  child: Text(limit == -1 ? 'Tất cả từ mới' : '$limit từ mới'),
+                ),
+              )),
+        ] else ...[
+          Text(
+            'Bạn đã học $_todayNewLearned/${_dailyGoal!} từ mới hôm nay',
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .titleLarge
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _remainingDailyGoal > 0
+                ? 'Còn $_remainingDailyGoal từ để hoàn thành mục tiêu. Bạn có thể học tiếp hoặc chỉ ôn thẻ đến hạn.'
+                : 'Mục tiêu đã hoàn thành. Chỉ ôn tập để giữ đúng nhịp, hoặc chủ động học thêm.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+                color: KitsuneColors.onSurfaceVariant, height: 1.45),
+          ),
+          const SizedBox(height: 28),
+          if (_remainingDailyGoal > 0)
+            ElevatedButton(
+              onPressed: _continueDailyGoal,
+              child: Text('Học tiếp $_remainingDailyGoal từ'),
+            ),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: _reviewOnly,
+            child: const Text('Chỉ ôn tập'),
+          ),
+          if (_remainingDailyGoal == 0) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                    child: OutlinedButton(
+                        onPressed: () => _learnMore(5),
+                        child: const Text('Học thêm 5'))),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: OutlinedButton(
+                        onPressed: () => _learnMore(10),
+                        child: const Text('Học thêm 10'))),
+              ],
+            ),
+          ],
+        ],
+      ],
+    );
+  }
+
+  Widget _buildPromptReview() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        const SizedBox(height: 32),
+        const Icon(Icons.update_rounded,
+            size: 64, color: KitsuneColors.secondary),
+        const SizedBox(height: 24),
+        Text(
+          'Bạn có ${_dueQueue.length} từ cần ôn tập trước khi bắt đầu học từ mới. Ôn tập ngay nha?',
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+        ),
+        const SizedBox(height: 48),
+        ElevatedButton(
+          onPressed: _startStudyingQueues,
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+          ),
+          child: const Text(
+            'OK',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+        ),
+      ],
     );
   }
 
@@ -989,7 +1511,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
               ),
               const SizedBox(width: 10),
               Text(
-                'Con $queueLeft the moi',
+                'Còn $queueLeft thẻ mới',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ],
@@ -1000,7 +1522,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           onTap: () => setState(() => _isCardFlipped = !_isCardFlipped),
           child: AnimatedSwitcher(
             duration: const Duration(milliseconds: 240),
-            child: _isCardFlipped ? _buildCardBack(card) : _buildCardFront(card),
+            child:
+                _isCardFlipped ? _buildCardBack(card) : _buildCardFront(card),
           ),
         ),
         const SizedBox(height: AppTheme.space16),
@@ -1008,23 +1531,27 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           children: [
             Expanded(
               child: OutlinedButton.icon(
-                onPressed: _isSubmitting || !_isCardFlipped ? null : _reviewFlashcardAgain,
+                onPressed: _isSubmitting || !_isCardFlipped
+                    ? null
+                    : _reviewFlashcardAgain,
                 icon: const Icon(Icons.refresh_rounded),
-                label: const Text('Xem lai'),
+                label: const Text('Xem lại'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                onPressed: _isSubmitting || !_isCardFlipped ? null : _markFlashcardLearned,
+                onPressed: _isSubmitting || !_isCardFlipped
+                    ? null
+                    : _markFlashcardLearned,
                 icon: _isSubmitting
                     ? const SizedBox(
                         width: 16,
                         height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
+                        child: KitsuneLoadingFox(size: 28),
                       )
                     : const Icon(Icons.check_rounded),
-                label: const Text('Da nho'),
+                label: const Text('Đã nhớ'),
               ),
             ),
           ],
@@ -1041,14 +1568,33 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       child: Column(
         children: [
           Text(
-            card.type == SrsItemType.kanji ? (card.character ?? card.word) : card.word,
-            style: TextStyle(
+            card.type == SrsItemType.kanji
+                ? (card.character ?? card.word)
+                : card.word,
+            style: AppTheme.japaneseStyle(
               fontSize: card.type == SrsItemType.kanji ? 78 : 58,
               fontWeight: FontWeight.w800,
               color: KitsuneColors.onSurface,
             ),
             textAlign: TextAlign.center,
           ),
+          if (card.type == SrsItemType.vocabulary) ...[
+            const SizedBox(height: AppTheme.space10),
+            InkWell(
+              borderRadius: BorderRadius.circular(24),
+              onTap: () => _speak(card.word),
+              child: Padding(
+                padding: const EdgeInsets.all(6),
+                child: Icon(
+                  Icons.volume_up_rounded,
+                  size: 28,
+                  color: _speakingWord == card.word
+                      ? KitsuneColors.primary
+                      : KitsuneColors.onSurfaceVariant,
+                ),
+              ),
+            ),
+          ],
           if (card.pronunciation?.trim().isNotEmpty == true) ...[
             const SizedBox(height: AppTheme.space10),
             Text(
@@ -1062,7 +1608,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           if (card.type == SrsItemType.kanji && card.strokeCount != null) ...[
             const SizedBox(height: AppTheme.space10),
             Text(
-              '${card.strokeCount} net',
+              '${card.strokeCount} nét',
               style: const TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
@@ -1072,7 +1618,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           ],
           const SizedBox(height: AppTheme.space24),
           const Text(
-            'Cham de xem mat sau',
+            'Chạm để xem mặt sau',
             style: TextStyle(
               fontSize: 13,
               color: KitsuneColors.onSurfaceMuted,
@@ -1093,13 +1639,37 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 36),
       child: Column(
         children: [
-          Text(
-            card.type == SrsItemType.kanji ? (card.character ?? card.word) : card.word,
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w800,
-              color: KitsuneColors.onSurface,
-            ),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                card.type == SrsItemType.kanji
+                    ? (card.character ?? card.word)
+                    : card.word,
+                style: AppTheme.japaneseStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w800,
+                  color: KitsuneColors.onSurface,
+                ),
+              ),
+              if (card.type == SrsItemType.vocabulary) ...[
+                const SizedBox(width: AppTheme.space8),
+                InkWell(
+                  borderRadius: BorderRadius.circular(20),
+                  onTap: () => _speak(card.word),
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: Icon(
+                      Icons.volume_up_rounded,
+                      size: 22,
+                      color: _speakingWord == card.word
+                          ? KitsuneColors.primary
+                          : KitsuneColors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
           const SizedBox(height: AppTheme.space12),
           Text(
@@ -1138,6 +1708,61 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                   _readingChip('Kun', card.kunyomi!, KitsuneColors.secondary),
               ],
             ),
+          ],
+          if (card.type == SrsItemType.kanji) ...[
+            const SizedBox(height: AppTheme.space16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Ví dụ có ${card.character ?? card.word}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: KitsuneColors.onSurfaceVariant,
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTheme.space8),
+            if (card.examples.isEmpty)
+              const Text(
+                'Chưa có từ vựng phù hợp trong hệ thống.',
+                style: TextStyle(color: KitsuneColors.onSurfaceMuted),
+              )
+            else
+              ...card.examples.map((example) => Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: KitsuneColors.surface.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(
+                          example.word,
+                          style: AppTheme.japaneseStyle(
+                              fontSize: 16, fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            [
+                              if (example.pronunciation?.trim().isNotEmpty ==
+                                  true)
+                                example.pronunciation!,
+                              example.meaning,
+                            ].join(' · '),
+                            textAlign: TextAlign.right,
+                            style: const TextStyle(
+                                fontSize: 12,
+                                color: KitsuneColors.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
           ],
         ],
       ),
@@ -1187,7 +1812,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                     icon: card.type == SrsItemType.kanji
                         ? Icons.text_fields_rounded
                         : Icons.menu_book_rounded,
-                    label: card.type == SrsItemType.kanji ? 'Kanji' : 'Vocabulary',
+                    label:
+                        card.type == SrsItemType.kanji ? 'Kanji' : 'Vocabulary',
                     color: card.type == SrsItemType.kanji
                         ? KitsuneColors.secondary
                         : KitsuneColors.primary,
@@ -1204,11 +1830,15 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
               Text(
                 question.prompt,
                 style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontSize: card.type == SrsItemType.kanji &&
-                              question.mode != QuizMode.wordFromMean
-                          ? 56
-                          : 34,
-                      color: KitsuneColors.onSurface,
+                      fontSize: question.isDrawing
+                          ? 28
+                          : card.type == SrsItemType.kanji &&
+                                  question.mode != QuizMode.wordFromMean
+                              ? 56
+                              : 34,
+                      color: question.isDrawing
+                          ? KitsuneColors.secondary
+                          : KitsuneColors.onSurface,
                     ),
               ),
               if (question.helper.trim().isNotEmpty) ...[
@@ -1222,86 +1852,94 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           ),
         ),
         const SizedBox(height: AppTheme.space16),
-        ...question.options.asMap().entries.map((entry) {
-          final index = entry.key;
-          final option = entry.value;
-          final isSelected = _selectedOption == option;
-          final isCorrect = option == question.correctAnswer;
+        if (question.isDrawing)
+          KanjiDrawingReview(
+            character: card.character ?? '',
+            strokeCount: card.strokeCount,
+            disabled: _isSubmitting || _feedbackMessage != null,
+            onChecked: _submitDrawingAnswer,
+          )
+        else
+          ...question.options.asMap().entries.map((entry) {
+            final index = entry.key;
+            final option = entry.value;
+            final isSelected = _selectedOption == option;
+            final isCorrect = option == question.correctAnswer;
 
-          Color fill = KitsuneColors.surface;
-          Color border = KitsuneColors.surfaceBorder;
+            Color fill = KitsuneColors.surface;
+            Color border = KitsuneColors.surfaceBorder;
 
-          if (_feedbackMessage != null && isCorrect) {
-            fill = KitsuneColors.successSurface;
-            border = KitsuneColors.success;
-          } else if (_feedbackMessage != null && isSelected && !isCorrect) {
-            fill = KitsuneColors.errorSurface;
-            border = KitsuneColors.error;
-          } else if (isSelected) {
-            fill = KitsuneColors.primarySurface;
-            border = KitsuneColors.primary;
-          }
+            if (_feedbackMessage != null && isCorrect) {
+              fill = KitsuneColors.successSurface;
+              border = KitsuneColors.success;
+            } else if (_feedbackMessage != null && isSelected && !isCorrect) {
+              fill = KitsuneColors.errorSurface;
+              border = KitsuneColors.error;
+            } else if (isSelected) {
+              fill = KitsuneColors.primarySurface;
+              border = KitsuneColors.primary;
+            }
 
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                onTap: _feedbackMessage != null
-                    ? null
-                    : () => setState(() => _selectedOption = option),
-                child: Container(
-                  padding: const EdgeInsets.all(AppTheme.space16),
-                  decoration: BoxDecoration(
-                    color: fill,
-                    borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    border: Border.all(color: border),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x0F152238),
-                        blurRadius: 18,
-                        offset: Offset(0, 8),
-                      ),
-                    ],
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 26,
-                        height: 26,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: border.withValues(alpha: 0.12),
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  onTap: _feedbackMessage != null
+                      ? null
+                      : () => setState(() => _selectedOption = option),
+                  child: Container(
+                    padding: const EdgeInsets.all(AppTheme.space16),
+                    decoration: BoxDecoration(
+                      color: fill,
+                      borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                      border: Border.all(color: border),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x0F2B2018),
+                          blurRadius: 18,
+                          offset: Offset(0, 8),
                         ),
-                        child: Text(
-                          String.fromCharCode(65 + index),
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w800,
-                            color: border,
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 26,
+                          height: 26,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: border.withValues(alpha: 0.12),
+                          ),
+                          child: Text(
+                            String.fromCharCode(65 + index),
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800,
+                              color: border,
+                            ),
                           ),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          option,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: KitsuneColors.onSurface,
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            option,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: KitsuneColors.onSurface,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
         if (_feedbackMessage != null) ...[
           KitsuneSurface(
             color: (_lastAnswerCorrect ?? false)
@@ -1320,18 +1958,21 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           ),
           const SizedBox(height: AppTheme.space12),
         ],
-        ElevatedButton(
-          onPressed: _selectedOption == null || _feedbackMessage != null || _isSubmitting
-              ? null
-              : _submitQuizAnswer,
-          child: _isSubmitting
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Xac nhan dap an'),
-        ),
+        if (!question.isDrawing)
+          ElevatedButton(
+            onPressed: _selectedOption == null ||
+                    _feedbackMessage != null ||
+                    _isSubmitting
+                ? null
+                : _submitQuizAnswer,
+            child: _isSubmitting
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: KitsuneLoadingFox(size: 28),
+                  )
+                : const Text('Xác nhận đáp án'),
+          ),
       ],
     );
   }
@@ -1343,11 +1984,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            KitsunePassportHeader(
-              eyebrow: 'Session complete',
-              title: 'Ban vua khoa them mot nhip nho.',
+            KitsuneHeroCard(
+              title: 'Bạn vừa khóa thêm một nhịp nhỏ.',
               subtitle:
-                  'Da di qua flashcard va quiz 6 mode. Ban co the on tiep hoac quay lai dashboard de doi folder.',
+                  'Đã đi qua flashcard và quiz 7 mode. Bạn có thể ôn tiếp hoặc quay lại dashboard để đổi bài học.',
               accent: KitsuneColors.secondary,
               trailing: Container(
                 width: 92,
@@ -1359,9 +1999,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                 child: Center(
                   child: Text(
                     '$_accuracyPercent%',
-                    style: const TextStyle(
+                    style: AppTheme.numeralStyle(
                       fontSize: 28,
-                      fontWeight: FontWeight.w800,
                       color: KitsuneColors.secondary,
                     ),
                   ),
@@ -1381,7 +2020,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: KitsuneStatTile(
-                    label: 'Tra loi',
+                    label: 'Trả lời',
                     value: '$_answersGiven',
                     color: KitsuneColors.secondary,
                   ),
@@ -1399,12 +2038,12 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
             const SizedBox(height: AppTheme.space20),
             ElevatedButton(
               onPressed: _reloadActiveFolder,
-              child: const Text('On tiep'),
+              child: const Text('Ôn tiếp'),
             ),
             const SizedBox(height: AppTheme.space10),
             OutlinedButton(
               onPressed: () => setState(() => _showStudyOverlay = false),
-              child: const Text('Ve dashboard'),
+              child: const Text('Về dashboard'),
             ),
           ],
         ),
@@ -1416,6 +2055,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     switch (_phase) {
       case _StudyPhase.idle:
         return 'Idle';
+      case _StudyPhase.setupQuantity:
+        return 'Setup';
+      case _StudyPhase.promptReview:
+        return 'Prompt';
       case _StudyPhase.flashcard:
         return 'Flashcard';
       case _StudyPhase.quiz:
@@ -1428,17 +2071,19 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   String _modeLabel(QuizMode mode) {
     switch (mode) {
       case QuizMode.meanFromWord:
-        return 'Mean from word';
+        return 'Nghĩa của từ';
       case QuizMode.wordFromMean:
-        return 'Word from mean';
+        return 'Từ từ nghĩa';
       case QuizMode.fillBlank:
-        return 'Fill blank';
+        return 'Điền từ';
       case QuizMode.onKunRead:
-        return 'On/Kun read';
+        return 'Cách đọc';
       case QuizMode.hanViet:
-        return 'Han Viet';
+        return 'Âm Hán Việt';
       case QuizMode.composeKanji:
-        return 'Compose kanji';
+        return 'Nhận dạng Kanji';
+      case QuizMode.drawKanji:
+        return 'Viết Kanji';
     }
   }
 
@@ -1447,15 +2092,17 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       case QuizMode.meanFromWord:
         return KitsuneColors.info;
       case QuizMode.wordFromMean:
-        return const Color(0xFF8B5CF6);
+        return KitsuneColors.primary;
       case QuizMode.fillBlank:
         return KitsuneColors.stamp;
       case QuizMode.onKunRead:
         return KitsuneColors.error;
       case QuizMode.hanViet:
-        return const Color(0xFFEC4899);
+        return KitsuneColors.secondary;
       case QuizMode.composeKanji:
         return KitsuneColors.success;
+      case QuizMode.drawKanji:
+        return KitsuneColors.primary;
     }
   }
 }
@@ -1464,12 +2111,16 @@ class _LevelBucket {
   const _LevelBucket({
     required this.level,
     required this.count,
+    required this.kanjiCount,
+    required this.vocabularyCount,
     required this.label,
     required this.color,
   });
 
   final int level;
   final int count;
+  final int kanjiCount;
+  final int vocabularyCount;
   final String label;
   final Color color;
 }

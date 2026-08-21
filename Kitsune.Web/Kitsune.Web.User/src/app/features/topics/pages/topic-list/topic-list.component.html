@@ -1,0 +1,79 @@
+<!-- Kitsune.Web/Kitsune.Web.User/src/app/features/topics/pages/topic-list/topic-list.component.html -->
+<main class="topic-page">
+  <header class="topic-hero">
+    <div>
+      <p class="eyebrow">Lộ trình v3.0</p>
+      <h1>Học theo một hành trình,<br /><em>không học rời rạc.</em></h1>
+      <p>Chọn chủ đề, đi lần lượt qua từng bài và để SRS giữ nhịp ôn đúng lúc.</p>
+    </div>
+    <a class="game-link" routerLink="/minigames">
+      <span aria-hidden="true">遊</span>
+      <strong>Giải lao bằng minigame</strong>
+      <small>4 thử thách từ vựng →</small>
+    </a>
+  </header>
+
+  @if (errorMessage()) {
+    <p class="status status--error">{{ errorMessage() }}</p>
+  }
+
+  <section class="learning-layout">
+    <aside class="topic-rail" aria-label="Danh sách chủ đề">
+      <p class="rail-label">Chủ đề</p>
+      @for (topic of topics(); track topic.id) {
+        <button type="button" class="topic-tab" [class.topic-tab--active]="topic.id === activeTopicId()" (click)="selectTopic(topic.id)">
+          <span class="topic-seal">{{ topic.title.slice(0, 1) }}</span>
+          <span>
+            <strong>{{ topic.title }}</strong>
+            <small>{{ topic.lessonCount }} bài · {{ topic.progressPercent }}%</small>
+          </span>
+        </button>
+      } @empty {
+        @if (!isLoading()) { <p class="empty-copy">Chưa có chủ đề được xuất bản.</p> }
+      }
+    </aside>
+
+    <div class="lesson-board">
+      @if (activeTopic(); as topic) {
+        <div class="board-heading">
+          <div>
+            <p class="eyebrow">{{ topic.jlptLevel ? 'JLPT N' + topic.jlptLevel : 'Mọi trình độ' }}</p>
+            <h2>{{ topic.title }}</h2>
+            <p>{{ topic.description }}</p>
+          </div>
+          <div class="topic-progress" [style.--progress]="topic.progressPercent + '%'">
+            <strong>{{ topic.progressPercent }}%</strong>
+            <span>hoàn thành</span>
+          </div>
+        </div>
+      }
+
+      @if (isLoading()) {
+        <p class="status">Đang mở bản đồ bài học…</p>
+      } @else {
+        <div class="lesson-trail">
+          @for (lesson of lessons(); track lesson.id; let index = $index) {
+            <article class="lesson-stop" [class.lesson-stop--done]="lesson.progressPercent >= 100">
+              <div class="trail-marker"><span>{{ index + 1 }}</span></div>
+              <div class="lesson-card">
+                <div class="lesson-meta">
+                  <span>{{ lessonState(lesson) }}</span>
+                  <span>{{ lesson.estimatedMinutes }} phút</span>
+                  <span>{{ lesson.itemCount }} mục</span>
+                </div>
+                <h3>{{ lesson.title }}</h3>
+                <p>{{ lesson.description }}</p>
+                <div class="lesson-progress"><i [style.width.%]="lesson.progressPercent"></i></div>
+                <a [routerLink]="['/topics/lessons', lesson.id]">
+                  {{ lesson.progressPercent > 0 ? 'Học tiếp' : 'Bắt đầu bài' }} <span>→</span>
+                </a>
+              </div>
+            </article>
+          } @empty {
+            <p class="status">Chủ đề này chưa có bài học.</p>
+          }
+        </div>
+      }
+    </div>
+  </section>
+</main>

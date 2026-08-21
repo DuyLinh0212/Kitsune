@@ -4,6 +4,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 export interface VocabItem {
   id: number;
@@ -52,7 +53,7 @@ const QUIZ_MODES: QuizMode[] = [
 @Component({
   selector: 'app-quiz-create',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent],
   templateUrl: './quiz-create.component.html',
   styleUrls: ['./quiz-create.component.css'],
 })

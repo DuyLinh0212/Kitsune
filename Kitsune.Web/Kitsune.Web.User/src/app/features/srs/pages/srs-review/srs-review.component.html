@@ -9,10 +9,7 @@
 
   <!-- ─── LOADING ───────────────────────────────────────── -->
   @if (isLoading()) {
-    <div class="srs-loading">
-      <div class="loading-ring"></div>
-      <p>Đang tải dữ liệu ôn tập...</p>
-    </div>
+    <app-loading-fox message="Đang tải dữ liệu ôn tập..." />
   } @else {
 
     <!-- ══════════════════════════════════════════════════════
@@ -20,7 +17,7 @@
     ══════════════════════════════════════════════════════ -->
     <div class="srs-dashboard" [class.srs-dashboard--hidden]="showStudyOverlay()">
 
-      <!-- ── TOP BAR: Title + Folder Picker ─────────────── -->
+      <!-- ── TOP BAR: Title + Lesson Picker ─────────────── -->
       <div class="dash-topbar">
         <div class="dash-topbar__title">
           <p class="dash-eyebrow">Hệ thống ôn tập</p>
@@ -41,7 +38,7 @@
             @if (activeFolder(); as folder) {
               <span>{{ folder.folderName }}</span>
             } @else {
-              <span>Chọn folder</span>
+              <span>Chọn bài học</span>
             }
             <svg class="folder-picker__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
               <polyline points="6 9 12 15 18 9"/>
@@ -56,7 +53,7 @@
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                     <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
                   </svg>
-                  <span>Chưa có folder nào. <a routerLink="/folders">Tạo mới →</a></span>
+                  <span>Chưa có bài học nào. <a routerLink="/topics">Xem chủ đề →</a></span>
                 </div>
               }
               @for (folder of dashboardFolders(); track folder.folderId) {
@@ -64,8 +61,7 @@
                   type="button"
                   class="folder-dropdown__item"
                   [class.folder-dropdown__item--active]="activeFolderId() === folder.folderId"
-                  [class.folder-dropdown__item--locked]="isFolderLocked(folder)"
-                  [disabled]="isFolderLocked(folder) || isSwitchingFolder() === folder.folderId"
+                  [disabled]="isSwitchingFolder() === folder.folderId"
                   (click)="selectFolder(folder.folderId)"
                 >
                   <div class="fd-item__main">
@@ -75,8 +71,6 @@
                     <span class="fd-item__name">{{ folder.folderName }}</span>
                     @if (activeFolderId() === folder.folderId) {
                       <span class="fd-badge fd-badge--active">Đang học</span>
-                    } @else if (isFolderLocked(folder)) {
-                      <span class="fd-badge fd-badge--locked">🔒</span>
                     }
                   </div>
                   <div class="fd-item__meta">
@@ -100,7 +94,7 @@
           <div>
             <p class="chart-title">Phân bố cấp độ</p>
             @if (activeFolder(); as folder) {
-              <p class="chart-sub">{{ folder.folderName }} • {{ folder.totalCards }} thẻ tổng</p>
+              <p class="chart-sub">{{ folder.folderName }} • {{ folder.totalCards }} thẻ trong bài</p>
             }
           </div>
           <div class="chart-summary-pills">
@@ -117,7 +111,7 @@
           @for (bucket of levelDistribution(); track bucket.level) {
             <div class="bar-col">
               <span class="bar-count" [class.bar-count--zero]="bucket.count === 0">
-                {{ bucket.count > 0 ? bucket.count + ' từ' : '—' }}
+                {{ bucket.count > 0 ? bucket.count + ' thẻ' : '—' }}
               </span>
               <div
                 class="bar"
@@ -140,12 +134,29 @@
             </div>
           }
         </div>
+
+        <button type="button" class="level-details-toggle" (click)="toggleLevelDetails()" [attr.aria-expanded]="showLevelDetails()">
+          {{ showLevelDetails() ? 'Ẩn chi tiết từng cấp' : 'Xem chi tiết từng cấp' }}
+          <span aria-hidden="true">{{ showLevelDetails() ? '−' : '+' }}</span>
+        </button>
+        @if (showLevelDetails()) {
+          <div class="level-details" aria-label="Chi tiết số thẻ theo cấp độ">
+            @for (bucket of levelDistribution(); track bucket.level) {
+              <div class="level-details__item">
+                <span class="level-details__dot" [style.background]="bucket.color"></span>
+                <span class="level-details__label">{{ bucket.label }}</span>
+                <strong>{{ bucket.count }} thẻ</strong>
+                <span>{{ bucket.kanjiCount }} Kanji · {{ bucket.vocabularyCount }} từ</span>
+              </div>
+            }
+          </div>
+        }
       </div>
 
       <!-- ── BOTTOM ACTION BAR ───────────────────────────── -->
       <div class="action-bar bento-card">
         @if (activeFolder(); as folder) {
-          <!-- Folder info -->
+          <!-- Lesson info -->
           <div class="action-bar__folder">
             <div class="action-bar__folder-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -178,7 +189,7 @@
           <!-- Divider -->
           <div class="action-bar__divider"></div>
 
-          <!-- Countdown or Start Button -->
+          <!-- Start Button / Current Queue -->
           @if (totalDueCards() > 0) {
             <div class="action-bar__due">
               <div class="due-count-badge">
@@ -192,7 +203,15 @@
                 Bắt đầu ôn tập
               </button>
             </div>
-          } @else if (countdownDisplay()) {
+          } @else if (!countdownDisplay()) {
+            <div class="action-bar__done">
+              <span>🎉</span>
+              <p>Bạn đã hoàn thành mục tiêu hôm nay!</p>
+            </div>
+          }
+
+          <!-- Always show the next-review countdown when a future card exists. -->
+          @if (countdownDisplay()) {
             <div class="action-bar__countdown">
               <p class="countdown-label">Thời gian đến lượt ôn tiếp</p>
               <div class="countdown-display">
@@ -202,18 +221,13 @@
                 {{ countdownDisplay() }}
               </div>
             </div>
-          } @else {
-            <div class="action-bar__done">
-              <span>🎉</span>
-              <p>Bạn đã hoàn thành mục tiêu hôm nay!</p>
-            </div>
           }
         } @else {
           <div class="action-bar__no-folder">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
-            <p>Nhấn vào <strong>"Chọn folder"</strong> phía trên để bắt đầu</p>
+            <p>Nhấn vào <strong>"Chọn bài học"</strong> phía trên để bắt đầu</p>
           </div>
         }
       </div>
@@ -261,6 +275,64 @@
           </div>
         </div>
 
+        <!-- ─── SETUP QUANTITY PHASE ────────────────────────── -->
+        @if (phase() === 'setup_quantity') {
+          <div class="study-area study-area--center">
+            <div class="setup-quantity">
+              <svg class="setup-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M12 2a10 10 0 1 0 10 10H12V2z"></path>
+                <path d="M12 12 2.1 7.1"></path>
+              </svg>
+              @if (dailyGoal() === null) {
+                <h2>Hôm nay bạn muốn học bao nhiêu từ mới?</h2>
+                <p class="setup-copy">Thẻ đến hạn luôn được ôn riêng và không trừ vào số từ mới.</p>
+                <div class="limit-options">
+                  <button class="btn-limit" (click)="chooseDailyGoal(10)">10 từ mới</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(20)">20 từ mới</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(30)">30 từ mới</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(-1)">Tất cả từ mới</button>
+                </div>
+              } @else {
+                <p class="setup-kicker">NHỊP HỌC HÔM NAY</p>
+                <h2>Bạn đã học {{ todayNewLearned() }}/{{ dailyGoal() }} từ mới.</h2>
+                @if (remainingDailyGoal() > 0) {
+                  <p class="setup-copy">Còn {{ remainingDailyGoal() }} từ để hoàn thành mục tiêu. Bạn có thể học tiếp hoặc chỉ ôn thẻ đến hạn.</p>
+                  <div class="limit-options">
+                    <button class="btn-limit btn-limit--primary" (click)="continueDailyGoal()">
+                      Học tiếp {{ remainingDailyGoal() }} từ
+                    </button>
+                    <button class="btn-limit" (click)="reviewOnly()">Chỉ ôn tập</button>
+                  </div>
+                } @else {
+                  <p class="setup-copy">Mục tiêu hôm nay đã hoàn thành. Giữ đúng 10 từ/ngày bằng cách chỉ ôn tập, hoặc chủ động học thêm.</p>
+                  <div class="limit-options">
+                    <button class="btn-limit btn-limit--primary" (click)="reviewOnly()">Chỉ ôn tập</button>
+                    <button class="btn-limit" (click)="learnMore(5)">Học thêm 5 từ</button>
+                    <button class="btn-limit" (click)="learnMore(10)">Học thêm 10 từ</button>
+                  </div>
+                }
+              }
+            </div>
+          </div>
+        }
+
+        <!-- ─── PROMPT REVIEW PHASE ─────────────────────────── -->
+        @if (phase() === 'prompt_review') {
+          <div class="study-area study-area--center">
+            <div class="prompt-review">
+              <svg class="prompt-icon" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+              <h2>Bạn có {{ dueQueue().length }} từ cần ôn tập trước khi bắt đầu học từ mới. Ôn tập ngay nha?</h2>
+              
+              <button class="btn-ok" (click)="startStudyingQueues()">
+                OK
+              </button>
+            </div>
+          </div>
+        }
+
         <!-- ─── FLASHCARD PHASE ──────────────────────────── -->
         @if (phase() === 'flashcard' && currentFlashcard(); as card) {
           <div class="study-area">
@@ -298,6 +370,22 @@
                       <span class="reading-chip reading-chip--kun">Kun: {{ card.kunyomi }}</span>
                     }
                   </div>
+                  <div class="fc-examples">
+                    <div class="fc-examples__title">Ví dụ có {{ card.character }}</div>
+                    @if (card.examples.length > 0) {
+                      @for (example of card.examples; track example.word) {
+                        <div class="fc-example">
+                          <span class="fc-example__word">{{ example.word }}</span>
+                          @if (example.pronunciation) {
+                            <span class="fc-example__reading">{{ example.pronunciation }}</span>
+                          }
+                          <span class="fc-example__meaning">{{ example.meaning }}</span>
+                        </div>
+                      }
+                    } @else {
+                      <span class="fc-examples__empty">Chưa có từ vựng phù hợp trong hệ thống.</span>
+                    }
+                  </div>
                 </div>
               </button>
             }
@@ -312,7 +400,19 @@
               >
                 <div class="flashcard-face flashcard-face--front flashcard-face--vocab-front">
                   <div class="fc-badge fc-badge--vocab">語彙</div>
-                  <div class="fc-vocab-word">{{ card.word }}</div>
+                  <div class="fc-vocab-word-row">
+                    <div class="fc-vocab-word">{{ card.word }}</div>
+                    @if (ttsService.isSupported) {
+                      <span
+                        class="fc-btn-speak"
+                        [class.fc-btn-speak--active]="ttsService.isSpeaking(card.word)"
+                        (click)="speakWord(card, $event)"
+                        role="button"
+                        aria-label="Phát âm"
+                        title="Phát âm"
+                      >🔊</span>
+                    }
+                  </div>
                   @if (card.pronunciation) {
                     <div class="fc-pronunciation">{{ card.pronunciation }}</div>
                   }
@@ -323,6 +423,16 @@
                   <div class="fc-meaning">{{ card.meaning }}</div>
                   @if (card.pronunciation) {
                     <div class="fc-pronunciation fc-pronunciation--back">{{ card.pronunciation }}</div>
+                  }
+                  @if (ttsService.isSupported) {
+                    <span
+                      class="fc-btn-speak fc-btn-speak--back"
+                      [class.fc-btn-speak--active]="ttsService.isSpeaking(card.word)"
+                      (click)="speakWord(card, $event)"
+                      role="button"
+                      aria-label="Phát âm"
+                      title="Phát âm"
+                    >🔊</span>
                   }
                 </div>
               </button>
@@ -364,7 +474,7 @@
         @if (phase() === 'quiz' && currentQuizCard(); as card) {
           <div class="study-area">
             @if (currentQuestion(); as question) {
-              <div class="quiz-wrapper">
+              <div class="quiz-wrapper" [class.quiz-wrapper--drawing]="question.kind === 'drawing'">
 
                 <!-- Mode badge -->
                 <div class="quiz-mode-strip">
@@ -383,9 +493,13 @@
                 </div>
 
                 <!-- Prompt -->
-                <div class="quiz-prompt-card" [class.quiz-prompt-card--kanji]="card.type === 'kanji'">
+                <div class="quiz-prompt-card" [class.quiz-prompt-card--kanji]="card.type === 'kanji'" [class.quiz-prompt-card--drawing]="question.kind === 'drawing'">
                   <p class="quiz-prompt-label">{{ question.promptLabel }}</p>
-                  <div class="quiz-prompt-main" [class.quiz-prompt-main--kanji]="card.type === 'kanji' && question.mode !== 'WORD_FROM_MEAN'">
+                  <div
+                    class="quiz-prompt-main"
+                    [class.quiz-prompt-main--kanji]="card.type === 'kanji' && question.mode !== 'WORD_FROM_MEAN'"
+                    [class.quiz-prompt-main--drawing]="question.kind === 'drawing'"
+                  >
                     {{ question.prompt }}
                   </div>
                   @if (question.helper) {
@@ -416,6 +530,15 @@
                   </div>
                 }
 
+                @if (question.kind === 'drawing') {
+                  <app-kanji-drawing-review
+                    [character]="card.character ?? ''"
+                    [strokeCount]="card.strokeCount"
+                    [disabled]="isSubmitting() || !!answerFeedback()"
+                    (checked)="submitDrawingAnswer($event)"
+                  />
+                }
+
 
 
                 <!-- Feedback -->
@@ -426,7 +549,8 @@
                 }
 
                 <!-- Submit button -->
-                <div class="quiz-actions">
+                @if (question.kind !== 'drawing') {
+                  <div class="quiz-actions">
                   <button
                     type="button"
                     class="quiz-submit-btn"
@@ -438,12 +562,13 @@
                     (click)="submitQuizAnswer()"
                   >
                     @if (isSubmitting()) {
-                      <div class="btn-spinner"></div>
+                      <app-loading-fox [size]="24" />
                     } @else {
                       Xác nhận đáp án
                     }
                   </button>
                 </div>
+                }
               </div>
             }
           </div>
@@ -459,6 +584,13 @@
                 Bạn đã hoàn thành toàn bộ thẻ trong lượt này. Tuyệt vời!
               </p>
             </div>
+
+            @if (countdownDisplay()) {
+              <div class="summary-next-review">
+                <span>⏱ Lần ôn tiếp theo sau</span>
+                <strong>{{ countdownDisplay() }}</strong>
+              </div>
+            }
 
             <div class="summary-stats">
               <div class="stat-card">
@@ -493,8 +625,8 @@
               <button type="button" class="summary-btn summary-btn--secondary" (click)="closeStudy()">
                 Về Dashboard
               </button>
-              <a class="summary-btn summary-btn--outline" [routerLink]="['/folders', activeFolderId()]">
-                Xem chi tiết folder
+              <a class="summary-btn summary-btn--outline" [routerLink]="['/topics/lessons', activeFolderId()]">
+                Xem lại bài học
               </a>
             </div>
           </div>

@@ -5,6 +5,7 @@ import 'package:kitsune_app/core/models/user.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/dashboard_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -80,7 +81,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+                Navigator.pushNamedAndRemoveUntil(
+                    context, '/login', (_) => false);
               }
             },
             icon: const Icon(Icons.logout_rounded),
@@ -91,8 +93,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            KitsunePassportHeader(
-              eyebrow: 'Profile',
+            KitsuneHeroCard(
               title: user.displayName,
               subtitle:
                   '@${user.username} • giữ nhịp học của bạn đồng bộ trên mọi màn từ vựng, kanji và quiz.',
@@ -134,20 +135,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                           decoration: BoxDecoration(
                             color: KitsuneColors.primary,
                             shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 2),
+                            border: Border.all(
+                              color: KitsuneColors.onPrimary,
+                              width: 2,
+                            ),
                           ),
                           child: _isUploadingAvatar
-                              ? const Padding(
-                                  padding: EdgeInsets.all(5),
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Colors.white,
-                                  ),
-                                )
+                              ? const KitsuneLoadingFox(size: 28)
                               : const Icon(
                                   Icons.camera_alt_rounded,
                                   size: 14,
-                                  color: Colors.white,
+                                  color: KitsuneColors.onPrimary,
                                 ),
                         ),
                       ),
@@ -159,7 +157,6 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             const SizedBox(height: AppTheme.space20),
             const KitsuneSectionHeader(
               title: 'Thống kê học tập',
-              subtitle: 'Tổng hợp nhanh nhịp học hiện tại của bạn.',
               accent: KitsuneColors.primary,
             ),
             const SizedBox(height: AppTheme.space12),
@@ -191,18 +188,16 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ),
                 ],
               ),
-              loading: () => const Center(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: CircularProgressIndicator(),
-                ),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: KitsuneLoadingFox(
+                    message: 'Đang tải thống kê...', size: 72),
               ),
               error: (_, __) => const SizedBox.shrink(),
             ),
             const SizedBox(height: AppTheme.space20),
             KitsuneSectionHeader(
               title: 'Thông tin tài khoản',
-              subtitle: 'Những dữ liệu đang được dùng để cá nhân hóa hành trình học.',
               actionLabel: 'Chỉnh sửa',
               onAction: () => _showEditDialog(context, ref, user),
             ),
@@ -235,21 +230,28 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ],
               ),
             ),
-            const SizedBox(height: AppTheme.space16),
+            const SizedBox(height: AppTheme.space20),
+            const KitsuneSectionHeader(
+              title: 'Cài đặt',
+              accent: KitsuneColors.secondary,
+            ),
+            const SizedBox(height: AppTheme.space12),
             KitsuneSurface(
-              color: KitsuneColors.stampSurface,
-              child: Row(
+              child: Column(
                 children: [
-                  const Icon(
-                    Icons.auto_awesome_rounded,
-                    color: KitsuneColors.primary,
-                  ),
-                  const SizedBox(width: AppTheme.space12),
-                  Expanded(
-                    child: Text(
-                      'Tên hiển thị đẹp và rõ sẽ giúp bạn nhận diện tốt hơn trên bảng xếp hạng và trong quiz cộng đồng.',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: KitsuneColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(Icons.description_outlined,
+                          size: 20, color: KitsuneColors.onSurfaceVariant),
                     ),
+                    title: const Text('Điều khoản dịch vụ'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showTermsDialog(context),
                   ),
                 ],
               ),
@@ -351,6 +353,54 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 }
               },
               child: const Text('Lưu'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showTermsDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Điều khoản dịch vụ'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text('1. Chấp nhận điều khoản',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 4),
+                Text(
+                    'Bằng việc đăng ký tài khoản và sử dụng Kitsune, bạn đồng ý tuân thủ các điều khoản này.'),
+                SizedBox(height: 12),
+                Text('2. Quyền riêng tư & Dữ liệu',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 4),
+                Text(
+                    'Chúng tôi lưu trữ thông tin cơ bản (email, tên) và tiến trình học tập của bạn để đồng bộ trên các thiết bị. Dữ liệu của bạn được bảo mật và không chia sẻ cho bên thứ ba vì mục đích quảng cáo.'),
+                SizedBox(height: 12),
+                Text('3. Sử dụng hợp lý',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 4),
+                Text(
+                    'Bạn không được sử dụng các công cụ tự động (bot) để tạo tải giả hoặc phá hoại dịch vụ. Mọi hành vi vi phạm có thể dẫn đến việc khóa tài khoản vĩnh viễn mà không cần báo trước.'),
+                SizedBox(height: 12),
+                Text('4. Quyền sở hữu nội dung',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 4),
+                Text(
+                    'Dữ liệu từ vựng và ngữ pháp do cộng đồng đóng góp thuộc quyền sở hữu chung. Mã nguồn và thiết kế của Kitsune thuộc quyền sở hữu của tác giả Nguyễn Duy Linh.'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Đóng'),
             ),
           ],
         );

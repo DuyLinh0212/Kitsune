@@ -1,82 +1,75 @@
-import { Component, signal, input, output, inject, OnInit, computed } from '@angular/core';
-import { Router, NavigationEnd, RouterLink } from '@angular/router';
-import { UserStatsService } from '../../../core/services/user-stats.service';
+import { Component, computed, DestroyRef, inject, input, OnInit, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { Router, NavigationEnd, RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
+
+import { ThemeService } from '../../../core/services/theme.service';
+import { UserStatsService } from '../../../core/services/user-stats.service';
 
 export interface NavItem {
   id: number;
   label: string;
   icon: string;
   route: string;
-  matchPrefix?: string;
+  matchPrefixes: string[];
 }
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, RouterLink],
   templateUrl: './sidebar.component.html',
-  styleUrl: './sidebar.component.css'
+  styleUrl: './sidebar.component.css',
 })
 export class SidebarComponent implements OnInit {
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly userStatsService = inject(UserStatsService);
+  public readonly themeService = inject(ThemeService);
 
   readonly collapsed = input.required<boolean>();
   readonly navClick = output<void>();
   readonly currentUrl = signal(this.router.url || '/home');
-
   readonly streak = computed(() => this.userStatsService.stats().streak);
   readonly totalXP = computed(() => this.userStatsService.stats().totalXP);
 
-  readonly dailyGoal = signal({ current: 8, target: 20 });
+  readonly primaryNavItems: NavItem[] = [
+    { id: 1, label: 'Tổng quan', icon: 'home', route: '/home', matchPrefixes: ['/home'] },
+    { id: 2, label: 'Tra cứu', icon: 'search', route: '/vocabulary', matchPrefixes: ['/vocabulary', '/kanji'] },
+    { id: 3, label: 'Học tập', icon: 'book', route: '/topics', matchPrefixes: ['/topics', '/grammar', '/minigames'] },
+    { id: 4, label: 'Ôn tập', icon: 'refresh', route: '/srs', matchPrefixes: ['/srs'] },
+    { id: 5, label: 'Quizzes', icon: 'quiz', route: '/quizzes', matchPrefixes: ['/quizzes'] },
+    { id: 6, label: 'Cộng đồng', icon: 'users', route: '/leaderboard', matchPrefixes: ['/leaderboard', '/posts', '/messages'] },
+  ];
 
-  readonly navItems: NavItem[] = [
-    { id: 1, label: 'Home', icon: 'home', route: '/home', matchPrefix: '/home' },
-    { id: 2, label: 'Vocabulary', icon: 'book', route: '/vocabulary', matchPrefix: '/vocabulary' },
-    { id: 3, label: 'Kanji', icon: 'kanji', route: '/kanji', matchPrefix: '/kanji' },
-    { id: 4, label: 'My Folders', icon: 'folder', route: '/folders', matchPrefix: '/folders' },
-    { id: 5, label: 'Quizzes', icon: 'clock', route: '/quizzes', matchPrefix: '/quizzes' },
-    { id: 6, label: 'My Quizzes', icon: 'users', route: '/my-quizzes', matchPrefix: '/my-quizzes' },
-    { id: 7, label: 'SRS Review', icon: 'trending-up', route: '/srs', matchPrefix: '/srs' },
-    { id: 8, label: 'Posts', icon: 'message-circle', route: '/posts', matchPrefix: '/posts' },
-    { id: 9, label: 'Leaderboard', icon: 'bar-chart', route: '/leaderboard', matchPrefix: '/leaderboard' },
-    { id: 10, label: 'Messages', icon: 'mail', route: '/messages', matchPrefix: '/messages' },
-    { id: 11, label: 'Profile', icon: 'user', route: '/profile', matchPrefix: '/profile' },
+  readonly utilityNavItems: NavItem[] = [
+    { id: 7, label: 'Nâng cấp', icon: 'crown', route: '/profile', matchPrefixes: [] },
+    { id: 8, label: 'Cài đặt', icon: 'settings', route: '/profile', matchPrefixes: ['/profile'] },
   ];
 
   ngOnInit(): void {
-    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
-      this.currentUrl.set(e.urlAfterRedirects);
-    });
-  }
-
-  get dailyGoalPercent(): number {
-    const { current, target } = this.dailyGoal();
-    return target > 0 ? Math.round((current / target) * 100) : 0;
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe((event) => this.currentUrl.set(event.urlAfterRedirects));
   }
 
   svgIcon(name: string): string {
     const icons: Record<string, string> = {
-      home: `<path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>`,
-      book: `<path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/>`,
-      kanji: `<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>`,
-      folder: `<path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>`,
-      clock: `<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`,
-      users: `<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>`,
-      'trending-up': `<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>`,
-      'message-circle': `<path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/>`,
-      'bar-chart': `<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>`,
-      mail: `<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22 6 12 13 2 6"/>`,
-      user: `<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>`,
+      home: '<path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2h-4v-6H9v6H5a2 2 0 0 1-2-2V10Z"/>',
+      search: '<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.25 4.25"/>',
+      book: '<path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v17H6.5A2.5 2.5 0 0 0 4 22.5v-17Z"/><path d="M4 20a2.5 2.5 0 0 1 2.5-2.5H20"/><path d="M10 7h6M10 11h6"/>',
+      refresh: '<path d="M20 11a8 8 0 0 0-14.9-4L3 10"/><path d="M3 4v6h6"/><path d="M4 13a8 8 0 0 0 14.9 4L21 14"/><path d="M21 20v-6h-6"/>',
+      quiz: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h2M8 16h2M14 12h2M14 16h2"/>',
+      users: '<circle cx="9" cy="8" r="3"/><path d="M3 20v-1.5A4.5 4.5 0 0 1 7.5 14h3a4.5 4.5 0 0 1 4.5 4.5V20"/><path d="M16 5.5a3 3 0 0 1 0 5.8M19 20v-1.5a4.5 4.5 0 0 0-2.2-3.9"/>',
+      crown: '<path d="m3 7 4 4 5-7 5 7 4-4-2 12H5L3 7Z"/><path d="M5 22h14"/>',
+      settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.1 2.1-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5v.2h-3v-.2a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1-2.1-2.1.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H5v-3h.2a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1 2.1-2.1.1.1a1.7 1.7 0 0 0 1.9.3 1.7 1.7 0 0 0 1-1.5V4h3v.2a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1 2.1 2.1-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.5 1h.2v3h-.2a1.7 1.7 0 0 0-1.5 1Z"/>',
     };
     return icons[name] ?? '';
   }
 
-  isActive(item: NavItem, currentRoute: string): boolean {
-    if (item.matchPrefix) return currentRoute.startsWith(item.matchPrefix);
-    return currentRoute === item.route;
+  isActive(item: NavItem): boolean {
+    return item.matchPrefixes.some((prefix) => this.currentUrl().startsWith(prefix));
   }
 }

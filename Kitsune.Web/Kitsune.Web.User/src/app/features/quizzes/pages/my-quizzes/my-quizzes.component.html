@@ -45,8 +45,7 @@
   <!-- Loading -->
   @if (isLoading()) {
   <div class="loading-container">
-    <div class="spinner"></div>
-    <p class="loading-text">Đang tải quiz của bạn...</p>
+    <app-loading-fox message="Đang tải quiz của bạn..." />
   </div>
   }
 
@@ -139,7 +138,7 @@
           [title]="quiz.isPublic ? 'Nhấn để đặt riêng tư' : 'Nhấn để công khai'"
         >
           @if (isTogglingId() === quiz.id) {
-          <span class="small-spinner"></span>
+          <app-loading-fox [size]="24" />
           } @else {
           {{ quiz.isPublic ? '🌐 Công khai' : '🔒 Riêng tư' }}
           }
@@ -179,7 +178,7 @@
         (click)="confirmDelete()"
         [disabled]="isDeleting()"
       >
-        @if (isDeleting()) { <span class="small-spinner"></span> Đang xóa... }
+        @if (isDeleting()) { <app-loading-fox [size]="24" /> Đang xóa... }
         @else { Xóa vĩnh viễn }
       </button>
     </div>

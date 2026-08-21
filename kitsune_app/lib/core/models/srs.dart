@@ -2,6 +2,18 @@
 
 enum SrsItemType { vocabulary, kanji }
 
+class SrsVocabularyExample {
+  final String word;
+  final String? pronunciation;
+  final String meaning;
+
+  const SrsVocabularyExample({
+    required this.word,
+    this.pronunciation,
+    required this.meaning,
+  });
+}
+
 class SRSCardDto {
   final int id;
   final int userId;
@@ -14,10 +26,14 @@ class SRSCardDto {
   final String meaning;
   final String? character;
   final String? amHanViet;
+  final String? radicalCharacter;
+  final String? radicalName;
   final String? onyomi;
   final String? kunyomi;
+  final List<SrsVocabularyExample> examples;
   final int? strokeCount;
   final int boxLevel;
+  final int wrongReviewCount;
   final String nextReviewDate;
   final bool isDue;
   final bool isNew;
@@ -34,13 +50,33 @@ class SRSCardDto {
     required this.meaning,
     this.character,
     this.amHanViet,
+    this.radicalCharacter,
+    this.radicalName,
     this.onyomi,
     this.kunyomi,
+    this.examples = const [],
     this.strokeCount,
     required this.boxLevel,
+    this.wrongReviewCount = 0,
     required this.nextReviewDate,
     required this.isDue,
     required this.isNew,
+  });
+}
+
+class SrsCardProgressUpdate {
+  final int cardId;
+  final int boxLevel;
+  final int intervalDays;
+  final String nextReviewDate;
+  final int wrongReviewCountDelta;
+
+  const SrsCardProgressUpdate({
+    required this.cardId,
+    required this.boxLevel,
+    required this.intervalDays,
+    required this.nextReviewDate,
+    required this.wrongReviewCountDelta,
   });
 }
 
@@ -52,6 +88,7 @@ class FolderSrsOverview {
   final int dueCards;
   final int learnedCards;
   final int masteredCards;
+  final int todayNewLearned;
   final String? nextDueAt;
   final bool canSwitchFolder;
 
@@ -63,6 +100,7 @@ class FolderSrsOverview {
     required this.dueCards,
     required this.learnedCards,
     required this.masteredCards,
+    required this.todayNewLearned,
     this.nextDueAt,
     required this.canSwitchFolder,
   });

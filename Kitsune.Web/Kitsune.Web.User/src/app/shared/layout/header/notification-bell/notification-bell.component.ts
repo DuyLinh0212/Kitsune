@@ -6,6 +6,7 @@ import { Subscription } from 'rxjs';
 import { NotificationService, NotificationDto } from '../../../../core/services/notification.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LoadingFoxComponent } from '../../../components/loading-fox/loading-fox.component';
 
 // Synthetic (non-DB) SRS reminder shown at the top of the notification list
 const SRS_NOTIF_ID = -9999;
@@ -13,7 +14,7 @@ const SRS_NOTIF_ID = -9999;
 @Component({
   selector: 'app-notification-bell',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, LoadingFoxComponent],
   templateUrl: './notification-bell.component.html',
   styleUrl: './notification-bell.component.css',
 })

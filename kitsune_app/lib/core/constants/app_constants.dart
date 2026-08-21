@@ -7,13 +7,13 @@ class AppConstants {
   // SRS box level intervals (ms)
   static const Map<int, Duration> srsIntervals = {
     0: Duration.zero,
-    1: Duration(hours: 4),
-    2: Duration(days: 1),
-    3: Duration(days: 3),
-    4: Duration(days: 7),
-    5: Duration(days: 14),
-    6: Duration(days: 30),
-    7: Duration(days: 90),
+    1: Duration(minutes: 30),
+    2: Duration(hours: 8),
+    3: Duration(days: 2),
+    4: Duration(days: 5),
+    5: Duration(days: 10),
+    6: Duration(days: 21),
+    7: Duration(days: 60),
   };
 
   // SRS box level labels
@@ -43,6 +43,8 @@ class AppConstants {
 
   // Active folder storage key
   static const String activeFolderKey = 'kitsune.srs.activeFolderId';
+  static const String dailySrsGoalPrefix = 'kitsune.srs.dailyGoal.';
+  static const String dailySrsLearnedPrefix = 'kitsune.srs.learnedCards.';
 
   // Active dates storage key prefix
   static const String activeDatesPrefix = 'kitsune.active_dates.';

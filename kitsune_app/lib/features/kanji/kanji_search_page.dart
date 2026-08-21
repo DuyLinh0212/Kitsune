@@ -6,6 +6,7 @@ import 'package:kitsune_app/core/models/kanji.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/features/kanji/widgets/kanji_stroke_writer.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -93,8 +94,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
                 children: [
-                  const KitsunePassportHeader(
-                    eyebrow: 'Kanji studio',
+                  const KitsuneHeroCard(
                     title: 'Xem net, nghia va bo thu trong cung mot nhip doc.',
                     subtitle:
                         'Tap trung vao mot ky tu tai mot thoi diem de hieu cach no duoc tao thanh va duoc dung ra sao.',
@@ -122,15 +122,18 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
             ),
             Expanded(
               child: _isSearching
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const KitsuneLoadingFox(message: 'Đang tìm Kanji...', size: 96)
                   : _results.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(16),
+                      ? SingleChildScrollView(
+                          padding: const EdgeInsets.all(16),
                           child: KitsuneEmptyState(
                             icon: Icons.text_fields_rounded,
-                            title: 'Tim mot kanji de bat dau',
-                            message:
-                                'Ban co the tra theo chu, nghia hoac am Han Viet de mo chi tiet ngay.',
+                            title: _searchController.text.trim().isEmpty
+                                ? 'Tim mot kanji de bat dau'
+                                : 'Không tìm thấy Kanji',
+                            message: _searchController.text.trim().isEmpty
+                                ? 'Ban co the tra theo chu, nghia hoac am Han Viet de mo chi tiet ngay.'
+                                : 'Thử lại bằng chữ kanji, nghĩa, âm Hán Việt hoặc cách đọc.',
                           ),
                         )
                       : LayoutBuilder(
@@ -211,7 +214,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
                   child: Center(
                     child: Text(
                       kanji.character,
-                      style: TextStyle(
+                      style: AppTheme.japaneseStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.w800,
                         color: accent,
@@ -282,7 +285,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
             children: [
               Text(
                 kanji.character,
-                style: const TextStyle(
+                style: AppTheme.japaneseStyle(
                   fontSize: 88,
                   fontWeight: FontWeight.w800,
                   color: KitsuneColors.onSurface,
@@ -357,9 +360,10 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
                   child: Center(
                     child: Text(
                       kanji.radical!.radicalCharacter,
-                      style: const TextStyle(
+                      style: AppTheme.japaneseStyle(
                         fontSize: 30,
                         fontWeight: FontWeight.w700,
+                        color: KitsuneColors.onSurface,
                       ),
                     ),
                   ),

@@ -28,7 +28,9 @@ dist/
 out/
 .angular/
 .vercel/
-
+SCHEMA.md
+PRODUCT.md
+KITSUNE_ANDROID_SPEC.md
 # =========================
 # Flutter / Dart
 # =========================
@@ -95,3 +97,10 @@ backup.sql
 !README.md
 !readme.md
 !Readme.md
+
+# =========================
+# Custom Ignored Folders
+# =========================
+.tmp-srs-build/
+test.js
+/scripts/

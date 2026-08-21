@@ -32,9 +32,36 @@ class SrsEngine {
     return DateTime.now().add(interval).toIso8601String();
   }
 
+  /// Returns true only when a learned card's stored review timestamp has arrived.
+  /// A malformed or absent timestamp is never treated as immediately due.
+  static bool isScheduledReviewDue({
+    required int level,
+    required String nextReviewDate,
+    DateTime? now,
+  }) {
+    if (level <= 0) return false;
+    final dueAt = DateTime.tryParse(nextReviewDate);
+    return dueAt != null && !dueAt.isAfter(now ?? DateTime.now());
+  }
+
+  static String effectiveNextReviewDate({
+    required int level,
+    required String? storedNextReviewDate,
+    required String? lastReviewedAt,
+    DateTime? now,
+  }) {
+    final storedValue = storedNextReviewDate ?? '';
+    if (DateTime.tryParse(storedValue) == null) return '';
+
+    // The persisted timestamp is the source of truth. Never make a card due
+    // earlier in the client merely because a schedule has since been shortened.
+    return storedValue;
+  }
+
   static int intervalDays(int level) {
     final interval = AppConstants.srsIntervals[level] ?? Duration.zero;
-    return interval.inDays;
+    if (interval == Duration.zero) return 0;
+    return interval.inDays == 0 ? 1 : interval.inDays;
   }
 
   static int resolveReps(int current, int next, bool correct) {

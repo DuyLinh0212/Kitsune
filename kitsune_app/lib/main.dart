@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kitsune_app/core/models/exam.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
+import 'package:kitsune_app/core/services/srs_notification_service.dart';
+import 'package:kitsune_app/core/services/app_usage_service.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/features/auth/forgot_password_page.dart';
 import 'package:kitsune_app/features/auth/login_page.dart';
 import 'package:kitsune_app/features/auth/register_page.dart';
+import 'package:kitsune_app/features/exams/exam_list_page.dart';
+import 'package:kitsune_app/features/exams/exam_play_page.dart';
+import 'package:kitsune_app/features/exams/exam_result_page.dart';
 import 'package:kitsune_app/features/folders/folder_detail_page.dart';
 import 'package:kitsune_app/features/folders/folder_list_page.dart';
 import 'package:kitsune_app/features/home/home_page.dart';
+import 'package:kitsune_app/features/grammar/grammar_page.dart';
 import 'package:kitsune_app/features/kanji/kanji_detail_page.dart';
 import 'package:kitsune_app/features/leaderboard/leaderboard_page.dart';
 import 'package:kitsune_app/features/profile/profile_page.dart';
@@ -19,14 +27,22 @@ import 'package:kitsune_app/features/quizzes/quiz_list_page.dart';
 import 'package:kitsune_app/features/quizzes/quiz_play_page.dart';
 import 'package:kitsune_app/features/search/search_page.dart';
 import 'package:kitsune_app/features/srs/srs_review_page.dart';
+import 'package:kitsune_app/features/topics/topic_learning_page.dart';
 import 'package:kitsune_app/features/vocabulary/vocabulary_detail_page.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final supabaseClient = SupabaseClient();
-  await supabaseClient.init();
+  try {
+    final supabaseClient = SupabaseClient();
+    await supabaseClient.init();
+    await SrsNotificationService.instance.initialize();
+    AppUsageService.instance.startTracking();
+  } catch (e, stackTrace) {
+    debugPrint('Error initializing SupabaseClient: \$e');
+    debugPrint(stackTrace.toString());
+  }
 
   ErrorWidget.builder = (details) => _AppErrorCard(details: details);
 
@@ -51,7 +67,7 @@ class _AppErrorCard extends StatelessWidget {
             const Icon(Icons.error_outline_rounded, color: KitsuneColors.error),
             const SizedBox(height: 8),
             Text(
-              'Co loi khi hien thi phan nay.',
+              'Có lỗi khi hiển thị phần này.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: KitsuneColors.error,
                     fontWeight: FontWeight.w700,
@@ -111,6 +127,12 @@ class KitsuneApp extends ConsumerWidget {
           case '/srs':
             page = const SrsReviewPage();
             break;
+          case '/grammar':
+            page = const GrammarPage();
+            break;
+          case '/exams':
+            page = const ExamListPage();
+            break;
           case '/folders':
             page = const FolderListPage();
             break;
@@ -144,6 +166,19 @@ class KitsuneApp extends ConsumerWidget {
               final id = int.tryParse(settings.name!.split('/').last) ?? 0;
               page = KanjiDetailPage(kanjiId: id);
             } else if (settings.name != null &&
+                settings.name!.startsWith('/exams/')) {
+              final parts = settings.name!.split('/');
+              final id = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
+              if (parts.length > 4 &&
+                  parts[3] == 'result' &&
+                  settings.arguments is ExamAttemptResult) {
+                page = ExamResultPage(
+                    examId: id,
+                    result: settings.arguments! as ExamAttemptResult);
+              } else {
+                page = ExamPlayPage(examId: id);
+              }
+            } else if (settings.name != null &&
                 settings.name!.startsWith('/quizzes/')) {
               final id = int.tryParse(settings.name!.split('/').last) ?? 0;
               page = QuizPlayPage(quizId: id);
@@ -171,49 +206,22 @@ class SplashScreen extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 116,
-                  height: 116,
-                  decoration: BoxDecoration(
-                    color: KitsuneColors.surface,
-                    borderRadius: BorderRadius.circular(32),
-                    border: Border.all(color: KitsuneColors.surfaceBorder),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x140F172A),
-                        blurRadius: 26,
-                        offset: Offset(0, 18),
-                      ),
-                    ],
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Image.asset(
-                      'assets/images/logo.png',
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: AppTheme.space20),
+                const KitsuneLoadingFox(size: 140),
+                const SizedBox(height: AppTheme.space8),
                 Text(
                   'Kitsune',
                   style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         color: KitsuneColors.primary,
+                        fontFamily: AppTheme.displayFontFamily,
                       ),
                 ),
                 const SizedBox(height: AppTheme.space8),
                 Text(
-                  'Study passport for your next Japanese win.',
+                  'Học tiếng Nhật mỗi ngày.',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: KitsuneColors.onSurfaceVariant,
                       ),
                   textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: AppTheme.space24),
-                const SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(strokeWidth: 3),
                 ),
               ],
             ),
@@ -231,13 +239,60 @@ class MainScreen extends ConsumerStatefulWidget {
   ConsumerState<MainScreen> createState() => _MainScreenState();
 }
 
+class _NavItem {
+  const _NavItem({
+    required this.icon,
+    required this.selectedIcon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final IconData selectedIcon;
+  final String label;
+}
+
+const _navItems = [
+  _NavItem(
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home_rounded,
+    label: 'Trang chủ',
+  ),
+  _NavItem(
+    icon: Icons.search_rounded,
+    selectedIcon: Icons.manage_search_rounded,
+    label: 'Tìm kiếm',
+  ),
+  _NavItem(
+    icon: Icons.route_outlined,
+    selectedIcon: Icons.route_rounded,
+    label: 'Chủ đề',
+  ),
+  _NavItem(
+    icon: Icons.repeat_rounded,
+    selectedIcon: Icons.auto_awesome_motion_rounded,
+    label: 'Ôn tập',
+  ),
+  _NavItem(
+    icon: Icons.menu_book_outlined,
+    selectedIcon: Icons.menu_book_rounded,
+    label: 'Ngữ pháp',
+  ),
+  _NavItem(
+    icon: Icons.person_outline_rounded,
+    selectedIcon: Icons.person_rounded,
+    label: 'Cá nhân',
+  ),
+];
+
 class _MainScreenState extends ConsumerState<MainScreen> {
   int _currentIndex = 0;
 
   late final List<Widget> _pages = const [
     HomePage(),
     SearchPage(),
+    TopicLearningPage(),
     SrsReviewPage(),
+    GrammarPage(),
     ProfilePage(),
   ];
 
@@ -249,35 +304,62 @@ class _MainScreenState extends ConsumerState<MainScreen> {
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(26),
-            child: NavigationBar(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: (index) {
-                setState(() => _currentIndex = index);
-              },
-              destinations: const [
-                NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home_rounded),
-                  label: 'Home',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.search_rounded),
-                  selectedIcon: Icon(Icons.manage_search_rounded),
-                  label: 'Search',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.repeat_rounded),
-                  selectedIcon: Icon(Icons.auto_awesome_motion_rounded),
-                  label: 'SRS',
-                ),
-                NavigationDestination(
-                  icon: Icon(Icons.person_outline_rounded),
-                  selectedIcon: Icon(Icons.person_rounded),
-                  label: 'Profile',
+          child: Container(
+            height: 68,
+            decoration: BoxDecoration(
+              color: KitsuneColors.surface,
+              borderRadius: BorderRadius.circular(26),
+              border: Border.all(color: KitsuneColors.surfaceBorder),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x1A2B2018),
+                  blurRadius: 20,
+                  offset: Offset(0, 10),
                 ),
               ],
+            ),
+            child: Row(
+              children: List.generate(_navItems.length, (index) {
+                final item = _navItems[index];
+                final isSelected = index == _currentIndex;
+                final tint = isSelected
+                    ? KitsuneColors.primary
+                    : KitsuneColors.onSurfaceMuted;
+
+                return Expanded(
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(26),
+                    onTap: () => setState(() => _currentIndex = index),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          isSelected ? item.selectedIcon : item.icon,
+                          color: tint,
+                          size: 22,
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.label,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight:
+                                isSelected ? FontWeight.w700 : FontWeight.w500,
+                            color: tint,
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        SizedBox(
+                          height: 6,
+                          child: isSelected
+                              ? const KitsuneTailMark(size: 14)
+                              : null,
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }),
             ),
           ),
         ),

@@ -12,6 +12,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { forkJoin } from 'rxjs';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 import { FolderDto, FolderService } from '../../../../core/services/folder.service';
 import { KanjiDetailDto, KanjiUserService } from '../../../../core/services/kanji-user.service';
 import { PagedResult, VocabularyDto, VocabularyService } from '../../../../core/services/vocabulary.service';
@@ -42,7 +43,7 @@ type HoverPreviewState =
 @Component({
   selector: 'app-folder-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, KanjiStrokeWriterComponent],
+  imports: [CommonModule, FormsModule, RouterLink, KanjiStrokeWriterComponent, LoadingFoxComponent],
   templateUrl: './folder-detail.component.html',
   styleUrl: './folder-detail.component.css',
 })
@@ -62,6 +63,7 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
   readonly selectedKanjiDetail = signal<KanjiDetailDto | null>(null);
   readonly selectedKanjiLoading = signal(false);
   readonly searchQuery = signal('');
+  readonly selectedRadicalFilter = signal<number | null>(null);
   readonly isLoading = signal(true);
   readonly toast = signal<{ type: 'success' | 'error'; text: string } | null>(null);
   readonly hoverPreview = signal<HoverPreviewState | null>(null);
@@ -69,8 +71,28 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
   readonly hoverKanjiDetail = signal<KanjiDetailDto | null>(null);
   readonly hoverKanjiLoading = signal(false);
 
-  readonly filteredVocabs = computed(() => this.filterVocabs());
+  readonly showRadicalPopover = signal(false);
+  readonly radicalSearchQuery = signal('');
+
+  readonly allFolders = signal<FolderDto[]>([]);
+  readonly showFolderSwitcher = signal(false);
+
+  readonly availableRadicals = computed(() => {
+    const map = new Map<number, { id: number; character: string }>();
+    for (const vocab of this.vocabularies()) {
+      for (const kc of vocab.kanjiComponents) {
+        if (kc.radicalId && kc.radicalCharacter) {
+          if (!map.has(kc.radicalId)) {
+            map.set(kc.radicalId, { id: kc.radicalId, character: kc.radicalCharacter });
+          }
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.id - b.id);
+  });
+
   readonly filteredKanji = computed(() => this.filterKanji());
+  readonly filteredVocabs = computed(() => this.filterVocabs());
   readonly hoverPreviewVocab = computed(() => {
     const preview = this.hoverPreview();
     return preview?.kind === 'vocab' ? preview.vocab : null;
@@ -78,6 +100,19 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
   readonly hoverPreviewKanji = computed(() => {
     const preview = this.hoverPreview();
     return preview?.kind === 'kanji' ? preview.kanji : null;
+  });
+
+  readonly filteredAvailableRadicals = computed(() => {
+    const q = this.radicalSearchQuery().trim().toLowerCase();
+    const radicals = this.availableRadicals();
+    if (!q) return radicals;
+    return radicals.filter(r => r.character.includes(q));
+  });
+
+  readonly selectedRadical = computed(() => {
+    const id = this.selectedRadicalFilter();
+    if (!id) return null;
+    return this.availableRadicals().find(r => r.id === id) || null;
   });
 
   private previewTimer: ReturnType<typeof setTimeout> | null = null;
@@ -132,6 +167,44 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
 
   onSearchInput(value: string): void {
     this.searchQuery.set(value);
+  }
+
+  toggleFolderSwitcher(): void {
+    this.showFolderSwitcher.update((v) => !v);
+    if (this.showFolderSwitcher() && this.allFolders().length === 0) {
+      this.folderService.getFolders().subscribe({
+        next: (folders) => this.allFolders.set(folders),
+        error: () => this.showToast('error', 'Không thể tải danh sách thư mục.'),
+      });
+    }
+  }
+
+  switchFolder(folderId: number): void {
+    this.showFolderSwitcher.set(false);
+    if (folderId === this.folder()?.id) return;
+    this.router.navigate(['/folders', folderId]);
+  }
+
+  selectRadicalFilter(radicalId: number): void {
+    if (this.selectedRadicalFilter() === radicalId) {
+      this.selectedRadicalFilter.set(null);
+    } else {
+      this.selectedRadicalFilter.set(radicalId);
+    }
+    this.showRadicalPopover.set(false);
+  }
+
+  toggleRadicalPopover(): void {
+    this.showRadicalPopover.update(v => !v);
+    if (this.showRadicalPopover()) {
+      this.radicalSearchQuery.set('');
+    }
+  }
+
+  clearRadicalFilter(event: Event): void {
+    event.stopPropagation();
+    this.selectedRadicalFilter.set(null);
+    this.showRadicalPopover.set(false);
   }
 
   selectVocab(vocab: VocabularyDto): void {
@@ -254,6 +327,26 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
     this.clearPreviewTimer();
   }
 
+  removeVocab(vocab: VocabularyDto): void {
+    if (!confirm(`Bạn có chắc chắn muốn xóa từ vựng "${vocab.word}" khỏi thư mục này không?`)) {
+      return;
+    }
+    
+    this.vocabularyService.delete(vocab.id).subscribe({
+      next: () => {
+        this.showToast('success', 'Đã xóa từ vựng.');
+        this.vocabularies.update(list => list.filter(v => v.id !== vocab.id));
+        this.kanjiItems.set(this.buildKanjiItems({ items: this.vocabularies() }));
+        if (this.selectedVocab()?.id === vocab.id) {
+          this.selectedVocab.set(null);
+        }
+      },
+      error: () => {
+        this.showToast('error', 'Không thể xóa từ vựng này.');
+      }
+    });
+  }
+
   isSelectedVocab(vocabId: number): boolean {
     return this.selectedVocab()?.id === vocabId;
   }
@@ -263,11 +356,11 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
   }
 
   get selectedCount(): number {
-    return this.vocabularies().length + this.kanjiItems().length;
+    return this.vocabularyItems().length + this.kanjiItems().length;
   }
 
   get vocabCount(): number {
-    return this.vocabularies().length;
+    return this.vocabularyItems().length;
   }
 
   get kanjiCount(): number {
@@ -317,7 +410,7 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
     return level ? colors[level] ?? '#64748b' : '#64748b';
   }
 
-  private buildKanjiItems(result: PagedResult<VocabularyDto>): FolderKanjiItem[] {
+  private buildKanjiItems(result: { items: VocabularyDto[] }): FolderKanjiItem[] {
     const map = new Map<number, FolderKanjiItem>();
     for (const vocab of result.items) {
       for (const component of vocab.kanjiComponents) {
@@ -345,8 +438,9 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
   }
 
   private selectInitialItem(vocabs: VocabularyDto[]): void {
-    if (vocabs.length > 0) {
-      this.selectVocab(vocabs[0]);
+    const vocabItems = vocabs.filter((vocab) => !this.isKanjiOnly(vocab));
+    if (vocabItems.length > 0) {
+      this.selectVocab(vocabItems[0]);
       return;
     }
 
@@ -362,7 +456,15 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
 
   private filterVocabs(): VocabularyDto[] {
     const query = this.normalizeQuery(this.searchQuery());
-    const vocabs = this.vocabularies();
+    const radicalFilterId = this.selectedRadicalFilter();
+    let vocabs = this.vocabularyItems();
+
+    if (radicalFilterId) {
+      vocabs = vocabs.filter((vocab) =>
+        vocab.kanjiComponents.some((kc) => kc.radicalId === radicalFilterId)
+      );
+    }
+
     if (!query) return vocabs;
 
     return vocabs.filter((vocab) => {
@@ -379,7 +481,19 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
 
   private filterKanji(): FolderKanjiItem[] {
     const query = this.normalizeQuery(this.searchQuery());
-    const items = this.kanjiItems();
+    const radicalFilterId = this.selectedRadicalFilter();
+    let items = this.kanjiItems();
+
+    if (radicalFilterId) {
+      items = items.filter((item) => {
+        // We need to find if this kanjiItem has the radicalFilterId
+        // The easiest way is to check the original vocabularies
+        return this.vocabularies().some((v) =>
+          v.kanjiComponents.some((kc) => kc.kanjiId === item.kanjiId && kc.radicalId === radicalFilterId)
+        );
+      });
+    }
+
     if (!query) return items;
 
     return items.filter((item) => {
@@ -399,6 +513,22 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private vocabularyItems(): VocabularyDto[] {
+    return this.vocabularies().filter((vocab) => !this.isKanjiOnly(vocab));
+  }
+
+  private isKanjiOnly(vocab: VocabularyDto): boolean {
+    const itemType = vocab.specificData?.['_kitsuneItemType'];
+    if (itemType === 'kanji') return true;
+    if (itemType === 'vocabulary' || vocab.specificData) return false;
+
+    // Legacy Kanji copies were created before `_kitsuneItemType` existed.
+    // Keep them in the Kanji index while removing their duplicate ledger row.
+    return vocab.word.trim().length === 1
+      && vocab.kanjiComponents.length === 1
+      && vocab.kanjiComponents[0].character === vocab.word.trim();
   }
 
   private matchesQuery(value: string, query: string): boolean {

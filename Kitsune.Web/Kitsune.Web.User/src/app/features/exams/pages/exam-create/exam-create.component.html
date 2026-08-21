@@ -1,0 +1,197 @@
+<div class="create-page">
+  <header class="page-header">
+    <div class="header-left">
+      <a routerLink="/exams/mine" class="back-link">← Đề của tôi</a>
+      <h1 class="page-title">Tạo đề kiểm tra</h1>
+      <p class="page-subtitle">Nhập thủ công từng câu hỏi hoặc import từ file có sẵn</p>
+    </div>
+  </header>
+
+  <!-- ── Tabs ─────────────────────────────────────────────────────────── -->
+  <div class="tabs">
+    <button type="button" class="tab" [class.tab--active]="tab() === 'manual'" (click)="setTab('manual')">✍️ Nhập thủ công</button>
+    <button type="button" class="tab" [class.tab--active]="tab() === 'import'" (click)="setTab('import')">📥 Import Excel / JSON</button>
+  </div>
+
+  @if (errorMsg()) {
+    <div class="alert-error">{{ errorMsg() }}</div>
+  }
+
+  <!-- ══ MANUAL ══════════════════════════════════════════════════════════ -->
+  @if (tab() === 'manual') {
+    <form [formGroup]="examForm" (ngSubmit)="submitManual()" class="form">
+      <section class="card">
+        <h2 class="card__title">Thông tin đề</h2>
+        <div class="grid-2">
+          <label class="field field--full">
+            <span>Tên đề <b>*</b></span>
+            <input type="text" formControlName="title" placeholder="Ví dụ: Đề luyện thi N3 - Số 1" />
+          </label>
+          <label class="field">
+            <span>Cấp độ JLPT</span>
+            <select formControlName="jlptLevel">
+              <option [ngValue]="null">— Không —</option>
+              @for (lv of jlptLevels; track lv) {
+                <option [ngValue]="lv">N{{ lv }}</option>
+              }
+            </select>
+          </label>
+          <label class="field">
+            <span>Thời gian (phút)</span>
+            <input type="number" formControlName="timeLimitMinutes" min="1" placeholder="Để trống = không giới hạn" />
+          </label>
+          <label class="field field--full">
+            <span>Mô tả</span>
+            <textarea formControlName="description" rows="2" placeholder="Mô tả ngắn về đề..."></textarea>
+          </label>
+          <label class="checkbox-field">
+            <input type="checkbox" formControlName="isPublic" />
+            <span>Công khai đề ngay cho cộng đồng</span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Questions -->
+      <div formArrayName="questions" class="questions">
+        @for (q of questions.controls; track $index; let i = $index) {
+          <section class="card q-card" [formGroupName]="i">
+            <div class="q-card__head">
+              <span class="q-number">Câu {{ i + 1 }}</span>
+              <button type="button" class="btn-remove" (click)="removeQuestion(i)" [disabled]="questions.length <= 1">Xóa câu</button>
+            </div>
+
+            <div class="grid-2">
+              <label class="field">
+                <span>Dạng câu hỏi</span>
+                <select formControlName="questionType">
+                  @for (t of questionTypes; track t) {
+                    <option [value]="t">{{ typeLabels[t] }}</option>
+                  }
+                </select>
+              </label>
+            </div>
+
+            @if (isReadingType(q.get('questionType')?.value)) {
+              <label class="field field--full">
+                <span>Đoạn văn đọc hiểu</span>
+                <textarea formControlName="passageText" rows="3" placeholder="Dán đoạn văn cần đọc..."></textarea>
+              </label>
+            }
+
+            <label class="field field--full">
+              <span>Nội dung câu hỏi</span>
+              <textarea formControlName="questionText" rows="2" placeholder="Nhập đề bài / câu hỏi..."></textarea>
+            </label>
+
+            @if (isOrderType(q.get('questionType')?.value)) {
+              <p class="hint">Dạng sắp xếp câu: nhập các thành phần vào ô lựa chọn, và điền thứ tự đúng (vd: các thành phần ghép lại) vào ô "Đáp án đúng".</p>
+            }
+
+            <div class="grid-2 options">
+              <label class="field"><span>Lựa chọn A</span><input type="text" formControlName="optionA" /></label>
+              <label class="field"><span>Lựa chọn B</span><input type="text" formControlName="optionB" /></label>
+              <label class="field"><span>Lựa chọn C</span><input type="text" formControlName="optionC" /></label>
+              <label class="field"><span>Lựa chọn D</span><input type="text" formControlName="optionD" /></label>
+            </div>
+
+            <div class="grid-2">
+              <label class="field">
+                <span>Đáp án đúng <b>*</b></span>
+                <input type="text" formControlName="correctAnswer" placeholder="Nhập đúng nội dung 1 lựa chọn" />
+              </label>
+              <label class="field">
+                <span>Giải thích</span>
+                <input type="text" formControlName="explanation" placeholder="Vì sao đáp án này đúng (tùy chọn)" />
+              </label>
+            </div>
+          </section>
+        }
+      </div>
+
+      <button type="button" class="btn-add-q" (click)="addQuestion()">+ Thêm câu hỏi</button>
+
+      <div class="form-footer">
+        <a routerLink="/exams/mine" class="btn-ghost">Hủy</a>
+        <button type="submit" class="btn-primary" [disabled]="saving()">
+          {{ saving() ? 'Đang lưu...' : 'Lưu đề' }}
+        </button>
+      </div>
+    </form>
+  }
+
+  <!-- ══ IMPORT ══════════════════════════════════════════════════════════ -->
+  @if (tab() === 'import') {
+    <section class="card">
+      <h2 class="card__title">Import từ file</h2>
+      <p class="import-help">
+        Hỗ trợ <strong>JSON</strong> (chứa sẵn thông tin đề) và <strong>Excel/CSV</strong>
+        (cột: Type, QuestionText, PassageText, OptionA–D, CorrectAnswer, Explanation).
+      </p>
+
+      <div class="template-links">
+        <a href="/templates/exam-template.json" download class="template-link">⬇ Tải mẫu JSON</a>
+        <a href="/templates/exam-template.csv" download class="template-link">⬇ Tải mẫu CSV</a>
+      </div>
+
+      <!-- Metadata dùng khi import Excel/CSV -->
+      <div class="grid-2 import-meta">
+        <label class="field field--full">
+          <span>Tên đề (cho file Excel/CSV)</span>
+          <input type="text" [value]="importTitle()" (input)="onImportTitleChange($any($event.target).value)" placeholder="Bắt buộc khi import Excel/CSV" />
+        </label>
+        <label class="field">
+          <span>Cấp độ JLPT</span>
+          <select [value]="importJlpt() ?? ''" (change)="onImportJlptChange($any($event.target).value)">
+            <option value="">— Không —</option>
+            @for (lv of jlptLevels; track lv) {
+              <option [value]="lv">N{{ lv }}</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span>Thời gian (phút)</span>
+          <input type="number" min="1" [value]="importMinutes() ?? ''" (input)="onImportMinutesChange($any($event.target).value)" placeholder="Không giới hạn" />
+        </label>
+      </div>
+
+      <label class="file-drop">
+        <input type="file" accept=".json,.xlsx,.xls,.csv" (change)="onFileSelected($event)" hidden />
+        <span class="file-drop__icon">📄</span>
+        <span class="file-drop__text">{{ importFileName() || 'Chọn file .json / .xlsx / .csv' }}</span>
+      </label>
+
+      @if (importErrors().length > 0) {
+        <div class="import-errors">
+          <h3>Có {{ importErrors().length }} lỗi cần sửa:</h3>
+          <ul>
+            @for (e of importErrors(); track $index) {
+              <li>{{ e.row > 0 ? 'Dòng ' + e.row + ': ' : '' }}{{ e.message }}</li>
+            }
+          </ul>
+        </div>
+      }
+
+      @if (importPreview(); as preview) {
+        <div class="import-preview">
+          <div class="preview-head">
+            <div>
+              <h3>{{ preview.title }}</h3>
+              <p>{{ preview.questions.length }} câu hỏi sẽ được nhập</p>
+            </div>
+            <button type="button" class="btn-primary" (click)="saveImported()" [disabled]="saving()">
+              {{ saving() ? 'Đang lưu...' : 'Lưu đề này' }}
+            </button>
+          </div>
+          <ol class="preview-list">
+            @for (q of preview.questions; track $index) {
+              <li>
+                <span class="preview-type">{{ typeLabels[q.questionType] }}</span>
+                <span class="preview-text">{{ q.questionText || q.passageText || '(không có nội dung)' }}</span>
+              </li>
+            }
+          </ol>
+        </div>
+      }
+    </section>
+  }
+</div>

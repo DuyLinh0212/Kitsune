@@ -150,7 +150,7 @@
       @if (sourceTab() === 'folder') {
         <div class="tab-content">
           @if (isFoldersLoading()) {
-            <div class="loading-inline"><div class="spinner-sm"></div><span>Đang tải thư mục...</span></div>
+            <div class="loading-inline"><app-loading-fox message="Đang tải thư mục..." [size]="56" /></div>
           }
           @if (!isFoldersLoading() && userFolders().length === 0) {
             <div class="empty-state-sm">
@@ -189,7 +189,7 @@
             }
           </div>
           @if (isSearching()) {
-            <div class="loading-inline"><div class="spinner-sm"></div><span>Đang tìm...</span></div>
+            <div class="loading-inline"><app-loading-fox message="Đang tìm từ vựng..." [size]="56" /></div>
           }
           @if (!isSearching() && searchQuery() && searchResults().length === 0) {
             <div class="empty-state-sm">
@@ -231,7 +231,7 @@
             }
           </div>
           @if (isKanjiSearching()) {
-            <div class="loading-inline"><div class="spinner-sm"></div><span>Đang tìm Kanji...</span></div>
+            <div class="loading-inline"><app-loading-fox message="Đang tìm Kanji..." [size]="56" /></div>
           }
           @if (!isKanjiSearching() && kanjiSearchQuery() && kanjiSearchResults().length === 0) {
             <div class="empty-state-sm">
@@ -431,7 +431,7 @@
       <button class="btn-create" type="button" (click)="generateAndSaveQuiz()"
         [disabled]="isSaving() || selectedModes().size === 0">
         @if (isSaving()) {
-          <span class="btn-spinner"></span>
+          <app-loading-fox [size]="24" />
           Đang tạo...
         } @else {
           🎉 Tạo Quiz

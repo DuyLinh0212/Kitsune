@@ -6,6 +6,7 @@ import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/features/kanji/widgets/kanji_stroke_writer.dart';
 import 'package:kitsune_app/providers/folder_provider.dart';
 import 'package:kitsune_app/providers/kanji_provider.dart';
@@ -246,7 +247,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                 ],
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const KitsuneLoadingFox(message: 'Đang tải Kanji...'),
             error: (error, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -278,7 +279,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
         border: Border.all(color: KitsuneColors.surfaceBorder),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x14152238),
+            color: Color(0x142B2018),
             blurRadius: 24,
             offset: Offset(0, 14),
           ),
@@ -289,25 +290,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
         children: [
           Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 7,
-                ),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Text(
-                  'KANJI DETAIL',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w800,
-                    color: accent,
-                    letterSpacing: 1,
-                  ),
-                ),
-              ),
+              KitsuneTailMark(color: accent),
               const Spacer(),
               if (kanji.jlptLevel != null)
                 Container(
@@ -392,7 +375,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                             color: KitsuneColors.primary,
                           ),
                         _ReadingChip(
-                          label: 'Am Han Viet',
+                          label: 'Âm Hán Việt',
                           value: kanji.amHanViet,
                           color: accent,
                         ),
@@ -432,7 +415,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                       ? const SizedBox(
                           width: 16,
                           height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2),
+                          child: KitsuneLoadingFox(size: 28),
                         )
                       : const Icon(Icons.folder_copy_rounded),
                   label: const Text('Add to deck'),
@@ -473,7 +456,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
             child: Center(
               child: Text(
                 radical.radicalCharacter,
-                style: TextStyle(
+                style: AppTheme.japaneseStyle(
                   fontSize: 34,
                   fontWeight: FontWeight.w800,
                   color: accent,
@@ -532,11 +515,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Center(
-                    child: SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2.2),
-                    ),
+                    child: KitsuneLoadingFox(size: 40),
                   ),
                 );
               }
@@ -584,7 +563,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                                       children: [
                                         Text(
                                           items[i].word,
-                                          style: const TextStyle(
+                                          style: AppTheme.japaneseStyle(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w800,
                                             color: KitsuneColors.onSurface,
@@ -693,7 +672,11 @@ class _DetailHeader extends StatelessWidget {
               ),
               Text(
                 character,
-                style: Theme.of(context).textTheme.headlineSmall,
+                style: AppTheme.japaneseStyle(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w600,
+                  color: KitsuneColors.onSurface,
+                ),
               ),
             ],
           ),

@@ -1,0 +1,44 @@
+{
+  "title": "Đề mẫu JLPT N3 - Ngữ pháp & Đọc hiểu",
+  "description": "Đề kiểm tra mẫu minh hoạ cấu trúc file import. Xoá các câu này và thay bằng câu của bạn.",
+  "jlptLevel": 3,
+  "timeLimitInSeconds": 1800,
+  "questions": [
+    {
+      "type": "KANJI_READING",
+      "questionText": "Chọn cách đọc đúng của từ được gạch chân: 「新聞」",
+      "options": ["しんぶん", "しんもん", "あたらしぶん", "しんぷん"],
+      "correctAnswer": "しんぶん",
+      "explanation": "「新聞」 (báo) đọc là しんぶん."
+    },
+    {
+      "type": "VOCAB_MEANING",
+      "questionText": "「便利」 có nghĩa là gì?",
+      "options": ["Tiện lợi", "Bất tiện", "Nguy hiểm", "Đơn giản"],
+      "correctAnswer": "Tiện lợi",
+      "explanation": "「便利」(べんり) nghĩa là tiện lợi."
+    },
+    {
+      "type": "GRAMMAR_FILL",
+      "questionText": "日本語が上手になる（　）、毎日練習しています。",
+      "options": ["ように", "ために", "のに", "そうに"],
+      "correctAnswer": "ように",
+      "explanation": "「〜ように」 dùng cho mục đích với động từ ở thể tiềm năng/không chủ ý."
+    },
+    {
+      "type": "SENTENCE_ORDER",
+      "questionText": "Sắp xếp các thành phần thành câu đúng. Nhập theo thứ tự đúng khi làm bài.",
+      "options": ["わたしは", "まいあさ", "コーヒーを", "のみます"],
+      "correctAnswer": "わたしは まいあさ コーヒーを のみます",
+      "explanation": "Trật tự đúng: Chủ ngữ → trạng ngữ thời gian → tân ngữ → động từ."
+    },
+    {
+      "type": "READING_SHORT",
+      "questionText": "Theo đoạn văn, tại sao tác giả thích mùa thu?",
+      "passageText": "わたしは秋がいちばん好きです。暑くもなく寒くもなくて、散歩にちょうどいいからです。それに、紅葉がとてもきれいです。",
+      "options": ["Vì không quá nóng cũng không quá lạnh", "Vì có tuyết đẹp", "Vì được nghỉ dài", "Vì có nhiều lễ hội"],
+      "correctAnswer": "Vì không quá nóng cũng không quá lạnh",
+      "explanation": "Đoạn văn nêu: 「暑くもなく寒くもなくて、散歩にちょうどいい」."
+    }
+  ]
+}

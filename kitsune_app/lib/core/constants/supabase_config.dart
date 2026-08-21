@@ -1,8 +1,17 @@
 // kitsune_app/lib/core/constants/supabase_config.dart
 
 class SupabaseConfig {
-  static const String url = 'https://wzwwopifwhijewbmyywz.supabase.co';
-  static const String anonKey = 'sb_publishable_ZaSAPkaTIBw_P9S18KmGDg_OmpJVQjB';
+  // The publishable key is safe to ship in a client application; RLS remains
+  // the boundary for data access. Build-time dart-defines can still override
+  // these defaults for another Supabase project or environment.
+  static const String url = String.fromEnvironment(
+    'SUPABASE_URL',
+    defaultValue: 'https://wzwwopifwhijewbmyywz.supabase.co',
+  );
+  static const String anonKey = String.fromEnvironment(
+    'SUPABASE_ANON_KEY',
+    defaultValue: 'sb_publishable_ZaSAPkaTIBw_P9S18KmGDg_OmpJVQjB',
+  );
 
   static const String vocabSelect =
       'Id,FolderId,LanguageId,Word,Pronunciation,Meaning,SpecificData,CreatedAt,VocabularyFolder:FolderId(FolderName),Languages:LanguageId(LanguageCode,LanguageName),KanjiComponents:KanjiComponents(KanjiId,Kanji:KanjiId(Id,Character,AmHanViet),"Order")';
@@ -16,9 +25,12 @@ class SupabaseConfig {
   static const String quizMetaSelect =
       'Id, Title, Description, TimeLimitInSeconds, CreatedAt, Creator:CreatorId(FullName, Username)';
 
+  static const String grammarSelect =
+      'Id,Title,Meaning,Structure,JlptLevel,Explanation,GrammarExamples(Id,JapaneseText,Reading,MeaningVi,OrderIndex)';
+
   static const String srsCardSelect =
-      'Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate';
+      'Id, UserId, VocabularyId, KanjiId, BoxLevel, EaseFactor, IntervalDays, Repetitions, NextReviewDate, LastReviewedAt';
 
   static const String kanjiComponentWithKanjiSelect =
-      'VocabularyId, KanjiId, "Order", Kanji:KanjiId(Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi)';
+      'VocabularyId, KanjiId, "Order", Kanji:KanjiId(Id, Character, AmHanViet, Meaning, StrokeCount, Onyomi, Kunyomi, Radical:RadicalId(RadicalCharacter, RadicalName))';
 }

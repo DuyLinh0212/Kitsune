@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/dashboard_provider.dart';
 
 class LeaderboardPage extends ConsumerWidget {
@@ -35,8 +36,7 @@ class LeaderboardPage extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
               children: [
-                const KitsunePassportHeader(
-                  eyebrow: 'Community race',
+                const KitsuneHeroCard(
                   title: 'Những người đang giữ nhịp quiz tốt nhất.',
                   subtitle:
                       'Một cái nhìn nhanh vào độ chính xác, số lượt làm và ai đang dẫn đầu trong cộng đồng.',
@@ -72,8 +72,8 @@ class LeaderboardPage extends ConsumerWidget {
                                 child: Center(
                                   child: Text(
                                     '#${item.rank}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w800,
+                                    style: AppTheme.numeralStyle(
+                                      fontSize: 14,
                                       color: KitsuneColors.onSurfaceVariant,
                                     ),
                                   ),
@@ -97,9 +97,8 @@ class LeaderboardPage extends ConsumerWidget {
                               ),
                               Text(
                                 '${item.accuracy.round()}%',
-                                style: const TextStyle(
+                                style: AppTheme.numeralStyle(
                                   fontSize: 16,
-                                  fontWeight: FontWeight.w800,
                                   color: KitsuneColors.primary,
                                 ),
                               ),
@@ -113,7 +112,7 @@ class LeaderboardPage extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const KitsuneLoadingFox(message: 'Đang tải bảng xếp hạng...'),
           error: (error, _) => Center(child: Text('Lỗi: $error')),
         ),
       ),
@@ -164,8 +163,8 @@ class LeaderboardPage extends ConsumerWidget {
                 const SizedBox(height: AppTheme.space4),
                 Text(
                   '${item.accuracy.round()}%',
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
+                  style: AppTheme.numeralStyle(
+                    fontSize: 14,
                     color: color,
                   ),
                 ),
@@ -182,9 +181,8 @@ class LeaderboardPage extends ConsumerWidget {
                   child: Center(
                     child: Text(
                       '#${item.rank}',
-                      style: TextStyle(
+                      style: AppTheme.numeralStyle(
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
                         color: color,
                       ),
                     ),

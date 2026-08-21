@@ -1,0 +1,30 @@
+:host { display: block; }
+
+.drawing-review { display: grid; gap: 10px; max-width: 420px; margin: 0 auto; }
+.drawing-review__header { display: flex; justify-content: space-between; gap: 12px; align-items: start; }
+.drawing-review__eyebrow { margin: 0 0 3px; color: var(--accent-deep); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.drawing-review__instruction { margin: 0; color: var(--ink-secondary); font-size: 12px; line-height: 1.35; }
+.drawing-review__count { flex: none; border-radius: 999px; background: var(--paper-deep); color: var(--accent-seal); padding: 6px 10px; font-size: 12px; font-weight: 800; }
+.drawing-review__canvas-wrap { position: relative; overflow: hidden; height: clamp(210px, 31vh, 300px); border: 1px solid var(--line-delicate); border-radius: 16px; background: #fffdf8; box-shadow: inset 0 0 0 8px rgba(148, 98, 52, .035); }
+.drawing-review__canvas-wrap--hint { background: #fffaf2; }
+.drawing-review__canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: crosshair; }
+.drawing-review__state { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; color: var(--ink-secondary); background: rgba(255, 253, 248, .84); text-align: center; font-size: 13px; font-weight: 700; }
+.drawing-review__state--error { color: #b42318; }
+.drawing-review__actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.drawing-review__button { min-height: 34px; border-radius: 9px; padding: 6px 10px; font: inherit; font-size: 12px; font-weight: 800; cursor: pointer; }
+.drawing-review__button:disabled { cursor: not-allowed; opacity: .55; }
+.drawing-review__button--quiet { border: 1px solid var(--line-delicate); background: var(--panel-bg); color: var(--ink-primary); }
+.drawing-review__button--primary { border: 1px solid var(--accent-deep); background: var(--accent-deep); color: #fff; }
+.drawing-review__feedback { margin: 0; border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 700; line-height: 1.45; }
+.drawing-review__feedback--correct { background: #ecfdf3; color: #067647; }
+.drawing-review__feedback--wrong { background: #fff1f0; color: #b42318; }
+
+:host-context(.quiz-wrapper--drawing) .drawing-review__eyebrow { display: none; }
+:host-context(.quiz-wrapper--drawing) .drawing-review__header { align-items: center; }
+
+@media (max-width: 520px) {
+  .drawing-review__header { flex-direction: column; }
+  .drawing-review__canvas-wrap { height: min(31vh, 250px); }
+  .drawing-review__actions { justify-content: stretch; }
+  .drawing-review__button { flex: 1 1 110px; }
+}

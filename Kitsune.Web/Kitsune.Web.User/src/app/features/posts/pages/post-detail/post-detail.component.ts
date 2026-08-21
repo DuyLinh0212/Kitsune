@@ -7,6 +7,7 @@ import { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase } from '../../../../core/supabase/supabase.client';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuthService } from '../../../../core/services/auth.service';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 interface PostDto {
   id: string;
@@ -38,7 +39,7 @@ interface CommentDto {
 @Component({
   selector: 'app-post-detail',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent],
   templateUrl: './post-detail.component.html',
   styleUrl: './post-detail.component.css',
 })

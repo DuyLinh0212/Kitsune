@@ -27,8 +27,7 @@
   <!-- LOADING -->
   @if (isLoading()) {
     <div class="loading-container">
-      <div class="spinner"></div>
-      <p>Đang tải bài viết...</p>
+      <app-loading-fox message="Đang tải bài viết..." />
     </div>
   }
 
@@ -123,7 +122,7 @@
                 <button type="button" class="remove-comment-image" (click)="removeCommentImage()" title="Xóa ảnh">✕</button>
                 @if (isUploadingCommentImage()) {
                   <div class="upload-overlay-sm">
-                    <div class="spinner-sm"></div>
+                    <app-loading-fox [size]="24" />
                   </div>
                 }
               </div>

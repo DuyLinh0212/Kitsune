@@ -4,6 +4,7 @@ import 'package:kitsune_app/core/models/folder.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/folder_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -27,8 +28,7 @@ class FolderListPage extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
               children: [
-                KitsunePassportHeader(
-                  eyebrow: 'Folders',
+                KitsuneHeroCard(
                   title: '${folders.length} ngăn học đang chờ được mở lại.',
                   subtitle:
                       'Sắp xếp từ vựng theo chủ đề, theo bài hoặc theo mục tiêu cá nhân để việc ôn tập rõ ràng hơn.',
@@ -134,7 +134,7 @@ class FolderListPage extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const KitsuneLoadingFox(message: 'Đang tải thư mục...'),
           error: (error, _) => Center(child: Text('Lỗi: $error')),
         ),
       ),

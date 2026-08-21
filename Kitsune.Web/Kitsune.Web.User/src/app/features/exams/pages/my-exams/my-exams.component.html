@@ -1,0 +1,77 @@
+<div class="exam-page">
+  <header class="page-header">
+    <div class="header-left">
+      <h1 class="page-title">Đề của tôi</h1>
+      <p class="page-subtitle">Quản lý các đề kiểm tra bạn đã tạo</p>
+    </div>
+    <div class="header-actions">
+      <a routerLink="/exams" class="btn-ghost">Khám phá đề</a>
+      <a routerLink="/exams/create" class="btn-primary">+ Tạo đề</a>
+    </div>
+  </header>
+
+  @if (errorMsg()) {
+    <div class="alert-error">{{ errorMsg() }}</div>
+  }
+
+  @if (isLoading()) {
+    <div class="loading-container">
+      <app-loading-fox message="Đang tải đề của bạn..." />
+    </div>
+  } @else if (exams().length === 0) {
+    <div class="empty-state">
+      <span class="empty-illustration">🗂️</span>
+      <h2 class="empty-title">Bạn chưa tạo đề nào</h2>
+      <p class="empty-desc">Tạo đề bằng cách nhập thủ công hoặc import từ file Excel/JSON.</p>
+      <a routerLink="/exams/create" class="btn-primary">Tạo đề đầu tiên</a>
+    </div>
+  } @else {
+    <div class="mine-list">
+      @for (e of exams(); track e.id) {
+        <article class="mine-row">
+          <div class="mine-row__main">
+            <div class="mine-row__title-line">
+              <h3 class="mine-title">{{ e.title }}</h3>
+              @if (e.isPublic) {
+                <span class="status status--public">Công khai</span>
+              } @else {
+                <span class="status status--hidden">Đang ẩn</span>
+              }
+            </div>
+            <div class="mine-meta">
+              <span class="meta-chip">{{ jlptLabel(e.jlptLevel) }}</span>
+              <span class="meta-chip">{{ e.questionCount }} câu</span>
+              <span class="meta-chip">⏱ {{ timeLabel(e.timeLimitInSeconds) }}</span>
+            </div>
+          </div>
+          <div class="mine-row__actions">
+            <a [routerLink]="['/exams', e.id]" class="btn-sm btn-sm--play">Làm thử</a>
+            <button type="button" class="btn-sm btn-sm--toggle" [disabled]="busyId() === e.id" (click)="togglePublic(e)">
+              {{ e.isPublic ? 'Ẩn' : 'Công khai' }}
+            </button>
+            <button type="button" class="btn-sm btn-sm--delete" [disabled]="busyId() === e.id" (click)="confirmDelete(e.id)">Xóa</button>
+          </div>
+        </article>
+      }
+    </div>
+  }
+
+  @if (deleteConfirmId() !== null) {
+    <div class="modal-backdrop" (click)="cancelDelete()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <h2 class="modal__title">Xóa đề kiểm tra?</h2>
+        <p class="modal__text">Đề sẽ bị ẩn khỏi bạn và cộng đồng (xóa mềm). Hành động này không thể tự hoàn tác từ giao diện.</p>
+        <div class="modal__actions">
+          <button type="button" class="btn-ghost" (click)="cancelDelete()">Hủy</button>
+          <button type="button" class="btn-danger" (click)="executeDelete(deleteConfirmId()!)">Xóa đề</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (toast(); as t) {
+    <div class="toast" [class.toast-success]="t.type === 'success'" [class.toast-error]="t.type === 'error'">
+      {{ t.message }}
+    </div>
+  }
+</div>

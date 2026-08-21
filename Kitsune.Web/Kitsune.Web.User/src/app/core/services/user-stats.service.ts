@@ -44,68 +44,48 @@ export class UserStatsService {
 
   private async fetchStreak(userId: number): Promise<number> {
     try {
-      const { data, error } = await supabase
-        .from('QuizAttempts')
-        .select('CreatedAt')
-        .eq('UserId', userId)
-        .order('CreatedAt', { ascending: false });
+      const [{ data: quizzes, error: quizError }, { data: exams, error: examError }, { data: cards, error: cardError }] = await Promise.all([
+        supabase.from('QuizAttempts').select('CreatedAt').eq('UserId', userId),
+        supabase.from('ExamAttempts').select('CreatedAt').eq('UserId', userId),
+        supabase.from('SRSCards').select('Id').eq('UserId', userId)
+      ]);
+      if (quizError || examError || cardError) throw quizError ?? examError ?? cardError;
 
-      if (error || !data) return 0;
+      const cardIds = (cards ?? []).map((card) => card.Id as number);
+      const { data: reviews, error: reviewError } = cardIds.length
+        ? await supabase.from('SRSReviewLogs').select('ReviewedAt').in('CardId', cardIds)
+        : { data: [], error: null };
+      if (reviewError) throw reviewError;
 
-      const dates = new Set<string>();
-      // Convert DB dates to local date string (YYYY-MM-DD)
-      for (const row of data as { CreatedAt: string }[]) {
-        const localDate = new Date(row.CreatedAt);
-        const year = localDate.getFullYear();
-        const month = String(localDate.getMonth() + 1).padStart(2, '0');
-        const day = String(localDate.getDate()).padStart(2, '0');
-        dates.add(`${year}-${month}-${day}`);
+      const activityDates = new Set<string>();
+      for (const row of [...(quizzes ?? []), ...(exams ?? [])] as Array<{ CreatedAt: string }>) {
+        activityDates.add(this.toLocalDate(row.CreatedAt));
       }
-
-      // Merge with local active dates (to track logins/visits)
-      if (typeof window !== 'undefined') {
-        const storageKey = `kitsune.active_dates.${userId}`;
-        const stored = window.localStorage.getItem(storageKey);
-        let localDates: string[] = [];
-        if (stored) {
-          try { localDates = JSON.parse(stored); } catch {}
-        }
-        
-        const todayStr = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-${String(new Date().getDate()).padStart(2, '0')}`;
-        if (!localDates.includes(todayStr)) {
-          localDates.push(todayStr);
-          window.localStorage.setItem(storageKey, JSON.stringify(localDates));
-        }
-        
-        for (const d of localDates) {
-          dates.add(d);
-        }
+      for (const row of (reviews ?? []) as Array<{ ReviewedAt: string }>) {
+        activityDates.add(this.toLocalDate(row.ReviewedAt));
       }
-
-      let count = 0;
-      const today = new Date();
-      for (let i = 0; i < 365; i++) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const day = String(d.getDate()).padStart(2, '0');
-        const key = `${year}-${month}-${day}`;
-        
-        if (i === 0 && !dates.has(key)) {
-          continue; // It's okay if they haven't studied today yet
-        }
-
-        if (dates.has(key)) {
-          count++;
-        } else {
-          break;
-        }
-      }
-      return count;
+      return this.calculateStreak(activityDates);
     } catch {
       return 0;
     }
+  }
+
+  private toLocalDate(timestamp: string): string {
+    const date = new Date(timestamp);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  private calculateStreak(activityDates: ReadonlySet<string>): number {
+    const cursor = new Date();
+    if (!activityDates.has(this.toLocalDate(cursor.toISOString()))) cursor.setDate(cursor.getDate() - 1);
+    if (!activityDates.has(this.toLocalDate(cursor.toISOString()))) return 0;
+
+    let streak = 0;
+    while (activityDates.has(this.toLocalDate(cursor.toISOString()))) {
+      streak++;
+      cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
   }
 
   private async fetchXP(userId: number): Promise<number> {

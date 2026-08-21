@@ -8,7 +8,8 @@ enum QuizMode {
   fillBlank('FILL_BLANK'),
   onKunRead('ON_KUN_READ'),
   hanViet('HAN_VIET'),
-  composeKanji('COMPOSE_KANJI');
+  composeKanji('COMPOSE_KANJI'),
+  drawKanji('DRAW_KANJI');
 
   final String code;
   const QuizMode(this.code);
@@ -30,6 +31,7 @@ enum QuizMode {
     QuizMode.onKunRead,
     QuizMode.hanViet,
     QuizMode.composeKanji,
+    QuizMode.drawKanji,
   ];
 }
 
@@ -48,10 +50,9 @@ class QuizDescription {
 
   factory QuizDescription.fromJson(Map<String, dynamic> json) {
     return QuizDescription(
-      modes: (json['modes'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
+      modes:
+          (json['modes'] as List<dynamic>?)?.map((e) => e as String).toList() ??
+              [],
       userDescription: json['userDescription'] as String?,
       vocabIds: (json['vocabIds'] as List<dynamic>?)
               ?.map((e) => (e as num).toInt())
@@ -128,7 +129,8 @@ class QuizMeta {
     String? creatorName;
     final creator = json['Creator'] as Map<String, dynamic>?;
     if (creator != null) {
-      creatorName = creator['FullName'] as String? ?? creator['Username'] as String?;
+      creatorName =
+          creator['FullName'] as String? ?? creator['Username'] as String?;
     }
 
     return QuizMeta(

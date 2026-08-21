@@ -1,0 +1,211 @@
+<div class="exam-shell">
+  <!-- ══ TOPBAR ══════════════════════════════════════════════════════════ -->
+  <header class="topbar">
+    <div class="topbar__heading">
+      <a routerLink="/home" class="back-link" aria-label="Về trang chủ">
+        <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>
+      </a>
+      <div>
+        <h1>Quản lý Đề kiểm tra</h1>
+        <p>Kiểm duyệt, ẩn/hiện và xóa mềm toàn bộ đề của người dùng</p>
+      </div>
+    </div>
+    <a routerLink="/exams/create" class="btn-create">
+      <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+      Tạo đề kiểm tra
+    </a>
+  </header>
+
+  <main class="exam-main">
+    <!-- ══ STAT CARDS ═══════════════════════════════════════════════════ -->
+    <section class="stat-grid">
+      <button type="button" class="stat" [class.stat--active]="statusFilter() === 'all'" (click)="setStatusFilter('all')">
+        <span class="stat__value">{{ stats().total }}</span>
+        <span class="stat__label">Tổng số đề</span>
+      </button>
+      <button type="button" class="stat stat--green" [class.stat--active]="statusFilter() === 'public'" (click)="setStatusFilter('public')">
+        <span class="stat__value">{{ stats().publicCount }}</span>
+        <span class="stat__label">Công khai</span>
+      </button>
+      <button type="button" class="stat stat--violet" [class.stat--active]="statusFilter() === 'hidden'" (click)="setStatusFilter('hidden')">
+        <span class="stat__value">{{ stats().hiddenCount }}</span>
+        <span class="stat__label">Đang ẩn</span>
+      </button>
+      <button type="button" class="stat stat--red" [class.stat--active]="statusFilter() === 'deleted'" (click)="setStatusFilter('deleted')">
+        <span class="stat__value">{{ stats().deletedCount }}</span>
+        <span class="stat__label">Đã xóa mềm</span>
+      </button>
+    </section>
+
+    <!-- ══ TOOLBAR ══════════════════════════════════════════════════════ -->
+    <section class="toolbar">
+      <label class="search-box">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
+        <input
+          type="search"
+          placeholder="Tìm theo tên đề hoặc tác giả..."
+          [value]="search()"
+          (input)="onSearchChange($any($event.target).value)"
+        />
+      </label>
+
+      <select class="select" [value]="jlptFilter() ?? ''" (change)="onJlptFilterChange($any($event.target).value)">
+        <option value="">Tất cả cấp độ</option>
+        @for (lv of jlptLevels; track lv) {
+          <option [value]="lv">N{{ lv }}</option>
+        }
+      </select>
+    </section>
+
+    @if (error()) {
+      <div class="alert alert--error">{{ error() }}</div>
+    }
+
+    <!-- ══ TABLE ════════════════════════════════════════════════════════ -->
+    <section class="panel">
+      @if (loading()) {
+        <div class="state">Đang tải danh sách đề kiểm tra...</div>
+      } @else if (filtered().length === 0) {
+        <div class="state">
+          <strong>Không có đề nào khớp bộ lọc.</strong>
+          <span>Thử đổi từ khóa, cấp độ hoặc trạng thái.</span>
+        </div>
+      } @else {
+        <div class="table">
+          <div class="table__head">
+            <span>Đề kiểm tra</span>
+            <span>Tác giả</span>
+            <span class="col-center">Cấp độ</span>
+            <span class="col-center">Câu hỏi</span>
+            <span class="col-center">Lượt làm</span>
+            <span class="col-center">Trạng thái</span>
+            <span class="col-right">Thao tác</span>
+          </div>
+
+          @for (e of filtered(); track e.id) {
+            <div class="table__row" [class.table__row--deleted]="e.isDeleted">
+              <span class="cell-title">
+                <strong>{{ e.title }}</strong>
+                <em>{{ timeLabel(e.timeLimitInSeconds) }}</em>
+              </span>
+              <span class="cell-author">{{ e.creatorName }}</span>
+              <span class="col-center">
+                <span class="tag tag--level" [attr.data-level]="e.jlptLevel">{{ jlptLabel(e.jlptLevel) }}</span>
+              </span>
+              <span class="col-center">{{ e.questionCount }}</span>
+              <span class="col-center">{{ e.attemptCount }}</span>
+              <span class="col-center">
+                @if (e.isDeleted) {
+                  <span class="tag tag--red">Đã xóa</span>
+                } @else if (e.isPublic) {
+                  <span class="tag tag--green">Công khai</span>
+                } @else {
+                  <span class="tag tag--muted">Đang ẩn</span>
+                }
+              </span>
+              <span class="col-right cell-actions">
+                <button type="button" class="btn-icon" (click)="openDetail(e)" title="Xem câu hỏi">
+                  <svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                </button>
+
+                @if (e.isDeleted) {
+                  <button type="button" class="btn-icon btn-icon--green" (click)="restore(e.id)" [disabled]="busyId() === e.id" title="Khôi phục">
+                    <svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></svg>
+                  </button>
+                } @else {
+                  <button
+                    type="button"
+                    class="btn-icon"
+                    [class.btn-icon--green]="!e.isPublic"
+                    (click)="togglePublic(e)"
+                    [disabled]="busyId() === e.id"
+                    [title]="e.isPublic ? 'Ẩn đề' : 'Công khai đề'"
+                  >
+                    @if (e.isPublic) {
+                      <svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" /><path d="M1 1l22 22" /></svg>
+                    } @else {
+                      <svg viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7Z" /><circle cx="12" cy="12" r="3" /></svg>
+                    }
+                  </button>
+                  <button type="button" class="btn-icon btn-icon--red" (click)="confirmDelete(e.id)" [disabled]="busyId() === e.id" title="Xóa mềm">
+                    <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14" /></svg>
+                  </button>
+                }
+              </span>
+            </div>
+          }
+        </div>
+      }
+    </section>
+  </main>
+
+  <!-- ══ MODAL: chi tiết câu hỏi ══════════════════════════════════════════ -->
+  @if (detailExam(); as exam) {
+    <div class="modal-backdrop" (click)="closeDetail()">
+      <div class="modal" (click)="$event.stopPropagation()">
+        <header class="modal__header">
+          <div>
+            <h2>{{ exam.title }}</h2>
+            <p class="modal__sub">Tác giả: {{ exam.creatorName }} · {{ jlptLabel(exam.jlptLevel) }} · {{ timeLabel(exam.timeLimitInSeconds) }}</p>
+          </div>
+          <button type="button" class="btn-icon" (click)="closeDetail()" aria-label="Đóng">
+            <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        </header>
+
+        <div class="modal__body">
+          @if (detailLoading()) {
+            <div class="state">Đang tải câu hỏi...</div>
+          } @else if (detailQuestions().length === 0) {
+            <div class="state"><strong>Đề này chưa có câu hỏi.</strong></div>
+          } @else {
+            <ol class="q-list">
+              @for (q of detailQuestions(); track q.id) {
+                <li class="q-item">
+                  <div class="q-item__head">
+                    <span class="q-type">{{ q.questionType }}</span>
+                  </div>
+                  @if (q.passageText) {
+                    <p class="q-passage">{{ q.passageText }}</p>
+                  }
+                  @if (q.questionText) {
+                    <p class="q-text">{{ q.questionText }}</p>
+                  }
+                  @if (q.optionsJson.length) {
+                    <ul class="q-options">
+                      @for (opt of q.optionsJson; track $index) {
+                        <li [class.q-option--correct]="opt === q.correctAnswer">{{ opt }}</li>
+                      }
+                    </ul>
+                  }
+                  <p class="q-answer">Đáp án đúng: <strong>{{ q.correctAnswer }}</strong></p>
+                  @if (q.explanation) {
+                    <p class="q-explain">{{ q.explanation }}</p>
+                  }
+                </li>
+              }
+            </ol>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ══ Delete confirm ═══════════════════════════════════════════════════ -->
+  @if (deleteConfirmId() !== null) {
+    <div class="modal-backdrop" (click)="cancelDelete()">
+      <div class="modal modal--sm" (click)="$event.stopPropagation()">
+        <header class="modal__header">
+          <h2>Xác nhận xóa</h2>
+        </header>
+        <div class="modal__body">
+          <p class="confirm-text">Đề kiểm tra sẽ được ẩn khỏi người dùng (xóa mềm). Bạn có thể khôi phục lại sau. Tiếp tục?</p>
+          <footer class="modal__footer">
+            <button type="button" class="btn btn--ghost" (click)="cancelDelete()">Hủy</button>
+            <button type="button" class="btn btn--danger" (click)="executeSoftDelete(deleteConfirmId()!)">Xóa mềm</button>
+          </footer>
+        </div>
+      </div>
+    </div>
+  }
+</div>

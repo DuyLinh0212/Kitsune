@@ -1,0 +1,137 @@
+.comment-section {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--line-delicate);
+}
+
+.comment-section__title {
+  margin: 0 0 12px;
+  font-size: 1.05rem;
+  color: var(--ink-primary);
+}
+
+.comment-section__title span {
+  color: var(--ink-secondary);
+  font-weight: 400;
+}
+
+.comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.comment-form__input {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--line-delicate);
+  border-radius: 12px;
+  background: var(--panel-bg);
+  color: var(--ink-primary);
+  font: inherit;
+  resize: vertical;
+  outline: none;
+}
+
+.comment-form__input:focus {
+  border-color: var(--accent-deep);
+}
+
+.comment-form__submit {
+  align-self: flex-end;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 18px;
+  background: var(--accent-deep);
+  color: #fffaf2;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.comment-form__submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.comment-section__hint {
+  color: var(--ink-secondary);
+  font-size: 13px;
+}
+
+.comment-section__error {
+  color: var(--accent-seal);
+  font-size: 13px;
+  margin-bottom: 10px;
+}
+
+.comment-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.comment-item {
+  display: flex;
+  gap: 10px;
+}
+
+.comment-item__avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--paper-deep);
+  color: var(--accent-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  overflow: hidden;
+}
+
+.comment-item__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.comment-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.comment-item__header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--ink-secondary);
+}
+
+.comment-item__header strong {
+  color: var(--ink-primary);
+  font-size: 13.5px;
+}
+
+.comment-item__delete {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--accent-seal);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.comment-item__content {
+  margin: 4px 0 0;
+  color: var(--ink-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}

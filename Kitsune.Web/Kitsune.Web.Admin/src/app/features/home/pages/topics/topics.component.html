@@ -1,0 +1,142 @@
+<!-- Kitsune.Web/Kitsune.Web.Admin/src/app/features/home/pages/topics/topics.component.html -->
+<main class="topics-admin">
+  <header>
+    <a routerLink="/home">← Dashboard</a>
+    <div><p>Content studio · v3.0.0</p><h1>Topics & Lessons</h1><span>Tạo lộ trình, chọn học liệu từ kho và chuẩn bị SRS theo bài học.</span></div>
+  </header>
+  @if (message()) { <p class="notice">{{ message() }}</p> }
+  @if (aiError()) { <p class="notice notice--error"><strong>AI chưa tạo được lộ trình.</strong><span>{{ aiError() }}</span><small>Kiểm tra nội dung phía trên rồi thử lại; lỗi tạm thời của Gemini sẽ được tự thử lại.</small></p> }
+
+  <section class="workspace">
+    <aside>
+      <div class="section-title"><span>Chủ đề</span><strong>{{ topics().length }}</strong></div>
+      @for (topic of topics(); track topic.id) {
+        <button type="button" [class.active]="topic.id === selectedTopicId()" (click)="selectTopic(topic.id)">
+          <strong>{{ topic.title }}</strong><small>{{ topic.lessons.length }} bài · {{ topic.isPublished ? 'Đã xuất bản' : 'Bản nháp' }}</small>
+        </button>
+      }
+      <form (ngSubmit)="createTopic()">
+        <h2>Chủ đề mới</h2>
+        <input name="topicTitle" [(ngModel)]="topicTitle" placeholder="Tên chủ đề" required />
+        <textarea name="topicDescription" [(ngModel)]="topicDescription" placeholder="Mô tả ngắn"></textarea>
+        <select name="topicJlpt" [(ngModel)]="topicJlpt"><option [ngValue]="null">Mọi trình độ</option>@for (level of [5,4,3,2,1]; track level) { <option [ngValue]="level">JLPT N{{ level }}</option> }</select>
+        <button class="primary" type="submit" [disabled]="busy()">Tạo bản nháp</button>
+      </form>
+    </aside>
+
+    <section class="lesson-column">
+      @if (activeTopic(); as topic) {
+        <div class="topic-heading">
+          <div><p>Chủ đề đang chọn</p><h2>{{ topic.title }}</h2><span>{{ topic.description }}</span></div>
+          <button type="button" class="publish-button" [class.published]="topic.isPublished" (click)="toggleTopicPublished()" [disabled]="busy()">
+            {{ topic.isPublished ? 'Đưa về nháp' : 'Xuất bản chủ đề' }}
+          </button>
+        </div>
+        <div class="lesson-tabs">
+          @for (lesson of topic.lessons; track lesson.id) {
+            <button type="button" [class.active]="lesson.id === selectedLessonId()" (click)="selectLesson(lesson.id)">
+              <span>{{ lesson.orderIndex + 1 }}</span><strong>{{ lesson.title }}</strong><small>{{ lesson.itemCount }} mục</small>
+            </button>
+          } @empty { <p>Chưa có bài học. Tạo bài đầu tiên bên dưới.</p> }
+        </div>
+
+        @if (activeLesson(); as selectedLesson) {
+          <div class="lesson-status">
+            <span>{{ selectedLesson.isPublished ? 'Bài học đang hiển thị cho người học' : 'Bài học vẫn là bản nháp' }}</span>
+            <button type="button" class="publish-button" [class.published]="selectedLesson.isPublished" (click)="toggleLessonPublished()" [disabled]="busy()">
+              {{ selectedLesson.isPublished ? 'Đưa bài về nháp' : 'Xuất bản bài học' }}
+            </button>
+          </div>
+
+          <section class="lesson-contents" aria-live="polite">
+            <div class="lesson-contents__heading">
+              <div><p>Nội dung bài học</p><h3>Từ đã thêm vào {{ selectedLesson.title }}</h3></div>
+              <span>{{ lessonVocabularyCount() }} từ vựng · {{ lessonKanjiCount() }} Kanji</span>
+            </div>
+            @if (lessonItemsLoading()) {
+              <p class="lesson-contents__state">Đang tải học liệu…</p>
+            } @else if (lessonItemsError()) {
+              <p class="lesson-contents__state lesson-contents__state--error">{{ lessonItemsError() }}</p>
+            } @else if (lessonItems().length) {
+              <div class="lesson-contents__grid">
+                @for (item of lessonItems(); track item.key; let index = $index) {
+                  <article class="lesson-content-card" [class.lesson-content-card--kanji]="item.itemType === 'kanji'">
+                    <small><span>{{ index + 1 }}</span>{{ item.itemType === 'vocabulary' ? 'Từ vựng' : 'Kanji' }}</small>
+                    <strong>{{ item.word }}</strong><span>{{ item.pronunciation || '—' }}</span><em>{{ item.meaning }}</em>
+                  </article>
+                }
+              </div>
+            } @else {
+              <p class="lesson-contents__state">Bài học này chưa có từ vựng hoặc Kanji. Hãy thêm học liệu từ kho bên dưới.</p>
+            }
+          </section>
+        }
+
+        <form class="lesson-form" (ngSubmit)="createLesson()">
+          <h3>Thêm bài học</h3>
+          <input name="lessonTitle" [(ngModel)]="lessonTitle" placeholder="Tên bài học" required />
+          <input name="lessonMinutes" [(ngModel)]="lessonMinutes" type="number" min="1" max="180" aria-label="Số phút dự kiến" />
+          <textarea name="lessonDescription" [(ngModel)]="lessonDescription" placeholder="Mục tiêu bài học"></textarea>
+          <button class="primary" type="submit" [disabled]="busy()">Thêm bài</button>
+        </form>
+
+        @if (activeLesson(); as lesson) {
+          <section class="catalog-picker">
+            <div class="catalog-heading">
+              <div><p>Kho học liệu</p><h3>Thêm vào {{ lesson.title }}</h3></div>
+              <div class="kanji-automation" aria-label="Tự động thêm Kanji từ từ vựng"><strong>語</strong><span>→</span><strong>漢</strong><small>Tự gắn Kanji</small></div>
+            </div>
+            <p class="catalog-note">Tìm trực tiếp trong toàn bộ database. Khi thêm từ vựng, mọi Kanji cấu thành sẽ được thêm cùng và tự loại trùng.</p>
+            <div class="catalog-type" role="group" aria-label="Loại học liệu">
+              <button type="button" [class.active]="catalogItemType() === 'vocabulary'" [attr.aria-pressed]="catalogItemType() === 'vocabulary'" (click)="setCatalogItemType('vocabulary')">Từ vựng</button>
+              <button type="button" [class.active]="catalogItemType() === 'kanji'" [attr.aria-pressed]="catalogItemType() === 'kanji'" (click)="setCatalogItemType('kanji')">Kanji</button>
+            </div>
+            <form class="catalog-search" (ngSubmit)="searchCatalog()">
+              <input name="catalogQuery" [(ngModel)]="catalogQuery" [placeholder]="catalogItemType() === 'vocabulary' ? 'Tìm theo từ, cách đọc hoặc nghĩa…' : 'Tìm theo Kanji, âm Hán Việt hoặc nghĩa…'" />
+              <button type="submit" [disabled]="catalogLoading() || !catalogQuery.trim()">{{ catalogLoading() ? 'Đang tìm…' : 'Tìm học liệu' }}</button>
+            </form>
+            @if (catalogItems().length) {
+              <div class="import-toolbar">
+                <button type="button" (click)="toggleAllCatalogItems()">{{ selectedCatalogKeys().size === catalogItems().length ? 'Bỏ chọn tất cả' : 'Chọn tất cả kết quả' }}</button>
+                <strong>{{ selectedCatalogKeys().size }} đã chọn</strong>
+              </div>
+              <div class="item-grid catalog-results">
+                @for (item of catalogItems(); track item.key) {
+                  <button type="button" [class.selected]="selectedCatalogKeys().has(item.key)" (click)="toggleCatalogItem(item.key)">
+                    <small class="item-kind">{{ item.itemType === 'vocabulary' ? 'Từ vựng' : 'Kanji' }}</small>
+                    <span>{{ item.word }}</span><small>{{ item.pronunciation }}</small><em>{{ item.meaning }}</em>
+                  </button>
+                }
+              </div>
+              <button type="button" class="primary import-button" (click)="addCatalogItems()" [disabled]="busy() || !selectedCatalogKeys().size">Thêm vào bài học</button>
+            }
+          </section>
+
+          <section class="folder-import">
+            <div><p>Nguồn bổ sung</p><h3>Nhập nhanh từ Folder → {{ lesson.title }}</h3></div>
+            <select [value]="selectedFolderId() ?? ''" (change)="loadFolderItems($any($event.target).value)"><option value="">Chọn Folder nguồn</option>@for (folder of folders(); track folder.id) { <option [value]="folder.id">{{ folder.name }}</option> }</select>
+            @if (folderItems().length) {
+              <div class="import-toolbar"><button type="button" (click)="toggleAll()">{{ selectedFolderKeys().size === folderItems().length ? 'Bỏ chọn tất cả' : 'Chọn tất cả' }}</button><strong>{{ selectedFolderKeys().size }} đã chọn</strong></div>
+              <div class="item-grid">
+                @for (item of folderItems(); track item.key) {
+                  <button type="button" [class.selected]="selectedFolderKeys().has(item.key)" (click)="toggleItem(item.key)"><span>{{ item.word }}</span><small>{{ item.pronunciation }}</small><em>{{ item.meaning }}</em></button>
+                }
+              </div>
+              <button type="button" class="primary import-button" (click)="importSelected()" [disabled]="busy()">Thêm mục đã chọn</button>
+            }
+          </section>
+        }
+      } @else if (!loading()) { <p class="empty">Hãy tạo chủ đề đầu tiên.</p> }
+    </section>
+
+    <aside class="ai-panel">
+      <p>Gemini assistant</p><h2>Tạo trọn lộ trình</h2><span>AI tạo ngay Topic, gắn Lessons và chọn tối thiểu 20 từ mỗi bài. Kanji được suy ra tự động.</span>
+      <label>Chủ đề<input [(ngModel)]="aiTopic" placeholder="Ví dụ: Môn học" /></label>
+      <label>Số lesson<input [(ngModel)]="aiLessonCount" type="number" min="1" max="20" /></label>
+      <button type="button" class="ai-button" (click)="generateAi()" [disabled]="busy()">Tạo Topic + Lessons bằng AI</button>
+      @if (aiPlan(); as plan) {
+        <div class="ai-preview"><p><strong>Đã lưu bản nháp.</strong> {{ plan.topicDescription }}</p>@for (lesson of plan.lessons; track lesson.title; let index = $index) { <article><span>{{ index + 1 }}</span><div><strong>{{ lesson.title }}</strong><small>{{ lesson.vocabularyIds.length }} từ · {{ lesson.kanjiIds.length }} Kanji</small></div></article> }</div>
+      }
+    </aside>
+  </section>
+</main>

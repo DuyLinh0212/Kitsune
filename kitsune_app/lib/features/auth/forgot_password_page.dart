@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class ForgotPasswordPage extends ConsumerStatefulWidget {
@@ -75,8 +76,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
       key: const ValueKey('forgot-form'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const KitsunePassportHeader(
-          eyebrow: 'Reset access',
+        const KitsuneHeroCard(
           title: 'Lấy lại quyền truy cập thật gọn.',
           subtitle:
               'Nhập email để nhận liên kết đặt lại mật khẩu và quay lại hành trình học ngay khi sẵn sàng.',
@@ -121,10 +121,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.2,
-                            color: Colors.white,
-                          ),
+                          child: KitsuneLoadingFox(size: 28),
                         )
                       : const Text('Gửi email đặt lại mật khẩu'),
                 ),
@@ -141,8 +138,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
       key: const ValueKey('forgot-success'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const KitsunePassportHeader(
-          eyebrow: 'Mail sent',
+        const KitsuneHeroCard(
           title: 'Liên kết đã lên đường.',
           subtitle:
               'Kiểm tra hộp thư của bạn rồi quay lại đăng nhập sau khi đặt lại mật khẩu.',

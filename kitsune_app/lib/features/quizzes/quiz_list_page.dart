@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/quiz_provider.dart';
 
 class QuizListPage extends ConsumerWidget {
@@ -20,8 +21,7 @@ class QuizListPage extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
               children: [
-                const KitsunePassportHeader(
-                  eyebrow: 'Community quiz',
+                const KitsuneHeroCard(
                   title: 'Khám phá những bộ đề người khác đang chia sẻ.',
                   subtitle:
                       'Chọn nhanh một quiz để kiểm tra vốn từ, tốc độ nhớ và cảm giác học hiện tại.',
@@ -92,7 +92,7 @@ class QuizListPage extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const KitsuneLoadingFox(message: 'Đang tải quiz...'),
           error: (error, _) => Center(child: Text('Lỗi: $error')),
         ),
       ),

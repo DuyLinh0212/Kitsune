@@ -20,7 +20,7 @@
       </div>
 
       @if (isLoading()) {
-        <div class="notif-dropdown__empty">Đang tải...</div>
+        <div class="notif-dropdown__empty"><app-loading-fox message="Đang tải thông báo..." [size]="56" /></div>
       } @else if (notifications().length === 0) {
         <div class="notif-dropdown__empty">
           <span class="notif-dropdown__empty-icon">🔔</span>

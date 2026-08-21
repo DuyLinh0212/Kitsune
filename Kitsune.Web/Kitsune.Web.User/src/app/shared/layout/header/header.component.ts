@@ -1,9 +1,10 @@
-// frontend/Kitsune.Web.User/src/app/shared/layout/header/header.component.ts
-import { Component, input, output, inject, signal, OnInit } from '@angular/core';
-import { Router, NavigationEnd } from '@angular/router';
+import { Component, DestroyRef, inject, input, OnInit, output, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { NavigationEnd, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { filter } from 'rxjs';
+
 import { AuthService } from '../../../core/services/auth.service';
 import { UserProfile } from '../../../core/models/auth.model';
 import { supabase } from '../../../core/supabase/supabase.client';
@@ -19,7 +20,10 @@ import { NotificationBellComponent } from './notification-bell/notification-bell
 export class HeaderComponent implements OnInit {
   readonly router = inject(Router);
   readonly authService = inject(AuthService);
+  private readonly destroyRef = inject(DestroyRef);
 
+  readonly sidebarCollapsed = input.required<boolean>();
+  readonly toggleSidebar = output<void>();
   readonly currentUrl = signal('/home');
   readonly currentUser = signal<UserProfile | null>(this.authService.getStoredUser());
   readonly searchQuery = signal('');
@@ -27,45 +31,43 @@ export class HeaderComponent implements OnInit {
   readonly userMenuOpen = signal(false);
 
   ngOnInit(): void {
-    this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd)).subscribe((e) => {
-      this.currentUrl.set(e.urlAfterRedirects);
+    this.router.events.pipe(
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
+      takeUntilDestroyed(this.destroyRef),
+    ).subscribe((event) => this.currentUrl.set(event.urlAfterRedirects));
+
+    this.authService.currentUser$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((user) => {
+      this.currentUser.set(user);
     });
+
     void this.loadDueSrsCount();
   }
 
-  private async loadDueSrsCount(): Promise<void> {
-    const { data: authData } = await supabase.auth.getUser();
-    if (!authData.user?.email) return;
-    const { data: profile } = await supabase.from('Users').select('Id').eq('Email', authData.user.email).maybeSingle();
-    if (!profile) return;
-    const userId = (profile as { Id: number }).Id;
-    const now = new Date().toISOString();
-    const { count } = await supabase
-      .from('SRSCards')
-      .select('Id', { count: 'exact', head: true })
-      .eq('UserId', userId)
-      .lte('NextReviewDate', now);
-    this.dueSrsCount.set(count ?? 0);
+  get pageTitle(): string {
+    const url = this.currentUrl();
+    if (url.startsWith('/vocabulary') || url.startsWith('/kanji')) return 'Tra cứu';
+    if (url.startsWith('/topics') || url.startsWith('/grammar') || url.startsWith('/minigames')) return 'Học tập';
+    if (url.startsWith('/srs')) return 'Ôn tập';
+    if (url.startsWith('/quizzes')) return 'Quizzes';
+    if (url.startsWith('/leaderboard') || url.startsWith('/posts') || url.startsWith('/messages')) return 'Cộng đồng';
+    if (url.startsWith('/profile')) return 'Tài khoản';
+    return 'Hôm nay';
   }
 
-  readonly sidebarCollapsed = input.required<boolean>();
-  readonly toggleSidebar = output<void>();
-
   get showSearch(): boolean {
-    const url = this.currentUrl();
-    return url === '/home' || url === '/home/' || url === '/';
+    return this.currentUrl() === '/home' || this.currentUrl() === '/home/' || this.currentUrl() === '/';
   }
 
   get displayName(): string {
-    const u = this.currentUser();
-    return u?.fullName || u?.username || 'Người dùng';
+    const user = this.currentUser();
+    return user?.fullName || user?.username || 'Người học Kitsune';
   }
 
   get initials(): string {
-    const name = this.displayName;
-    const parts = name.trim().split(/\s+/);
-    if (parts.length === 1) return parts[0][0].toUpperCase();
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    const parts = this.displayName.trim().split(/\s+/).filter(Boolean);
+    if (parts.length === 0) return 'K';
+    if (parts.length === 1) return parts[0][0]?.toUpperCase() ?? 'K';
+    return `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase();
   }
 
   get avatarUrl(): string | null {
@@ -73,18 +75,47 @@ export class HeaderComponent implements OnInit {
   }
 
   onSearch(): void {
-    if (this.searchQuery().trim()) {
-      this.router.navigate(['/vocabulary'], { queryParams: { q: this.searchQuery() } });
+    const query = this.searchQuery().trim();
+    if (query) {
+      void this.router.navigate(['/vocabulary'], { queryParams: { q: query } });
     }
   }
 
   toggleUserMenu(): void {
-    this.userMenuOpen.update((v) => !v);
+    this.userMenuOpen.update((open) => !open);
+  }
+
+  closeUserMenu(): void {
+    this.userMenuOpen.set(false);
+  }
+
+  goToProfile(): void {
+    this.closeUserMenu();
+    void this.router.navigate(['/profile']);
   }
 
   logout(): void {
     this.authService.logout().subscribe({
-      complete: () => window.location.href = '/login',
+      complete: () => { window.location.href = '/login'; },
     });
+  }
+
+  private async loadDueSrsCount(): Promise<void> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError || !authData.user?.email) return;
+
+    const { data: profile, error: profileError } = await supabase
+      .from('Users')
+      .select('Id')
+      .eq('Email', authData.user.email)
+      .maybeSingle();
+    if (profileError || !profile) return;
+
+    const { count, error: countError } = await supabase
+      .from('SRSCards')
+      .select('Id', { count: 'exact', head: true })
+      .eq('UserId', (profile as { Id: number }).Id)
+      .lte('NextReviewDate', new Date().toISOString());
+    if (!countError) this.dueSrsCount.set(count ?? 0);
   }
 }

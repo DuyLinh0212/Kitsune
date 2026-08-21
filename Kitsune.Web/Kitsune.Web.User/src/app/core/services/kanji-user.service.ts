@@ -63,18 +63,42 @@ export class KanjiUserService {
     );
   }
 
-  search(query: string, limit = 40): Observable<KanjiDetailDto[]> {
-    const q = query.trim();
+  getAllRadicals(): Observable<{ id: number; character: string; name: string }[]> {
     return from(
       supabase
-        .from('Kanji')
-        .select(`
-          Id, Character, Onyomi, Kunyomi, AmHanViet, Meaning, StrokeCount, JlptLevel, Mnemonic,
-          Radical:RadicalId(Id, RadicalCharacter, RadicalName, EnglishName, Description)
-        `)
-        .or(`Character.ilike.%${q}%,AmHanViet.ilike.%${q}%,Meaning.ilike.%${q}%`)
-        .limit(limit)
+        .from('Radical')
+        .select('Id, RadicalCharacter, RadicalName')
+        .order('Id')
     ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        return (data as any[]).map((r) => ({
+          id: r.Id,
+          character: r.RadicalCharacter,
+          name: r.RadicalName,
+        }));
+      })
+    );
+  }
+
+  search(query: string, limit = 40, radicalId?: number): Observable<KanjiDetailDto[]> {
+    const q = query.trim();
+    
+    let queryBuilder = supabase
+      .from('Kanji')
+      .select(`
+        Id, Character, Onyomi, Kunyomi, AmHanViet, Meaning, StrokeCount, JlptLevel, Mnemonic,
+        Radical:RadicalId(Id, RadicalCharacter, RadicalName, EnglishName, Description)
+      `);
+
+    if (radicalId) {
+      queryBuilder = queryBuilder.eq('RadicalId', radicalId);
+    }
+    if (q) {
+      queryBuilder = queryBuilder.or(`Character.ilike.%${q}%,AmHanViet.ilike.%${q}%,Meaning.ilike.%${q}%`);
+    }
+
+    return from(queryBuilder.limit(limit)).pipe(
       map(({ data, error }) => {
         if (error) throw error;
         return (data as Record<string, unknown>[]).map((r) => this.mapRow(r));

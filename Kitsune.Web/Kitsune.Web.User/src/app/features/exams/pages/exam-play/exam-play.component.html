@@ -1,0 +1,112 @@
+<div class="play-page">
+  @if (isLoading()) {
+    <div class="loading-container">
+      <app-loading-fox message="Đang tải đề..." />
+    </div>
+  } @else if (errorMsg() && !exam()) {
+    <div class="error-box">
+      <span class="error-emoji">⚠️</span>
+      <p>{{ errorMsg() }}</p>
+      <a routerLink="/exams" class="btn-primary">Về danh sách đề</a>
+    </div>
+  } @else if (exam(); as e) {
+    <!-- ── Header ─────────────────────────────────────────────────────── -->
+    <header class="play-header">
+      <div class="play-header__info">
+        <a routerLink="/exams" class="exit-link">✕ Thoát</a>
+        <h1 class="play-title">{{ e.title }}</h1>
+      </div>
+      <div class="play-header__meta">
+        @if (remainingSeconds() !== null) {
+          <span class="timer" [class.timer--danger]="(remainingSeconds() ?? 0) <= 30">⏱ {{ formatTime(remainingSeconds()) }}</span>
+        }
+        <span class="progress-count">{{ answeredCount() }}/{{ e.questions.length }} đã trả lời</span>
+      </div>
+    </header>
+
+    <!-- ── Question navigator ─────────────────────────────────────────── -->
+    <nav class="q-nav">
+      @for (q of e.questions; track q.id; let i = $index) {
+        <button
+          type="button"
+          class="q-dot"
+          [class.q-dot--current]="i === currentIndex()"
+          [class.q-dot--done]="isQuestionAnswered(q)"
+          (click)="goTo(i)"
+        >
+          {{ i + 1 }}
+        </button>
+      }
+    </nav>
+
+    @if (errorMsg()) {
+      <div class="alert-error">{{ errorMsg() }}</div>
+    }
+
+    <!-- ── Current question ───────────────────────────────────────────── -->
+    @if (currentQuestion(); as q) {
+      <section class="q-panel">
+        <div class="q-panel__head">
+          <span class="q-index">Câu {{ currentIndex() + 1 }} / {{ e.questions.length }}</span>
+          <span class="q-type-badge">{{ typeLabels[q.questionType] }}</span>
+        </div>
+
+        @if (q.passageText) {
+          <div class="q-passage">{{ q.passageText }}</div>
+        }
+
+        @if (q.questionText) {
+          <p class="q-text">{{ q.questionText }}</p>
+        }
+
+        @if (q.questionType === 'SENTENCE_ORDER') {
+          <!-- Sắp xếp câu -->
+          <p class="order-hint">Nhấn vào các thành phần theo thứ tự đúng:</p>
+          <div class="order-tokens">
+            @for (opt of q.options; track $index) {
+              <button
+                type="button"
+                class="order-token"
+                [class.order-token--picked]="orderTokenPosition(q.id, opt) > 0"
+                (click)="toggleOrderToken(q.id, opt)"
+              >
+                @if (orderTokenPosition(q.id, opt) > 0) {
+                  <span class="order-pos">{{ orderTokenPosition(q.id, opt) }}</span>
+                }
+                {{ opt }}
+              </button>
+            }
+          </div>
+          <button type="button" class="btn-clear-order" (click)="clearOrder(q.id)">Xóa lựa chọn</button>
+        } @else {
+          <!-- Trắc nghiệm -->
+          <div class="options">
+            @for (opt of q.options; track $index) {
+              <button
+                type="button"
+                class="option"
+                [class.option--selected]="isSelected(q.id, opt)"
+                (click)="selectOption(q.id, opt)"
+              >
+                <span class="option__marker">{{ ['A', 'B', 'C', 'D', 'E', 'F'][$index] }}</span>
+                <span class="option__text">{{ opt }}</span>
+              </button>
+            }
+          </div>
+        }
+      </section>
+
+      <!-- ── Footer nav ───────────────────────────────────────────────── -->
+      <footer class="q-footer">
+        <button type="button" class="btn-ghost" (click)="prev()" [disabled]="currentIndex() === 0">← Câu trước</button>
+        @if (currentIndex() < e.questions.length - 1) {
+          <button type="button" class="btn-primary" (click)="next()">Câu tiếp →</button>
+        } @else {
+          <button type="button" class="btn-submit" (click)="submit()" [disabled]="submitting()">
+            {{ submitting() ? 'Đang nộp...' : 'Nộp bài' }}
+          </button>
+        }
+      </footer>
+    }
+  }
+</div>

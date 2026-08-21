@@ -5,6 +5,7 @@ import 'package:kitsune_app/core/models/quiz.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/quiz_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
@@ -140,8 +141,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
-            KitsunePassportHeader(
-              eyebrow: 'Quiz builder',
+            KitsuneHeroCard(
               title: 'Dựng một bộ quiz vừa sức và đúng mục tiêu học.',
               subtitle:
                   'Chọn nội dung, chọn chế độ hỏi và đóng gói thành một quiz có thể chơi lại nhiều lần.',
@@ -156,9 +156,8 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                 child: Center(
                   child: Text(
                     '${_selectedVocabIds.length + _selectedKanjiIds.length}',
-                    style: const TextStyle(
+                    style: AppTheme.numeralStyle(
                       fontSize: 28,
-                      fontWeight: FontWeight.w800,
                       color: KitsuneColors.primary,
                     ),
                   ),
@@ -191,8 +190,8 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                         children: [
                           Text(
                             '${index + 1}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
+                            style: AppTheme.numeralStyle(
+                              fontSize: 16,
                               color: isDone || isActive
                                   ? KitsuneColors.primary
                                   : KitsuneColors.onSurfaceVariant,
@@ -326,7 +325,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
               ),
               const SizedBox(height: 16),
               if (_isSearching)
-                const Center(child: CircularProgressIndicator())
+                const KitsuneLoadingFox(message: 'Đang tìm từ vựng...', size: 72)
               else if (_searchResults.isEmpty)
                 Text(
                   'Chưa có kết quả. Hãy gõ một từ khóa để bắt đầu thêm nội dung vào quiz.',

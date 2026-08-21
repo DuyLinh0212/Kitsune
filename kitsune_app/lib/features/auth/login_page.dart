@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
@@ -77,8 +78,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      KitsunePassportHeader(
-                        eyebrow: 'Welcome back',
+                      KitsuneHeroCard(
                         title: 'Đăng nhập để tiếp tục hành trình học.',
                         subtitle:
                             'Kitsune giữ sẵn từ vựng, kanji, quiz và lịch ôn tập của bạn ở cùng một nơi.',
@@ -101,11 +101,6 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
-                            Text(
-                              'Passport check',
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            const SizedBox(height: AppTheme.space16),
                             TextFormField(
                               controller: _loginController,
                               decoration: const InputDecoration(
@@ -167,10 +162,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.2,
-                                        color: Colors.white,
-                                      ),
+                                      child: KitsuneLoadingFox(size: 28),
                                     )
                                   : const Text('Đăng nhập'),
                             ),

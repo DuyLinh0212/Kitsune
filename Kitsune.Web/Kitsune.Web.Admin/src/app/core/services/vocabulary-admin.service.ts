@@ -65,20 +65,66 @@ export class VocabularyAdminService {
   }
 
   create(dto: CreateVocabularyDto): Observable<VocabularyDto> {
-    return from(supabase.from('Vocabularies').insert({ FolderId: dto.folderId, LanguageId: dto.languageId, Word: dto.word, Pronunciation: dto.pronunciation ?? null, Meaning: dto.meaning, SpecificData: dto.specificData ?? null }).select(VOCAB_SELECT).single()).pipe(
-      map(({ data, error }) => { if (error) throw error; return this.mapVocabularyRow(data); })
-    );
+    return from((async () => {
+      const { data: vocab, error: insertError } = await supabase.from('Vocabularies').insert({
+        FolderId: dto.folderId, LanguageId: dto.languageId, Word: dto.word,
+        Pronunciation: dto.pronunciation ?? null, Meaning: dto.meaning, SpecificData: dto.specificData ?? null
+      }).select(VOCAB_SELECT).single();
+      
+      if (insertError) throw insertError;
+      
+      await this.syncKanjiComponents(vocab['Id'] as number, dto.word);
+      
+      const { data: finalVocab, error: fetchError } = await supabase.from('Vocabularies').select(VOCAB_SELECT).eq('Id', vocab['Id']).single();
+      if (fetchError) throw fetchError;
+      
+      return this.mapVocabularyRow(finalVocab);
+    })());
   }
 
   update(id: number, dto: UpdateVocabularyDto): Observable<VocabularyDto> {
-    const patch: Record<string, unknown> = {};
-    if (dto.word !== undefined) patch['Word'] = dto.word;
-    if (dto.pronunciation !== undefined) patch['Pronunciation'] = dto.pronunciation;
-    if (dto.meaning !== undefined) patch['Meaning'] = dto.meaning;
-    if (dto.specificData !== undefined) patch['SpecificData'] = dto.specificData;
-    return from(supabase.from('Vocabularies').update(patch).eq('Id', id).select(VOCAB_SELECT).single()).pipe(
-      map(({ data, error }) => { if (error) throw error; return this.mapVocabularyRow(data); })
-    );
+    return from((async () => {
+      const patch: Record<string, unknown> = {};
+      if (dto.word !== undefined) patch['Word'] = dto.word;
+      if (dto.pronunciation !== undefined) patch['Pronunciation'] = dto.pronunciation;
+      if (dto.meaning !== undefined) patch['Meaning'] = dto.meaning;
+      if (dto.specificData !== undefined) patch['SpecificData'] = dto.specificData;
+      
+      const { data: vocab, error: updateError } = await supabase.from('Vocabularies').update(patch).eq('Id', id).select(VOCAB_SELECT).single();
+      if (updateError) throw updateError;
+      
+      if (dto.word !== undefined) {
+        await this.syncKanjiComponents(id, dto.word);
+        const { data: finalVocab, error: fetchError } = await supabase.from('Vocabularies').select(VOCAB_SELECT).eq('Id', id).single();
+        if (fetchError) throw fetchError;
+        return this.mapVocabularyRow(finalVocab);
+      }
+      
+      return this.mapVocabularyRow(vocab);
+    })());
+  }
+
+  private async syncKanjiComponents(vocabId: number, word: string) {
+    const kanjiChars = Array.from(word).filter(c => /[\u4e00-\u9faf]/.test(c));
+    
+    // Clear old components
+    await supabase.from('KanjiComponents').delete().eq('VocabularyId', vocabId);
+    
+    if (kanjiChars.length > 0) {
+      const { data: kanjis } = await supabase.from('Kanji').select('Id, Character').in('Character', kanjiChars);
+      const components = kanjiChars.map((char, index) => {
+        const kanji = kanjis?.find((k: any) => k.Character === char);
+        return kanji ? { VocabularyId: vocabId, KanjiId: kanji.Id, Order: index } : null;
+      }).filter(c => c !== null);
+      
+      if (components.length > 0) {
+        const { error } = await supabase.from('KanjiComponents').insert(components);
+        if (error) {
+          console.error('Error inserting KanjiComponents:', error);
+          throw error;
+        }
+      }
+    }
   }
 
   delete(id: number): Observable<void> {

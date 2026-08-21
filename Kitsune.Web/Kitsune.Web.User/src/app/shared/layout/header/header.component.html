@@ -1,76 +1,53 @@
-<!-- frontend/Kitsune.Web.User/src/app/shared/layout/header/header.component.html -->
-<!-- TOP BAR -->
 <header class="top-bar">
-  <button class="menu-toggle" (click)="toggleSidebar.emit()">☰</button>
+  <button class="sidebar-toggle" type="button" (click)="toggleSidebar.emit()" [attr.aria-label]="sidebarCollapsed() ? 'Mở thanh điều hướng' : 'Thu gọn thanh điều hướng'">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+  </button>
 
-  <a class="header-logo" (click)="router.navigate(['/home'])">
-    <img class="header-logo-img" src="/Logo.png" alt="Kitsune" />
-  </a>
+  @if (sidebarCollapsed()) {
+    <a class="topbar-brand" (click)="router.navigate(['/home'])" aria-label="Về trang Tổng quan Kitsune">
+      <span class="topbar-brand-mark"><img src="/Logo.png" alt="" /></span>
+      <span>KITSUNE</span>
+    </a>
+  }
+
+  <div class="topbar-context">
+    <span class="context-eyebrow">Kitsune</span>
+    <strong>{{ pageTitle }}</strong>
+  </div>
 
   @if (showSearch) {
-  <div class="search-box">
-    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-      stroke-width="2">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-    <input type="text" placeholder="Tìm kiếm từ vựng & kanji..." [ngModel]="searchQuery()"
-      (ngModelChange)="searchQuery.set($event)" (keyup.enter)="onSearch()" />
-    <span class="search-shortcut">Ctrl K</span>
-  </div>
+    <label class="search-box">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.25 4.25"/></svg>
+      <input type="search" placeholder="Tra từ vựng hoặc kanji..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" (keyup.enter)="onSearch()" />
+      <kbd>⌘ K</kbd>
+    </label>
   }
 
   <div class="top-actions">
-    <!-- Notification bell -->
+    @if (dueSrsCount() > 0) {
+      <button class="review-chip" type="button" (click)="router.navigate(['/srs'])"><span>🔥</span>{{ dueSrsCount() }} thẻ chờ</button>
+    }
     <app-notification-bell />
 
-    <!-- User menu -->
     <div class="user-menu" [class.user-menu--open]="userMenuOpen()">
-      <button class="user-menu-trigger" (click)="toggleUserMenu()">
-        @if (avatarUrl) {
-        <img class="user-avatar-img" [src]="avatarUrl" [alt]="displayName" />
-        } @else {
-        <div class="user-avatar">{{ initials }}</div>
-        }
-        <svg class="chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="2">
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
+      <button class="user-menu-trigger" type="button" (click)="toggleUserMenu()" aria-haspopup="menu" [attr.aria-expanded]="userMenuOpen()">
+        @if (avatarUrl) { <img class="user-avatar-img" [src]="avatarUrl" [alt]="'Ảnh đại diện của ' + displayName" /> }
+        @else { <span class="user-avatar">{{ initials }}</span> }
+        <span class="user-identity"><strong>{{ displayName }}</strong><small>{{ currentUser()?.email || 'Đang đồng bộ tài khoản' }}</small></span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 10 5 5 5-5"/></svg>
       </button>
 
-      <div class="user-dropdown">
+      <div class="user-dropdown" role="menu">
         <div class="user-dropdown-header">
-          <span class="dropdown-avatar">{{ initials }}</span>
-          <div class="dropdown-user-info">
-            <span class="dropdown-name">{{ displayName }}</span>
-            <span class="dropdown-email">{{ currentUser()?.email }}</span>
-          </div>
+          @if (avatarUrl) { <img class="dropdown-avatar-img" [src]="avatarUrl" [alt]="displayName" /> }
+          @else { <span class="dropdown-avatar">{{ initials }}</span> }
+          <div><strong>{{ displayName }}</strong><span>{{ currentUser()?.email }}</span></div>
         </div>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item" (click)="router.navigate(['/profile']); userMenuOpen.set(false);">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          Thông tin cá nhân
-        </a>
-        <a class="dropdown-item" (click)="router.navigate(['/profile']); userMenuOpen.set(false);">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="3" />
-            <path
-              d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-          </svg>
-          Cài đặt
-        </a>
+        <button type="button" class="dropdown-item" (click)="goToProfile()"><span>◎</span>Thông tin & ảnh đại diện</button>
+        <button type="button" class="dropdown-item" (click)="goToProfile()"><span>⚙</span>Cài đặt tài khoản</button>
         <div class="dropdown-divider"></div>
-        <a class="dropdown-item dropdown-item--danger" (click)="logout()">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          Đăng xuất
-        </a>
+        <button type="button" class="dropdown-item dropdown-item--danger" (click)="logout()"><span>↪</span>Đăng xuất</button>
       </div>
     </div>
   </div>

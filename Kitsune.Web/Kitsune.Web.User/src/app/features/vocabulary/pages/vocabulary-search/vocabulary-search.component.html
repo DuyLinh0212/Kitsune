@@ -101,7 +101,19 @@
       <div class="detail-header">
         <div class="detail-header__top">
           <div>
-            <div class="detail-word">{{ v.word }}</div>
+            <div class="detail-word-row">
+              <div class="detail-word">{{ v.word }}</div>
+              @if (ttsService.isSupported) {
+                <button
+                  type="button"
+                  class="btn-speak"
+                  [class.btn-speak--active]="ttsService.isSpeaking(v.word)"
+                  (click)="speakWord(v)"
+                  aria-label="Phát âm"
+                  title="Phát âm"
+                >🔊</button>
+              }
+            </div>
             @if (v.pronunciation) {
             <div class="detail-reading">{{ v.pronunciation }}</div>
             }
@@ -110,6 +122,19 @@
             @if (v.languageCode) {
             <span class="badge badge--lang">{{ v.languageName || v.languageCode }}</span>
             }
+            <button
+              type="button"
+              class="detail-quick-folder"
+              (click)="openFolderModal()"
+              title="Thêm nhanh vào thư mục"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                <line x1="12" y1="10" x2="12" y2="16" />
+                <line x1="9" y1="13" x2="15" y2="13" />
+              </svg>
+              Thêm nhanh
+            </button>
           </div>
         </div>
       </div>
@@ -166,7 +191,7 @@
           <button class="action-btn action-btn--bookmark" [class.action-btn--bookmarked]="isBookmarked()"
             [disabled]="isTogglingBookmark()" (click)="toggleBookmark()">
             @if (isTogglingBookmark()) {
-            <span class="btn-spinner"></span>
+            <app-loading-fox [size]="24" />
             } @else {
             <svg width="14" height="14" viewBox="0 0 24 24" [attr.fill]="isBookmarked() ? 'currentColor' : 'none'"
               stroke="currentColor" stroke-width="2">
@@ -217,10 +242,7 @@
     </button>
 
     @if (isLoadingKanji()) {
-    <div class="kanji-modal__loading">
-      <div class="loading-ring"></div>
-      <p>Đang tải thông tin Kanji...</p>
-    </div>
+    <app-loading-fox message="Đang tải thông tin Kanji..." [size]="80" />
     }
 
     @if (!isLoadingKanji() && selectedKanji(); as k) {
@@ -299,6 +321,17 @@
       <p class="kanji-mnemonic__text">{{ k.mnemonic }}</p>
     </div>
     }
+
+    <div class="kanji-modal__actions">
+      <button type="button" class="kanji-add-folder-btn" (click)="openKanjiFolderModal()">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+          <line x1="12" y1="10" x2="12" y2="16" />
+          <line x1="9" y1="13" x2="15" y2="13" />
+        </svg>
+        Thêm Kanji vào thư mục
+      </button>
+    </div>
     }
   </div>
 </div>
@@ -311,7 +344,7 @@
 <div class="modal-overlay" (click)="closeFolderModal()">
   <div class="folder-modal" (click)="$event.stopPropagation()">
     <div class="folder-modal__header">
-      <h3>Thêm vào thư mục</h3>
+      <h3>{{ folderModalTitle() }}</h3>
       <button class="modal-close" (click)="closeFolderModal()">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <line x1="18" y1="6" x2="6" y2="18" />
@@ -320,12 +353,12 @@
       </button>
     </div>
 
-    @if (selectedVocab()) {
-    <p class="folder-modal__word">{{ selectedVocab()!.word }}</p>
+    @if (folderModalItemName()) {
+    <p class="folder-modal__word">{{ folderModalItemName() }}</p>
     }
 
     @if (isLoadingFolders()) {
-    <div class="folder-modal__loading">Đang tải thư mục...</div>
+    <div class="folder-modal__loading"><app-loading-fox message="Đang tải thư mục..." [size]="56" /></div>
     } @else if (folders().length === 0) {
     <div class="folder-modal__empty">Bạn chưa có thư mục nào</div>
     } @else {
@@ -337,7 +370,7 @@
         </svg>
         <span>{{ folder.name }}</span>
         @if (isAddingToFolder()) {
-        <span class="btn-spinner btn-spinner--sm"></span>
+        <app-loading-fox [size]="24" />
         }
       </button>
       }

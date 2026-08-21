@@ -4,6 +4,7 @@ import 'package:kitsune_app/core/models/user.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class RegisterPage extends ConsumerStatefulWidget {
@@ -21,6 +22,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _fullNameController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  bool _agreeTerms = false;
 
   @override
   void dispose() {
@@ -33,6 +35,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   Future<void> _handleRegister() async {
     if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    if (!_agreeTerms) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng đồng ý với Điều khoản dịch vụ'),
+          backgroundColor: KitsuneColors.error,
+        ),
+      );
       return;
     }
 
@@ -90,9 +102,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const KitsunePassportHeader(
-                        eyebrow: 'Create account',
-                        title: 'Bắt đầu một study passport mới.',
+                      const KitsuneHeroCard(
+                        title: 'Bắt đầu hành trình học tiếng Nhật của bạn.',
                         subtitle:
                             'Tạo tài khoản để đồng bộ tiến độ, thư mục riêng và các quiz bạn tự xây dựng.',
                         accent: KitsuneColors.secondary,
@@ -185,6 +196,40 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                               textInputAction: TextInputAction.done,
                               onFieldSubmitted: (_) => _handleRegister(),
                             ),
+                            const SizedBox(height: AppTheme.space16),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Checkbox(
+                                  value: _agreeTerms,
+                                  onChanged: (val) {
+                                    if (val != null) {
+                                      setState(() => _agreeTerms = val);
+                                    }
+                                  },
+                                ),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: _showTermsDialog,
+                                    child: RichText(
+                                      text: TextSpan(
+                                        style: Theme.of(context).textTheme.bodyMedium,
+                                        children: [
+                                          const TextSpan(text: 'Tôi đồng ý với '),
+                                          TextSpan(
+                                            text: 'Điều khoản dịch vụ',
+                                            style: const TextStyle(
+                                              color: KitsuneColors.primary,
+                                              decoration: TextDecoration.underline,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                             const SizedBox(height: AppTheme.space20),
                             ElevatedButton(
                               onPressed: _isLoading ? null : _handleRegister,
@@ -192,10 +237,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                                   ? const SizedBox(
                                       width: 20,
                                       height: 20,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2.2,
-                                        color: Colors.white,
-                                      ),
+                                      child: KitsuneLoadingFox(size: 28),
                                     )
                                   : const Text('Tạo tài khoản'),
                             ),
@@ -236,4 +278,45 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       ),
     );
   }
+
+  void _showTermsDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Điều khoản dịch vụ'),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text('1. Chấp nhận điều khoản', style: TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 4),
+                Text('Bằng việc đăng ký tài khoản và sử dụng Kitsune, bạn đồng ý tuân thủ các điều khoản này.'),
+                SizedBox(height: 12),
+                Text('2. Quyền riêng tư & Dữ liệu', style: TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 4),
+                Text('Chúng tôi lưu trữ thông tin cơ bản (email, tên) và tiến trình học tập của bạn để đồng bộ trên các thiết bị. Dữ liệu của bạn được bảo mật và không chia sẻ cho bên thứ ba vì mục đích quảng cáo.'),
+                SizedBox(height: 12),
+                Text('3. Sử dụng hợp lý', style: TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 4),
+                Text('Bạn không được sử dụng các công cụ tự động (bot) để tạo tải giả hoặc phá hoại dịch vụ. Mọi hành vi vi phạm có thể dẫn đến việc khóa tài khoản vĩnh viễn mà không cần báo trước.'),
+                SizedBox(height: 12),
+                Text('4. Quyền sở hữu nội dung', style: TextStyle(fontWeight: FontWeight.bold)),
+                SizedBox(height: 4),
+                Text('Dữ liệu từ vựng và ngữ pháp do cộng đồng đóng góp thuộc quyền sở hữu chung. Mã nguồn và thiết kế của Kitsune thuộc quyền sở hữu của tác giả Nguyễn Duy Linh.'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Đóng'),
+            ),
+          ],
+        );
+      },
+    );
+  }
 }
+

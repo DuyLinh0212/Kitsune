@@ -1,27 +1,37 @@
 import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
-import { FolderDto, FolderService } from '../../../../core/services/folder.service';
+import { TopicService } from '../../../../core/services/topic.service';
 import {
   FolderSrsOverview,
   FolderSrsSession,
   SRSCardDto,
+  SrsCardProgressUpdate,
   SrsMode,
   SrsService,
 } from '../../../../core/services/srs.service';
+import { TtsService } from '../../../../core/services/tts.service';
+import { KanjiDrawingReviewComponent } from '../../components/kanji-drawing-review/kanji-drawing-review.component';
+import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
-interface DashboardFolder extends FolderDto, FolderSrsOverview {}
+interface DashboardFolder extends FolderSrsOverview {
+  id: number;
+  name: string;
+  description: string | null;
+  vocabCount: number;
+}
 
 interface QuizQuestion {
   mode: SrsMode;
-  kind: 'mc' | 'fill';
+  kind: 'mc' | 'fill' | 'drawing';
   prompt: string;
   promptLabel: string;
   helper: string;
   options: string[];
   correctAnswer: string;
+  answerDetail?: string;
 }
 
 interface SessionStats {
@@ -31,11 +41,13 @@ interface SessionStats {
   mistakes: number;
 }
 
-type StudyPhase = 'idle' | 'flashcard' | 'quiz' | 'summary';
+type StudyPhase = 'idle' | 'setup_quantity' | 'prompt_review' | 'flashcard' | 'quiz' | 'summary';
 
 interface LevelBucket {
   level: number;
   count: number;
+  kanjiCount: number;
+  vocabularyCount: number;
   label: string;
   color: string;
 }
@@ -43,13 +55,15 @@ interface LevelBucket {
 @Component({
   selector: 'app-srs-review',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, LoadingFoxComponent, KanjiDrawingReviewComponent],
   templateUrl: './srs-review.component.html',
   styleUrl: './srs-review.component.css',
 })
 export class SrsReviewComponent implements OnInit, OnDestroy {
-  private readonly folderService = inject(FolderService);
+  private readonly topicService = inject(TopicService);
+  private readonly route = inject(ActivatedRoute);
   private readonly srsService = inject(SrsService);
+  readonly ttsService = inject(TtsService);
 
   // ─── Core state ────────────────────────────────────────────────────────────
   readonly isLoading = signal(true);
@@ -59,11 +73,18 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   readonly activeSession = signal<FolderSrsSession | null>(null);
   readonly phase = signal<StudyPhase>('idle');
 
+  // ─── Limit state ────────────────────────────────────────────────────────────
+  readonly selectedLimit = signal<number | null>(null);
+  readonly dailyGoal = signal<number | null>(null);
+  readonly dueQueue = signal<SRSCardDto[]>([]);
+  readonly newQueue = signal<SRSCardDto[]>([]);
+
   // ─── Flashcard state ────────────────────────────────────────────────────────
   readonly flashQueue = signal<SRSCardDto[]>([]);
   readonly isCardFlipped = signal(false);
   readonly showStudyOverlay = signal(false);
   readonly showFolderDropdown = signal(false);
+  readonly showLevelDetails = signal(false);
 
   // ─── Quiz state ─────────────────────────────────────────────────────────────
   readonly quizQueue = signal<SRSCardDto[]>([]);
@@ -95,9 +116,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.phase() === 'flashcard' ? this.currentFlashcard() : this.currentQuizCard()
   );
   readonly totalStudyUnits = computed(() => {
-    const session = this.activeSession();
-    if (!session) return 0;
-    return session.flashcards.length + session.quizCards.length;
+    return this.dueQueue().length + this.newQueue().length;
   });
   readonly completedUnits = computed(
     () => this.stats().flashCompleted + this.stats().quizCompleted
@@ -118,6 +137,12 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     if (answers === 0) return 100;
     return Math.round(((answers - this.stats().mistakes) / answers) * 100);
   });
+  readonly todayNewLearned = computed(() =>
+    (this.activeSession()?.overview.todayNewLearned ?? 0) + this.stats().flashCompleted
+  );
+  readonly remainingDailyGoal = computed(() =>
+    Math.max(0, (this.dailyGoal() ?? 0) - this.todayNewLearned())
+  );
 
   /** Bar chart: count cards by boxLevel 0–7 (all 8 levels) */
   readonly levelDistribution = computed<LevelBucket[]>(() => {
@@ -135,10 +160,15 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       { level: 6, label: 'Cấp 6', color: '#8b5cf6' },
       { level: 7, label: 'Master', color: '#ec4899' },
     ];
-    return config.map((c) => ({
-      ...c,
-      count: cards.filter((card) => card.boxLevel === c.level).length,
-    }));
+    return config.map((c) => {
+      const cardsAtLevel = cards.filter((card) => card.boxLevel === c.level);
+      return {
+        ...c,
+        count: cardsAtLevel.length,
+        kanjiCount: cardsAtLevel.filter((card) => card.type === 'kanji').length,
+        vocabularyCount: cardsAtLevel.filter((card) => card.type === 'vocabulary').length,
+      };
+    });
   });
 
   readonly maxLevelCount = computed(() => {
@@ -173,45 +203,69 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   // ─── Dashboard ──────────────────────────────────────────────────────────────
 
   async loadDashboard(): Promise<void> {
-    this.isLoading.set(true);
+    const cachedSession = await this.srsService.getCachedLessonSession();
+    if (cachedSession) {
+      this.dashboardFolders.set([
+        {
+          id: cachedSession.folderId,
+          name: cachedSession.folderName,
+          description: null,
+          vocabCount: cachedSession.overview.totalCards,
+          ...cachedSession.overview,
+        },
+      ]);
+      this.activeFolderId.set(cachedSession.folderId);
+      this.activeSession.set(cachedSession);
+      this.resetSession(cachedSession);
+      this.isLoading.set(false);
+    } else {
+      this.isLoading.set(true);
+    }
+
     try {
-      const folders = await firstValueFrom(this.folderService.getFolders());
-      const dashboards = await Promise.all(
-        folders.map(async (folder) => {
-          try {
-            const overview = await firstValueFrom(this.srsService.getFolderOverview(folder.id));
-            return {
-              ...folder,
-              ...overview,
-            } satisfies DashboardFolder;
-          } catch {
-            return {
-              ...folder,
-              folderId: folder.id,
-              folderName: folder.name,
-              totalCards: 0,
-              newCards: 0,
-              dueCards: 0,
-              learnedCards: 0,
-              masteredCards: 0,
-              nextDueAt: null,
-              canSwitchFolder: true,
-            } satisfies DashboardFolder;
-          }
-        })
+      const folders = await firstValueFrom(this.topicService.getLessons());
+      const requestedLessonId = Number(this.route.snapshot.queryParamMap.get('lessonId'));
+      const preferredFolderId = (Number.isFinite(requestedLessonId) && requestedLessonId > 0 ? requestedLessonId : null)
+        ?? this.srsService.getActiveLessonId()
+        ?? folders[0]?.id
+        ?? null;
+      const overviewsPromise = firstValueFrom(
+        this.srsService.getLessonOverviews(folders.map((folder) => ({ id: folder.id, title: folder.title })))
       );
+      const sessionPromise = preferredFolderId
+        ? firstValueFrom(this.srsService.getLessonSession(preferredFolderId))
+        : Promise.resolve(null);
+      const [overviews, session] = await Promise.all([overviewsPromise, sessionPromise]);
+      const overviewByLesson = new Map(overviews.map((overview) => [overview.folderId, overview]));
+      const dashboards = folders.map((folder) => ({
+        id: folder.id,
+        name: folder.title,
+        description: folder.description,
+        vocabCount: folder.itemCount,
+        ...(overviewByLesson.get(folder.id) ?? {
+          folderId: folder.id,
+          folderName: folder.title,
+          totalCards: 0,
+          newCards: 0,
+          dueCards: 0,
+          learnedCards: 0,
+          masteredCards: 0,
+          todayNewLearned: 0,
+          nextDueAt: null,
+        }),
+      } satisfies DashboardFolder));
 
       this.dashboardFolders.set(dashboards);
-
-      const preferredFolderId = this.srsService.getActiveFolderId() ?? dashboards[0]?.folderId ?? null;
-      if (preferredFolderId) {
-        await this.openFolder(preferredFolderId, false);
+      if (session && preferredFolderId) {
+        this.activeFolderId.set(preferredFolderId);
+        this.activeSession.set(session);
+        this.resetSession(session);
       } else {
         this.phase.set('idle');
       }
     } catch (error) {
       console.error(error);
-      this.showToast('error', 'Không thể tải danh sách folder cho SRS.');
+      this.showToast('error', 'Không thể tải danh sách bài học cho SRS. Hãy áp dụng migration v3.0.0.');
     } finally {
       this.isLoading.set(false);
     }
@@ -223,8 +277,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.isSwitchingFolder.set(folderId);
     try {
       const session = userInitiated
-        ? await firstValueFrom(this.srsService.activateFolder(folderId))
-        : await firstValueFrom(this.srsService.getFolderSession(folderId));
+        ? await firstValueFrom(this.srsService.activateLesson(folderId))
+        : await firstValueFrom(this.srsService.getLessonSession(folderId));
 
       if (!session) {
         this.activeFolderId.set(folderId);
@@ -241,26 +295,34 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       const message =
         error instanceof Error && error.message
           ? error.message
-          : 'Không thể mở folder này cho SRS.';
+          : 'Không thể mở bài học này cho SRS.';
       this.showToast('error', message);
     } finally {
       this.isSwitchingFolder.set(null);
     }
   }
 
-  startStudy(): void {
+  async startStudy(): Promise<void> {
     const session = this.activeSession();
-    if (!session) return;
+    if (!session || this.isSubmitting()) return;
+    if (session.flashcards.length === 0 && session.quizCards.length === 0) {
+      this.showToast('success', this.nextReviewWaitMessage(session.overview.nextDueAt));
+      return;
+    }
+    this.resetSession(session);
     this.showStudyOverlay.set(true);
   }
 
   closeStudy(): void {
     this.showStudyOverlay.set(false);
-    void this.refreshDashboardFolders();
   }
 
   toggleFolderDropdown(): void {
     this.showFolderDropdown.update((v) => !v);
+  }
+
+  toggleLevelDetails(): void {
+    this.showLevelDetails.update((visible) => !visible);
   }
 
   async selectFolder(folderId: number): Promise<void> {
@@ -275,13 +337,19 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.isCardFlipped.update((value) => !value);
   }
 
+  speakWord(card: SRSCardDto, event: Event): void {
+    event.stopPropagation();
+    this.ttsService.speak(card.word);
+  }
+
   async markFlashcardLearned(): Promise<void> {
     const card = this.currentFlashcard();
     if (!card || this.isSubmitting()) return;
 
     this.isSubmitting.set(true);
     try {
-      await firstValueFrom(this.srsService.completeFlashcard(card.id));
+      const progress = await firstValueFrom(this.srsService.completeFlashcard(card.id));
+      this.applyLocalProgress(progress);
       this.flashQueue.update((queue) => queue.slice(1));
       this.stats.update((stats) => ({
         ...stats,
@@ -327,15 +395,31 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     if (!answer) return;
 
     const isCorrect = this.normalize(answer) === this.normalize(question.correctAnswer);
+    await this.recordQuizResult(isCorrect, question);
+  }
+
+  async submitDrawingAnswer(isCorrect: boolean): Promise<void> {
+    const question = this.currentQuestion();
+    if (!question || question.kind !== 'drawing') return;
+    await this.recordQuizResult(isCorrect, question);
+  }
+
+  private async recordQuizResult(isCorrect: boolean, question: QuizQuestion): Promise<void> {
+    const card = this.currentQuizCard();
+    if (!card || this.isSubmitting()) return;
     this.isSubmitting.set(true);
 
     try {
-      await firstValueFrom(this.srsService.submitQuizAnswer(card.id, isCorrect));
+      const progress = await firstValueFrom(this.srsService.submitQuizAnswer(card.id, isCorrect));
+      this.applyLocalProgress(progress);
       this.answerFeedback.set({
         correct: isCorrect,
-        message: isCorrect
+        message: (isCorrect
           ? '✓ Chính xác! Thẻ này đã được lên lịch cho lần ôn tiếp theo.'
-          : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}". Thẻ sẽ quay lại cuối hàng.`,
+          : question.kind === 'drawing'
+            ? '✗ Nét viết chưa khớp. Thẻ sẽ quay lại cuối hàng để bạn luyện lại.'
+            : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}". Thẻ sẽ quay lại cuối hàng.`)
+          + (question.answerDetail ? `\n${question.answerDetail}` : ''),
       });
       this.stats.update((stats) => ({
         flashCompleted: stats.flashCompleted,
@@ -382,13 +466,6 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     return `${done + 1}/${Math.max(total, 1)}`;
   }
 
-  isFolderLocked(folder: DashboardFolder): boolean {
-    const active = this.activeFolder();
-    if (!active) return false;
-    if (active.folderId === folder.folderId) return false;
-    return !active.canSwitchFolder;
-  }
-
   getModeLabel(mode: SrsMode): string {
     const labels: Record<SrsMode, string> = {
       MEAN_FROM_WORD: 'Nghĩa của từ',
@@ -397,18 +474,20 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       ON_KUN_READ: 'Cách đọc',
       HAN_VIET: 'Âm Hán Việt',
       COMPOSE_KANJI: 'Nhận dạng Kanji',
+      DRAW_KANJI: 'Viết Kanji',
     };
     return labels[mode] ?? mode;
   }
 
   getModeColor(mode: SrsMode): string {
     const colors: Record<SrsMode, string> = {
-      MEAN_FROM_WORD: '#3b82f6',
-      WORD_FROM_MEAN: '#8b5cf6',
-      FILL_BLANK: '#f59e0b',
-      ON_KUN_READ: '#ef4444',
-      HAN_VIET: '#ec4899',
-      COMPOSE_KANJI: '#10b981',
+      MEAN_FROM_WORD: '#3B6FA0',
+      WORD_FROM_MEAN: '#E2672B',
+      FILL_BLANK: '#D9A441',
+      ON_KUN_READ: '#B23A2E',
+      HAN_VIET: '#5F7A52',
+      COMPOSE_KANJI: '#4F8B5C',
+      DRAW_KANJI: '#8D4024',
     };
     return colors[mode] ?? '#6b7280';
   }
@@ -422,8 +501,12 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   // ─── Private ─────────────────────────────────────────────────────────────────
 
   private resetSession(session: FolderSrsSession): void {
-    this.flashQueue.set([...session.flashcards]);
-    this.quizQueue.set([...session.quizCards]);
+    this.flashQueue.set([]);
+    this.quizQueue.set([]);
+    this.dueQueue.set([]);
+    this.newQueue.set([]);
+    this.selectedLimit.set(null);
+    this.dailyGoal.set(this.srsService.getDailyGoal());
     this.stats.set({
       flashCompleted: 0,
       quizCompleted: 0,
@@ -433,34 +516,108 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.isCardFlipped.set(false);
     this.clearAnswerState();
 
-    if (session.flashcards.length > 0) {
-      this.phase.set('flashcard');
+    if (session.flashcards.length === 0 && session.quizCards.length === 0) {
+      this.phase.set('summary');
       return;
     }
 
-    if (session.quizCards.length > 0) {
+    if (session.flashcards.length === 0) {
+      this.selectedLimit.set(session.quizCards.length);
+      this.dueQueue.set([...session.quizCards]);
+      this.phase.set('prompt_review');
+      return;
+    }
+
+    this.phase.set('setup_quantity');
+  }
+  
+  chooseDailyGoal(limit: number): void {
+    const session = this.activeSession();
+    if (!session) return;
+    const resolved = limit === -1 ? session.flashcards.length : limit;
+    this.srsService.setDailyGoal(Math.max(1, resolved));
+    this.dailyGoal.set(Math.max(1, resolved));
+    this.prepareQueues(resolved);
+  }
+
+  continueDailyGoal(): void {
+    this.prepareQueues(this.remainingDailyGoal());
+  }
+
+  learnMore(limit: number): void {
+    const session = this.activeSession();
+    if (!session) return;
+    const resolved = limit === -1 ? session.flashcards.length : limit;
+    const nextGoal = this.todayNewLearned() + Math.max(1, resolved);
+    this.srsService.setDailyGoal(nextGoal);
+    this.dailyGoal.set(nextGoal);
+    this.prepareQueues(resolved);
+  }
+
+  reviewOnly(): void {
+    const session = this.activeSession();
+    if (!session) return;
+    if (session.quizCards.length === 0) {
+      this.closeStudy();
+      this.showToast('success', this.nextReviewWaitMessage(session.overview.nextDueAt));
+      return;
+    }
+    this.selectedLimit.set(session.quizCards.length);
+    this.dueQueue.set([...session.quizCards]);
+    this.newQueue.set([]);
+    this.startStudyingQueues();
+  }
+
+  private prepareQueues(newCardLimit: number): void {
+    const session = this.activeSession();
+    if (!session) return;
+
+    const newCount = Math.min(Math.max(0, newCardLimit), session.flashcards.length);
+    this.selectedLimit.set(session.quizCards.length + newCount);
+    this.dueQueue.set([...session.quizCards]);
+    this.newQueue.set(session.flashcards.slice(0, newCount));
+    
+    if (this.dueQueue().length > 0) {
+      this.phase.set('prompt_review');
+    } else {
+      this.startStudyingQueues();
+    }
+  }
+  
+  startStudyingQueues(): void {
+    this.quizQueue.set([...this.dueQueue()]);
+    this.flashQueue.set([...this.newQueue()]);
+    
+    if (this.quizQueue().length > 0) {
       this.phase.set('quiz');
       this.prepareNextQuestion();
       return;
     }
-
-    this.phase.set('summary');
-  }
-
-  private syncPhaseAfterFlash(): void {
+    
     if (this.flashQueue().length > 0) {
       this.phase.set('flashcard');
       return;
     }
+    
+    this.phase.set('summary');
+  }
 
+  private syncPhaseAfterFlash(): void {
     if (this.quizQueue().length > 0) {
       this.phase.set('quiz');
       this.prepareNextQuestion();
       return;
     }
 
+    if (this.flashQueue().length > 0) {
+      if (this.phase() === 'quiz') {
+        this.showToast('success', 'Ôn tập xong. Bắt đầu học từ mới!');
+      }
+      this.phase.set('flashcard');
+      return;
+    }
+
     this.phase.set('summary');
-    void this.refreshDashboardFolders();
   }
 
   private advanceQuizQueue(correct: boolean): void {
@@ -471,8 +628,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.clearAnswerState();
 
     if (this.quizQueue().length === 0) {
-      this.phase.set('summary');
-      void this.refreshDashboardFolders();
+      this.syncPhaseAfterFlash();
       return;
     }
 
@@ -491,7 +647,111 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.currentQuestion.set(this.buildQuestion(card, pool));
   }
 
+  private applyLocalProgress(progress: SrsCardProgressUpdate): void {
+    const session = this.activeSession();
+    if (!session) return;
+
+    const previousCard = session.cards.find((card) => card.id === progress.cardId);
+    if (!previousCard) return;
+
+    const now = Date.now();
+    const cards = session.cards.map((card) => {
+      if (card.id !== progress.cardId) return card;
+      const isNew = progress.boxLevel === 0;
+      return {
+        ...card,
+        boxLevel: progress.boxLevel,
+        nextReviewDate: progress.nextReviewDate,
+        wrongReviewCount: card.wrongReviewCount + progress.wrongReviewCountDelta,
+        isNew,
+        isDue: isNew || new Date(progress.nextReviewDate).getTime() <= now,
+      };
+    });
+    const overview = this.buildLocalOverview(session.overview, cards, session.overview.todayNewLearned);
+    const updatedSession: FolderSrsSession = {
+      ...session,
+      overview,
+      cards,
+      flashcards: cards.filter((card) => card.boxLevel === 0),
+      quizCards: cards.filter((card) => this.isScheduledReviewDue(card)),
+    };
+    this.activeSession.set(updatedSession);
+    void this.srsService.cacheLessonSession(updatedSession);
+
+    this.dashboardFolders.update((folders) =>
+      folders.map((folder) => {
+        if (folder.folderId !== updatedSession.folderId) return folder;
+        return {
+          ...folder,
+          ...this.buildLocalOverview(
+            folder,
+            cards,
+            folder.todayNewLearned + (previousCard.isNew ? 1 : 0)
+          ),
+        };
+      })
+    );
+    this.updateCountdown();
+  }
+
+  private buildLocalOverview(
+    base: FolderSrsOverview,
+    cards: SRSCardDto[],
+    todayNewLearned: number
+  ): FolderSrsOverview {
+    const totalCards = cards.length;
+    const newCards = cards.filter((card) => card.boxLevel === 0).length;
+    const dueCards = cards.filter((card) => this.isScheduledReviewDue(card)).length;
+    const futureCards = cards
+      .filter((card) => card.boxLevel > 0 && !this.isScheduledReviewDue(card))
+      .sort((left, right) => new Date(left.nextReviewDate).getTime() - new Date(right.nextReviewDate).getTime());
+
+    return {
+      ...base,
+      totalCards,
+      newCards,
+      dueCards,
+      learnedCards: totalCards - newCards,
+      masteredCards: cards.filter((card) => card.boxLevel >= 7).length,
+      todayNewLearned,
+      nextDueAt: futureCards[0]?.nextReviewDate ?? null,
+    };
+  }
+
+  private isScheduledReviewDue(card: Pick<SRSCardDto, 'boxLevel' | 'nextReviewDate'>): boolean {
+    if (card.boxLevel <= 0) return false;
+    const dueAt = Date.parse(card.nextReviewDate);
+    return Number.isFinite(dueAt) && dueAt <= Date.now();
+  }
+
+  private nextReviewWaitMessage(nextDueAt: string | null): string {
+    const dueAt = nextDueAt ? Date.parse(nextDueAt) : NaN;
+    const remaining = dueAt - Date.now();
+    if (!Number.isFinite(remaining) || remaining <= 0) {
+      return 'Chưa có thẻ nào đến hạn để ôn tập.';
+    }
+
+    const hours = Math.floor(remaining / (1000 * 60 * 60));
+    const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((remaining % (1000 * 60)) / 1000);
+    return `Chưa đến lượt ôn. Còn ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.`;
+  }
+
   private buildQuestion(card: SRSCardDto, pool: SRSCardDto[]): QuizQuestion {
+    if (card.type === 'kanji' && card.character && this.shouldUseDrawing(card)) {
+      return {
+        mode: 'DRAW_KANJI',
+        kind: 'drawing',
+        prompt: card.amHanViet ?? 'Âm Hán Việt chưa có',
+        promptLabel: 'Viết Kanji theo âm Hán Việt',
+        helper: card.radicalCharacter
+          ? `Gợi ý bộ thủ: ${card.radicalCharacter}${card.radicalName ? ` · ${card.radicalName}` : ''}`
+          : 'Gợi ý: đối chiếu nghĩa và bộ thủ bạn đã học.',
+        options: [],
+        correctAnswer: card.character,
+      };
+    }
+
     const modes = card.type === 'vocabulary'
       ? this.shuffle<SrsMode>(['MEAN_FROM_WORD', 'WORD_FROM_MEAN', 'FILL_BLANK'])
       : this.shuffle<SrsMode>(['ON_KUN_READ', 'HAN_VIET', 'COMPOSE_KANJI']);
@@ -550,21 +810,28 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       }
 
       if (mode === 'WORD_FROM_MEAN' || mode === 'FILL_BLANK') {
-        // We handle FILL_BLANK exactly like WORD_FROM_MEAN now (multiple choice)
         const fallbacks = ['家族', '家', '人', '時間', 'カレンダー', '本', '学校', '言語'];
         const options = this.buildOptions(
           card.word,
           pool.filter((item) => item.type === 'vocabulary').map((item) => item.word),
           fallbacks
         );
+        const hasSentence = mode === 'FILL_BLANK' && !!card.exampleSentence;
+        const sentence = card.exampleSentence ?? '';
+        const blankSentence = hasSentence
+          ? (sentence.includes(card.word) ? sentence.replace(card.word, '＿＿＿＿') : `${sentence} ＿＿＿＿`)
+          : card.meaning;
         return {
-          mode: mode === 'FILL_BLANK' ? 'WORD_FROM_MEAN' : mode,
+          mode,
           kind: 'mc',
-          prompt: card.meaning,
-          promptLabel: 'Chọn từ tiếng Nhật đúng',
-          helper: card.pronunciation ? `Gợi ý: ${card.pronunciation}` : 'Ưu tiên đúng chính tả.',
+          prompt: blankSentence,
+          promptLabel: hasSentence ? 'Chọn từ điền vào chỗ trống' : 'Chọn từ tiếng Nhật đúng',
+          helper: hasSentence ? 'Chọn từ phù hợp với ngữ cảnh.' : (card.pronunciation ? `Gợi ý: ${card.pronunciation}` : 'Ưu tiên đúng chính tả.'),
           options,
           correctAnswer: card.word,
+          answerDetail: hasSentence
+            ? `Câu đầy đủ: ${sentence}${card.exampleTranslation ? ` · ${card.exampleTranslation}` : ''}`
+            : undefined,
         };
       }
     }
@@ -651,6 +918,17 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     return this.shuffle([correct, ...wrongs]);
   }
 
+  private shouldUseDrawing(card: SRSCardDto): boolean {
+    const probability = card.wrongReviewCount >= 3
+      ? 0.8
+      : card.wrongReviewCount === 2
+        ? 0.6
+        : card.wrongReviewCount === 1
+          ? 0.38
+          : 0.15;
+    return Math.random() < probability;
+  }
+
   private shuffle<T>(items: T[]): T[] {
     const clone = [...items];
     for (let index = clone.length - 1; index > 0; index -= 1) {
@@ -708,14 +986,18 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   private async refreshDashboardFolders(): Promise<void> {
     const folders = this.dashboardFolders();
     if (folders.length === 0) return;
-
-    const refreshed = await Promise.all(
-      folders.map(async (folder) => {
-        const overview = await firstValueFrom(this.srsService.getFolderOverview(folder.folderId));
-        return { ...folder, ...overview } satisfies DashboardFolder;
-      })
+    const overviews = await firstValueFrom(
+      this.srsService.getLessonOverviews(
+        folders.map((folder) => ({ id: folder.folderId, title: folder.folderName }))
+      )
     );
-    this.dashboardFolders.set(refreshed);
+    const overviewByLesson = new Map(overviews.map((overview) => [overview.folderId, overview]));
+    this.dashboardFolders.set(
+      folders.map((folder) => ({
+        ...folder,
+        ...(overviewByLesson.get(folder.folderId) ?? {}),
+      }))
+    );
   }
 
   private showToast(type: 'success' | 'error', message: string): void {

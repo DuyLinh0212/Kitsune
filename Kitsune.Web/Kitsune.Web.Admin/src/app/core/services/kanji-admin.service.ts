@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { from, Observable } from 'rxjs';
-import { map } from 'rxjs/operators';
+import { map, switchMap } from 'rxjs/operators';
 import { supabase } from '../supabase/supabase.client';
 
 export interface RadicalDto { id: number; radicalCharacter: string; radicalName: string; englishName: string | null; description: string | null; }
@@ -49,13 +49,20 @@ export class KanjiAdminService {
   }
 
   createKanji(dto: CreateKanjiDto): Observable<KanjiDto> {
-    return from(
-      supabase.from('Kanji').insert({
-        Character: dto.character, Onyomi: dto.onyomi ?? null, Kunyomi: dto.kunyomi ?? null,
-        AmHanViet: dto.amHanViet, Meaning: dto.meaning, StrokeCount: dto.strokeCount,
-        JlptLevel: dto.jlptLevel ?? null, Mnemonic: dto.mnemonic ?? null, RadicalId: dto.radicalId ?? null
-      }).select(KANJI_SELECT).single()
-    ).pipe(map(({ data, error }) => { if (error) throw error; return this.mapKanjiRow(data); }));
+    return from(supabase.from('Kanji').select('Id').order('Id', { ascending: false }).limit(1).maybeSingle()).pipe(
+      switchMap(({ data: maxData, error: maxError }) => {
+        if (maxError) throw maxError;
+        const nextId = ((maxData as { Id: number })?.Id ?? 0) + 1;
+        
+        return from(
+          supabase.from('Kanji').insert({
+            Id: nextId, Character: dto.character, Onyomi: dto.onyomi ?? null, Kunyomi: dto.kunyomi ?? null,
+            AmHanViet: dto.amHanViet, Meaning: dto.meaning, StrokeCount: dto.strokeCount,
+            JlptLevel: dto.jlptLevel ?? null, Mnemonic: dto.mnemonic ?? null, RadicalId: dto.radicalId ?? null
+          }).select(KANJI_SELECT).single()
+        ).pipe(map(({ data, error }) => { if (error) throw error; return this.mapKanjiRow(data); }));
+      })
+    );
   }
 
   updateKanji(id: number, dto: UpdateKanjiDto): Observable<KanjiDto> {
@@ -80,15 +87,22 @@ export class KanjiAdminService {
   }
 
   createRadical(dto: CreateRadicalDto): Observable<RadicalDto> {
-    return from(
-      supabase.from('Radical').insert({
-        RadicalCharacter: dto.radicalCharacter, RadicalName: dto.radicalName,
-        EnglishName: dto.englishName ?? null, Description: dto.description ?? null
-      }).select('Id, RadicalCharacter, RadicalName, EnglishName, Description').single()
-    ).pipe(map(({ data, error }) => {
-      if (error) throw error;
-      return { id: data['Id'] as number, radicalCharacter: data['RadicalCharacter'] as string, radicalName: data['RadicalName'] as string, englishName: (data['EnglishName'] as string | null) ?? null, description: (data['Description'] as string | null) ?? null };
-    }));
+    return from(supabase.from('Radical').select('Id').order('Id', { ascending: false }).limit(1).maybeSingle()).pipe(
+      switchMap(({ data: maxData, error: maxError }) => {
+        if (maxError) throw maxError;
+        const nextId = ((maxData as { Id: number })?.Id ?? 0) + 1;
+
+        return from(
+          supabase.from('Radical').insert({
+            Id: nextId, RadicalCharacter: dto.radicalCharacter, RadicalName: dto.radicalName,
+            EnglishName: dto.englishName ?? null, Description: dto.description ?? null
+          }).select('Id, RadicalCharacter, RadicalName, EnglishName, Description').single()
+        ).pipe(map(({ data, error }) => {
+          if (error) throw error;
+          return { id: data['Id'] as number, radicalCharacter: data['RadicalCharacter'] as string, radicalName: data['RadicalName'] as string, englishName: (data['EnglishName'] as string | null) ?? null, description: (data['Description'] as string | null) ?? null };
+        }));
+      })
+    );
   }
 
   updateRadical(id: number, dto: UpdateRadicalDto): Observable<RadicalDto> {

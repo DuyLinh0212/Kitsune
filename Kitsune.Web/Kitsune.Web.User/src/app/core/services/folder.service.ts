@@ -124,15 +124,38 @@ export class FolderService {
     return from(
       supabase
         .from('Vocabularies')
-        .update({ FolderId: folderId })
+        .select('Id, Word, SpecificData')
         .eq('Id', vocabularyId)
-        .select('Id')
     ).pipe(
-      map(({ data, error }) => {
+      switchMap(({ data, error }) => {
         if (error) throw error;
-        if (!data || (data as { Id: number }[]).length === 0) {
+        const current = data?.[0] as
+          | { Id: number; Word: string; SpecificData: Record<string, unknown> | null }
+          | undefined;
+        if (!current) {
           throw new Error('Từ vựng này không thuộc về bạn hoặc không tìm thấy');
         }
+        const specificData = { ...(current.SpecificData ?? {}) };
+        if (!specificData['_kitsuneItemType']) {
+          specificData['_kitsuneItemType'] = 'vocabulary';
+        }
+        return this.ensureNoFolderDuplicate(folderId, current.Word, 'vocabulary', vocabularyId).pipe(
+          switchMap(() =>
+            from(
+              supabase
+                .from('Vocabularies')
+                .update({ FolderId: folderId, SpecificData: specificData })
+                .eq('Id', vocabularyId)
+                .select('Id')
+            )
+          ),
+          map(({ data: updated, error: updateError }) => {
+            if (updateError) throw updateError;
+            if (!updated || updated.length === 0) {
+              throw new Error('Từ vựng này không thuộc về bạn hoặc không tìm thấy');
+            }
+          })
+        );
       })
     );
   }
@@ -146,29 +169,36 @@ export class FolderService {
     languageId: number,
     kanjiId?: number
   ): Observable<void> {
-    return from(
-      supabase
-        .from('Vocabularies')
-        .insert({
-          FolderId: folderId,
-          LanguageId: languageId || 1,
-          Word: word,
-          Pronunciation: pronunciation ?? null,
-          Meaning: meaning,
-        })
-        .select('Id')
-        .single()
-    ).pipe(
-      switchMap(({ data, error }) => {
-        if (error) throw error;
-        if (!data) throw new Error('Không lấy được ID từ vựng mới tạo');
-        
+    const itemType: FolderItemType = kanjiId ? 'kanji' : 'vocabulary';
+    return this.ensureNoFolderDuplicate(folderId, word, itemType, undefined, kanjiId).pipe(
+      switchMap(() =>
+        from(
+          supabase
+            .from('Vocabularies')
+            .insert({
+              FolderId: folderId,
+              LanguageId: languageId || 1,
+              Word: word,
+              Pronunciation: pronunciation ?? null,
+              Meaning: meaning,
+              SpecificData: kanjiId
+                ? { _kitsuneItemType: 'kanji', _kanjiId: kanjiId }
+                : { _kitsuneItemType: 'vocabulary' },
+            })
+            .select('Id')
+            .single()
+        )
+      ),
+      switchMap(({ data: insertData, error: insertError }) => {
+        if (insertError) throw insertError;
+        if (!insertData) throw new Error('Không lấy được ID từ vựng mới tạo');
+
         if (kanjiId) {
           return from(
             supabase.from('KanjiComponents').insert({
-              VocabularyId: data.Id,
+              VocabularyId: insertData.Id,
               KanjiId: kanjiId,
-              Order: 0
+              Order: 0,
             })
           ).pipe(
             map(({ error: kError }) => {
@@ -179,6 +209,63 @@ export class FolderService {
         return of(void 0);
       })
     );
+  }
+
+  private ensureNoFolderDuplicate(
+    folderId: number,
+    word: string,
+    itemType: FolderItemType,
+    excludedVocabularyId?: number,
+    kanjiId?: number,
+  ): Observable<void> {
+    return from(
+      supabase
+        .from('Vocabularies')
+        .select('Id, Word, SpecificData, KanjiComponents(KanjiId)')
+        .eq('FolderId', folderId)
+        .eq('Word', word)
+    ).pipe(
+      map(({ data, error }) => {
+        if (error) throw error;
+        const duplicate = (data ?? [])
+          .filter((row) => (row as { Id: number }).Id !== excludedVocabularyId)
+          .some((row) => this.matchesFolderItemType(row as FolderItemRow, itemType, kanjiId));
+        if (duplicate) {
+          throw new Error(
+            itemType === 'kanji'
+              ? 'Kanji này đã có trong thư mục!'
+              : 'Từ vựng này đã có trong thư mục!',
+          );
+        }
+      })
+    );
+  }
+
+  private matchesFolderItemType(
+    row: FolderItemRow,
+    itemType: FolderItemType,
+    kanjiId?: number,
+  ): boolean {
+    const specificData = row.SpecificData;
+    const storedType = specificData?.['_kitsuneItemType'];
+    if (storedType === 'kanji') {
+      return itemType === 'kanji' &&
+        (kanjiId === undefined || specificData?.['_kanjiId'] === kanjiId);
+    }
+    if (storedType === 'vocabulary' || specificData !== null) {
+      return itemType === 'vocabulary';
+    }
+
+    const components = Array.isArray(row.KanjiComponents) ? row.KanjiComponents : [];
+    const isLegacyKanji =
+      row.Word.trim().length === 1 &&
+      components.length === 1 &&
+      components[0]?.KanjiId !== undefined;
+    if (isLegacyKanji) {
+      return itemType === 'kanji' &&
+        (kanjiId === undefined || components[0]?.KanjiId === kanjiId);
+    }
+    return itemType === 'vocabulary';
   }
 
   private async getCurrentUserId(): Promise<number> {
@@ -208,4 +295,13 @@ export class FolderService {
       vocabCount,
     };
   }
+}
+
+type FolderItemType = 'vocabulary' | 'kanji';
+
+interface FolderItemRow {
+  Id: number;
+  Word: string;
+  SpecificData: Record<string, unknown> | null;
+  KanjiComponents?: Array<{ KanjiId?: number }> | null;
 }

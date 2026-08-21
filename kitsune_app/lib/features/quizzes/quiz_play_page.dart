@@ -6,6 +6,7 @@ import 'package:kitsune_app/core/models/quiz.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
 class QuizPlayPage extends ConsumerStatefulWidget {
@@ -150,7 +151,9 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
 
     if (_isLoading) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: KitsuneBackdrop(
+          child: KitsuneLoadingFox(message: 'Đang chuẩn bị quiz...'),
+        ),
       );
     }
 
@@ -200,8 +203,8 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                           ),
                           child: Text(
                             '$_timeRemaining s',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
+                            style: AppTheme.numeralStyle(
+                              fontSize: 14,
                               color: _timeRemaining < 10
                                   ? KitsuneColors.error
                                   : KitsuneColors.onSurface,
@@ -299,8 +302,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  KitsunePassportHeader(
-                    eyebrow: 'Quiz complete',
+                  KitsuneHeroCard(
                     title: isGood ? 'Bạn giữ nhịp khá tốt.' : 'Lượt này vẫn còn chỗ để cải thiện.',
                     subtitle:
                         'Dùng kết quả này để quyết định nên quay lại quiz hay chuyển sang ôn SRS ngay bây giờ.',
@@ -317,9 +319,8 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                       child: Center(
                         child: Text(
                           '${accuracy.round()}%',
-                          style: TextStyle(
+                          style: AppTheme.numeralStyle(
                             fontSize: 28,
-                            fontWeight: FontWeight.w800,
                             color: isGood
                                 ? KitsuneColors.success
                                 : KitsuneColors.warning,
