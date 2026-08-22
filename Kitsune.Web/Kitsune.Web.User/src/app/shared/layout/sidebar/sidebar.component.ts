@@ -41,7 +41,7 @@ export class SidebarComponent implements OnInit {
     { id: 4, label: 'Ôn tập', iconAsset: '/images/navigation/brain.png', route: '/srs', matchPrefixes: ['/srs'] },
     { id: 5, label: 'Quizzes', iconAsset: '/images/navigation/test.png', route: '/quizzes', matchPrefixes: ['/quizzes', '/my-quizzes', '/quiz-create'] },
     { id: 6, label: 'Đề kiểm tra', iconAsset: '/images/navigation/manual.png', route: '/exams', matchPrefixes: ['/exams'] },
-    { id: 7, label: 'Cộng đồng', iconAsset: '/images/navigation/instagram-post.png', route: '/leaderboard', matchPrefixes: ['/leaderboard', '/posts', '/messages'] },
+    { id: 7, label: 'Cộng đồng', iconAsset: '/images/navigation/instagram-post.png', route: '/posts', matchPrefixes: ['/posts', '/messages'] },
   ];
 
   readonly utilityNavItems: NavItem[] = [

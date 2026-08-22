@@ -16,11 +16,58 @@
   </div>
 
   @if (showSearch) {
-    <label class="search-box">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.25 4.25"/></svg>
-      <input type="search" placeholder="Tra từ vựng hoặc kanji..." [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)" (keyup.enter)="onSearch()" />
-      <kbd>⌘ K</kbd>
-    </label>
+    <div class="global-search" [class.global-search--open]="searchOpen()">
+      <label class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.25 4.25"/></svg>
+        <input
+          #globalSearchInput
+          type="search"
+          placeholder="Tìm bài viết, quiz, từ vựng, kanji..."
+          autocomplete="off"
+          [ngModel]="searchQuery()"
+          (ngModelChange)="onSearchInput($event)"
+          (focus)="searchOpen.set(true)"
+          (blur)="closeSearchSoon()"
+          (keyup.enter)="onSearch()"
+        />
+        @if (isSearching()) {
+          <span class="search-spinner" aria-label="Đang tìm kiếm"></span>
+        } @else {
+          <kbd>Ctrl K</kbd>
+        }
+      </label>
+
+      @if (searchOpen() && searchQuery().trim().length >= 2) {
+        <section class="search-results" aria-label="Kết quả tìm kiếm cục bộ">
+          @if (isSearching() && searchResults().length === 0) {
+            <p class="search-status">Đang tìm trong Kitsune…</p>
+          } @else if (searchResults().length > 0) {
+            <div class="search-results__heading">
+              <strong>Kết quả trong Kitsune</strong>
+              <span>{{ searchResults().length }} mục</span>
+            </div>
+            @for (result of searchResults(); track result.kind + '-' + result.id) {
+              <button
+                type="button"
+                class="search-result"
+                (mousedown)="$event.preventDefault()"
+                (click)="openSearchResult(result)"
+              >
+                <span class="search-result__icon" [attr.data-kind]="result.kind">{{ getSearchKindIcon(result.kind) }}</span>
+                <span class="search-result__copy">
+                  <span class="search-result__meta">{{ getSearchKindLabel(result.kind) }}</span>
+                  <strong>{{ result.title }}</strong>
+                  <small>{{ result.subtitle }}</small>
+                </span>
+                <span class="search-result__arrow">→</span>
+              </button>
+            }
+          } @else {
+            <p class="search-status">Không tìm thấy nội dung phù hợp. Nhấn Enter để tra từ “{{ searchQuery().trim() }}”.</p>
+          }
+        </section>
+      }
+    </div>
   }
 
   <div class="top-actions">

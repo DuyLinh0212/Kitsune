@@ -542,13 +542,23 @@
 
                 <!-- Feedback -->
                 @if (answerFeedback(); as fb) {
-                  <div class="quiz-feedback" [class.quiz-feedback--correct]="fb.correct" [class.quiz-feedback--wrong]="!fb.correct">
-                    {{ fb.message }}
-                  </div>
-                  <div class="quiz-actions quiz-actions--feedback">
-                    <button type="button" class="quiz-submit-btn" (click)="continueAfterAnswer()">
+                  <div class="answer-dialog-backdrop">
+                    <section
+                      class="answer-dialog"
+                      [class.answer-dialog--correct]="fb.correct"
+                      [class.answer-dialog--wrong]="!fb.correct"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-labelledby="answer-dialog-title"
+                    >
+                      <span class="answer-dialog__icon" aria-hidden="true">{{ fb.correct ? '✓' : '!' }}</span>
+                      <p class="answer-dialog__eyebrow">Kết quả</p>
+                      <h2 id="answer-dialog-title">{{ fb.correct ? 'Chính xác!' : 'Chưa chính xác' }}</h2>
+                      <p class="answer-dialog__message">{{ fb.message }}</p>
+                      <button type="button" class="quiz-submit-btn answer-dialog__button" (click)="continueAfterAnswer()">
                       OK · Câu tiếp theo
-                    </button>
+                      </button>
+                    </section>
                   </div>
                 }
 
