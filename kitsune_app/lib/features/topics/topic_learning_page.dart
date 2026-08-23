@@ -19,7 +19,6 @@ class TopicLearningPage extends ConsumerStatefulWidget {
 
 class _TopicLearningPageState extends ConsumerState<TopicLearningPage> {
   late Future<List<TopicDto>> _future;
-  int _selectedTopic = 0;
 
   @override
   void initState() {
@@ -47,7 +46,6 @@ class _TopicLearningPageState extends ConsumerState<TopicLearningPage> {
             if (topics.isEmpty) {
               return const Center(child: Text('Chưa có chủ đề được xuất bản.'));
             }
-            final topic = topics[_selectedTopic.clamp(0, topics.length - 1)];
             return RefreshIndicator(
               onRefresh: () async => setState(() => _future =
                   ref.read(kitsuneApiProvider).getTopicsWithLessons()),
@@ -57,39 +55,17 @@ class _TopicLearningPageState extends ConsumerState<TopicLearningPage> {
                         onGames: () => Navigator.of(context).push(
                             MaterialPageRoute(
                                 builder: (_) => const MobileGameHubPage())))),
-                SliverToBoxAdapter(
-                    child: SizedBox(
-                        height: 74,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 18, vertical: 10),
-                          scrollDirection: Axis.horizontal,
-                          itemCount: topics.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemBuilder: (_, index) => ChoiceChip(
-                            selected: index == _selectedTopic,
-                            label: Text(topics[index].title),
-                            onSelected: (_) =>
-                                setState(() => _selectedTopic = index),
-                            selectedColor: const Color(0xFF3D3565),
-                            labelStyle: TextStyle(
-                                color: index == _selectedTopic
-                                    ? Colors.white
-                                    : const Color(0xFF3D3565),
-                                fontWeight: FontWeight.w700),
-                          ),
-                        ))),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(18, 10, 18, 100),
                   sliver: SliverList.builder(
-                    itemCount: topic.lessons.length,
-                    itemBuilder: (_, index) => _LessonTile(
-                      lesson: topic.lessons[index],
+                    itemCount: topics.length,
+                    itemBuilder: (_, index) => _TopicCard(
+                      topic: topics[index],
                       index: index,
                       onTap: () async {
                         await Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => LessonStudyPage(
-                                lessonId: topic.lessons[index].id)));
+                            builder: (_) =>
+                                _TopicDetailPage(topic: topics[index])));
                         if (mounted) {
                           setState(() => _future = ref
                               .read(kitsuneApiProvider)
@@ -102,6 +78,170 @@ class _TopicLearningPageState extends ConsumerState<TopicLearningPage> {
               ]),
             );
           },
+        ),
+      ),
+    );
+  }
+}
+
+class _TopicCard extends StatelessWidget {
+  const _TopicCard({
+    required this.topic,
+    required this.index,
+    required this.onTap,
+  });
+
+  final TopicDto topic;
+  final int index;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final completed =
+        topic.lessons.where((lesson) => lesson.progress >= 1).length;
+    final totalMinutes = topic.lessons.fold<int>(
+      0,
+      (sum, lesson) => sum + lesson.estimatedMinutes,
+    );
+    final accents = [
+      const Color(0xFFD85B3F),
+      const Color(0xFF3D3565),
+      const Color(0xFF5E7B63),
+    ];
+    final accent = accents[index % accents.length];
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      elevation: 0,
+      color: const Color(0xFFFFFDF7),
+      shape: RoundedRectangleBorder(
+        side: const BorderSide(color: Color(0xFFD8CBB8)),
+        borderRadius: const BorderRadius.only(
+          topRight: Radius.circular(26),
+          bottomLeft: Radius.circular(6),
+          bottomRight: Radius.circular(6),
+          topLeft: Radius.circular(6),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(17),
+          child: Row(
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Text(
+                  '${index + 1}',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      topic.title,
+                      style: const TextStyle(
+                        color: Color(0xFF272238),
+                        fontSize: 19,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${topic.lessons.length} bài học · $totalMinutes phút',
+                      style: const TextStyle(color: Color(0xFF756B78)),
+                    ),
+                    const SizedBox(height: 9),
+                    LinearProgressIndicator(
+                      value: topic.lessons.isEmpty
+                          ? 0
+                          : completed / topic.lessons.length,
+                      minHeight: 4,
+                      color: accent,
+                      backgroundColor: const Color(0xFFE8DDCB),
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Icon(Icons.arrow_forward_rounded, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TopicDetailPage extends StatelessWidget {
+  const _TopicDetailPage({required this.topic});
+
+  final TopicDto topic;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFFBF7ED),
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFFBF7ED),
+        title: Text(topic.title),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(18, 12, 18, 32),
+          children: [
+            Text(
+              'LỘ TRÌNH CHỦ ĐỀ',
+              style: TextStyle(
+                color: const Color(0xFFD85B3F),
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.4,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              topic.title,
+              style: TextStyle(
+                color: const Color(0xFF272238),
+                fontFamily: AppTheme.displayFontFamily,
+                fontSize: 34,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              '${topic.lessons.length} bài học · học lần lượt để giữ đúng mạch kiến thức.',
+              style: const TextStyle(color: Color(0xFF756B78), height: 1.45),
+            ),
+            const SizedBox(height: 22),
+            for (var index = 0; index < topic.lessons.length; index++)
+              _LessonTile(
+                lesson: topic.lessons[index],
+                index: index,
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) =>
+                        LessonStudyPage(lessonId: topic.lessons[index].id),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );

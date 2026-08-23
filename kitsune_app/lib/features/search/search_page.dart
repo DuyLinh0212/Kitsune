@@ -2,18 +2,17 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kitsune_app/core/models/grammar.dart';
 import 'package:kitsune_app/core/models/kanji.dart';
 import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
+import 'package:kitsune_app/features/search/widgets/search_result_card.dart';
 import 'package:kitsune_app/providers/providers.dart';
 
-enum SearchCategory {
-  vocabulary,
-  kanji,
-}
+enum SearchCategory { all, vocabulary, kanji, grammar }
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -23,229 +22,114 @@ class SearchPage extends ConsumerStatefulWidget {
 }
 
 class _SearchPageState extends ConsumerState<SearchPage> {
-  static const int _pageSize = 50;
-
-  final TextEditingController _searchController = TextEditingController();
-  final FocusNode _searchFocusNode = FocusNode();
-  final ScrollController _scrollController = ScrollController();
-
+  final _searchController = TextEditingController();
+  final _searchFocusNode = FocusNode();
   Timer? _debounce;
-  bool _isLoading = false;
-  bool _isLoadingMore = false;
   int _requestToken = 0;
-  SearchCategory _category = SearchCategory.vocabulary;
+  bool _isLoading = true;
+  SearchCategory _category = SearchCategory.all;
 
-  List<VocabularyDto> _vocabularyResults = const [];
-  List<KanjiDetailDto> _kanjiResults = const [];
-  List<VocabularyDto> _vocabularyRandom = const [];
-  List<KanjiDetailDto> _kanjiRandom = const [];
-
-  int _vocabularyFetchSize = _pageSize;
-  int _kanjiFetchSize = _pageSize;
-  bool _hasMoreVocabulary = false;
-  bool _hasMoreKanji = false;
+  List<VocabularyDto> _vocabulary = const [];
+  List<KanjiDetailDto> _kanji = const [];
+  List<GrammarPoint> _grammar = const [];
 
   @override
   void initState() {
     super.initState();
-    _scrollController.addListener(_handleScroll);
-    _loadRandomContent();
+    _loadDiscovery();
   }
 
   @override
   void dispose() {
     _debounce?.cancel();
-    _scrollController.dispose();
     _searchController.dispose();
     _searchFocusNode.dispose();
     super.dispose();
   }
 
-  void _handleScroll() {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-
-    if (_scrollController.position.pixels <
-        _scrollController.position.maxScrollExtent - 240) {
-      return;
-    }
-
-    if (_isLoading || _isLoadingMore || !_isShowingSearchState) {
-      return;
-    }
-
-    if (_category == SearchCategory.vocabulary && _hasMoreVocabulary) {
-      _loadMore();
-    } else if (_category == SearchCategory.kanji && _hasMoreKanji) {
-      _loadMore();
-    }
-  }
-
-  Future<void> _loadRandomContent() async {
+  Future<void> _loadDiscovery() async {
+    final token = ++_requestToken;
+    if (mounted) setState(() => _isLoading = true);
     try {
       final api = ref.read(kitsuneApiProvider);
-      final results = await Future.wait([
-        api.getRandomVocabulary(limit: 10),
-        api.getRandomKanji(limit: 10),
+      final data = await Future.wait<dynamic>([
+        api.getRandomVocabulary(limit: 8),
+        api.getRandomKanji(limit: 8),
+        api.searchGrammar(),
       ]);
-
-      if (!mounted) {
-        return;
-      }
-
+      if (!mounted || token != _requestToken) return;
       setState(() {
-        _vocabularyRandom = results[0] as List<VocabularyDto>;
-        _kanjiRandom = results[1] as List<KanjiDetailDto>;
+        _vocabulary = data[0] as List<VocabularyDto>;
+        _kanji = data[1] as List<KanjiDetailDto>;
+        _grammar = (data[2] as List<GrammarPoint>).take(8).toList();
+        _isLoading = false;
       });
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _vocabularyRandom = const [];
-        _kanjiRandom = const [];
-      });
+    } catch (error) {
+      if (!mounted || token != _requestToken) return;
+      setState(() => _isLoading = false);
+      _showError(error);
     }
   }
 
   void _scheduleSearch(String value) {
+    setState(() {});
     _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 320), () {
-      _performSearch(value, reset: true);
-    });
+    _debounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _performSearch(value),
+    );
   }
 
-  Future<void> _performSearch(
-    String rawQuery, {
-    required bool reset,
-  }) async {
+  Future<void> _performSearch(String rawQuery) async {
     final query = rawQuery.trim();
-    final token = ++_requestToken;
-
     if (query.isEmpty) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _isLoading = false;
-        _isLoadingMore = false;
-        _vocabularyResults = const [];
-        _kanjiResults = const [];
-        _hasMoreVocabulary = false;
-        _hasMoreKanji = false;
-        _vocabularyFetchSize = _pageSize;
-        _kanjiFetchSize = _pageSize;
-      });
+      await _loadDiscovery();
       return;
     }
 
-    if (reset) {
-      setState(() {
-        _isLoading = true;
-        _isLoadingMore = false;
-        if (_category == SearchCategory.vocabulary) {
-          _vocabularyFetchSize = _pageSize;
-        } else {
-          _kanjiFetchSize = _pageSize;
-        }
-      });
-    } else {
-      setState(() => _isLoadingMore = true);
-    }
-
+    final token = ++_requestToken;
+    setState(() => _isLoading = true);
     try {
-      if (_category == SearchCategory.vocabulary) {
-        final fetchSize = _vocabularyFetchSize;
-        final items = await ref
-            .read(kitsuneApiProvider)
-            .searchVocabulary(query, limit: fetchSize);
-
-        if (!mounted || token != _requestToken) {
-          return;
-        }
-
-        setState(() {
-          _vocabularyResults = items;
-          _hasMoreVocabulary = items.length >= fetchSize;
-          _isLoading = false;
-          _isLoadingMore = false;
-        });
-        return;
-      }
-
-      final fetchSize = _kanjiFetchSize;
-      final items = await ref
-          .read(kitsuneApiProvider)
-          .searchKanji(query, limit: fetchSize);
-
-      if (!mounted || token != _requestToken) {
-        return;
-      }
-
+      final api = ref.read(kitsuneApiProvider);
+      final data = await Future.wait<dynamic>([
+        api.searchVocabulary(query, limit: 60),
+        api.searchKanji(query, limit: 60),
+        api.searchGrammar(query: query),
+      ]);
+      if (!mounted || token != _requestToken) return;
       setState(() {
-        _kanjiResults = items;
-        _hasMoreKanji = items.length >= fetchSize;
+        _vocabulary = data[0] as List<VocabularyDto>;
+        _kanji = data[1] as List<KanjiDetailDto>;
+        _grammar = data[2] as List<GrammarPoint>;
         _isLoading = false;
-        _isLoadingMore = false;
       });
     } catch (error) {
-      if (!mounted || token != _requestToken) {
-        return;
-      }
-
-      setState(() {
-        _isLoading = false;
-        _isLoadingMore = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Search failed: $error'),
-          backgroundColor: KitsuneColors.error,
-        ),
-      );
+      if (!mounted || token != _requestToken) return;
+      setState(() => _isLoading = false);
+      _showError(error);
     }
   }
 
-  Future<void> _loadMore() async {
-    final query = _searchController.text.trim();
-    if (query.isEmpty) {
-      return;
-    }
-
-    setState(() {
-      if (_category == SearchCategory.vocabulary) {
-        _vocabularyFetchSize += _pageSize;
-      } else {
-        _kanjiFetchSize += _pageSize;
-      }
-    });
-
-    await _performSearch(query, reset: false);
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchController.clear();
+    _searchFocusNode.unfocus();
+    setState(() {});
+    _loadDiscovery();
   }
 
-  void _switchCategory(SearchCategory category) {
-    if (_category == category) {
-      return;
-    }
-
-    setState(() {
-      _category = category;
-      _isLoading = false;
-      _isLoadingMore = false;
-    });
-
-    if (_searchController.text.trim().isNotEmpty) {
-      _performSearch(_searchController.text, reset: true);
-    }
+  void _showError(Object error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Không thể tìm kiếm: $error'),
+        backgroundColor: KitsuneColors.error,
+      ),
+    );
   }
-
-  bool get _isShowingSearchState => _searchController.text.trim().isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
-    final isVocabulary = _category == SearchCategory.vocabulary;
-
+    final hasQuery = _searchController.text.trim().isNotEmpty;
     return Scaffold(
       body: KitsuneBackdrop(
         child: SafeArea(
@@ -260,78 +144,59 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                       'Tra cứu',
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w900,
                               ),
                     ),
-                    const SizedBox(height: AppTheme.space12),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Một ô tìm kiếm cho từ vựng, Kanji và ngữ pháp.',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const SizedBox(height: 12),
                     KitsuneSearchField(
                       controller: _searchController,
                       focusNode: _searchFocusNode,
-                      hintText: isVocabulary
-                          ? 'Tìm từ, cách đọc hoặc nghĩa...'
-                          : 'Tìm kanji, âm Hán Việt, onyomi, kunyomi...',
-                      onChanged: (value) {
-                        setState(() {});
-                        _scheduleSearch(value);
-                      },
-                      onSubmitted: (value) =>
-                          _performSearch(value, reset: true),
-                      onClear: () {
-                        _debounce?.cancel();
-                        _searchController.clear();
-                        _performSearch('', reset: true);
-                        setState(() {});
-                      },
+                      hintText: 'Nhập từ, Kanji, cách đọc hoặc mẫu ngữ pháp...',
+                      onChanged: _scheduleSearch,
+                      onSubmitted: _performSearch,
+                      onClear: _clearSearch,
                     ),
-                    const SizedBox(height: AppTheme.space14),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _CategoryPill(
-                            label: 'Từ vựng',
-                            icon: Icons.menu_book_rounded,
-                            isSelected: isVocabulary,
-                            onTap: () =>
-                                _switchCategory(SearchCategory.vocabulary),
-                          ),
-                        ),
-                        const SizedBox(width: AppTheme.space10),
-                        Expanded(
-                          child: _CategoryPill(
-                            label: 'Kanji',
-                            icon: Icons.grid_view_rounded,
-                            isSelected: !isVocabulary,
-                            onTap: () => _switchCategory(SearchCategory.kanji),
-                          ),
-                        ),
-                      ],
+                    const SizedBox(height: 12),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: SearchCategory.values
+                            .map(
+                              (category) => Padding(
+                                padding: const EdgeInsets.only(right: 8),
+                                child: _CategoryPill(
+                                  label: _categoryLabel(category),
+                                  icon: _categoryIcon(category),
+                                  isSelected: _category == category,
+                                  onTap: () =>
+                                      setState(() => _category = category),
+                                ),
+                              ),
+                            )
+                            .toList(),
+                      ),
                     ),
-                    const SizedBox(height: AppTheme.space18),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),
               Expanded(
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
+                  duration: const Duration(milliseconds: 200),
                   child: _isLoading
                       ? const Center(
-                          key: ValueKey('loading'),
+                          key: ValueKey('search-loading'),
                           child: KitsuneLoadingFox(
-                              message: 'Đang tìm kiếm...', size: 88),
+                            message: 'Đang tìm trong thư viện...',
+                            size: 82,
+                          ),
                         )
-                      : _isShowingSearchState
-                          ? KeyedSubtree(
-                              key: ValueKey('results-$isVocabulary'),
-                              child: isVocabulary
-                                  ? _buildVocabularyResultsList()
-                                  : _buildKanjiResultsList(),
-                            )
-                          : KeyedSubtree(
-                              key: ValueKey('discover-$isVocabulary'),
-                              child: isVocabulary
-                                  ? _buildVocabularyDiscoveryList()
-                                  : _buildKanjiDiscoveryList(),
-                            ),
+                      : _buildResults(hasQuery),
                 ),
               ),
             ],
@@ -341,352 +206,262 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  Widget _buildVocabularyDiscoveryList() {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
-      itemCount: _vocabularyRandom.length + 1,
-      itemBuilder: (_, index) {
-        if (index == 0) {
-          return const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: KitsuneSectionHeader(
-              title: 'Gợi ý từ vựng',
-              subtitle: 'Chạm để xem nghĩa, cách đọc và lưu vào thư mục.',
-              accent: KitsuneColors.primary,
-            ),
-          );
-        }
-
-        return _buildVocabularyCard(_vocabularyRandom[index - 1]);
-      },
-    );
-  }
-
-  Widget _buildKanjiDiscoveryList() {
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
-      itemCount: _kanjiRandom.length + 1,
-      itemBuilder: (_, index) {
-        if (index == 0) {
-          return const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: KitsuneSectionHeader(
-              title: 'Gợi ý kanji',
-              subtitle: 'Chạm để xem âm đọc, bộ thủ và số nét.',
-              accent: KitsuneColors.secondary,
-            ),
-          );
-        }
-
-        return _buildKanjiCard(_kanjiRandom[index - 1]);
-      },
-    );
-  }
-
-  Widget _buildVocabularyResultsList() {
-    if (_vocabularyResults.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, 28),
-        child: KitsuneEmptyState(
-          icon: Icons.search_off_rounded,
-          title: 'Không tìm thấy từ vựng',
-          message: 'Thử đổi cách viết, romaji hoặc nghĩa để mở rộng kết quả.',
-        ),
+  Widget _buildResults(bool hasQuery) {
+    final sections = <Widget>[];
+    if (_category == SearchCategory.all ||
+        _category == SearchCategory.vocabulary) {
+      _appendSection(
+        sections,
+        title: 'Từ vựng',
+        count: _vocabulary.length,
+        children: _vocabulary.map(_buildVocabularyCard),
+      );
+    }
+    if (_category == SearchCategory.all || _category == SearchCategory.kanji) {
+      _appendSection(
+        sections,
+        title: 'Kanji',
+        count: _kanji.length,
+        children: _kanji.map(_buildKanjiCard),
+      );
+    }
+    if (_category == SearchCategory.all ||
+        _category == SearchCategory.grammar) {
+      _appendSection(
+        sections,
+        title: 'Ngữ pháp',
+        count: _grammar.length,
+        children: _grammar.map(_buildGrammarCard),
       );
     }
 
-    final extraFooter = _hasMoreVocabulary || _isLoadingMore ? 1 : 0;
-
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
-      itemCount: _vocabularyResults.length + 1 + extraFooter,
-      itemBuilder: (_, index) {
-        if (index == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: KitsuneSectionHeader(
-              title: 'Vocabulary results',
-              subtitle:
-                  '${_vocabularyResults.length} mục đã nạp. Cuộn xuống để tải thêm nếu còn kết quả.',
-              accent: KitsuneColors.primary,
-            ),
-          );
-        }
-
-        final dataIndex = index - 1;
-        if (dataIndex < _vocabularyResults.length) {
-          return _buildVocabularyCard(_vocabularyResults[dataIndex]);
-        }
-
-        return _LoadMoreFooter(
-          isLoading: _isLoadingMore,
-          hasMore: _hasMoreVocabulary,
-          onTap: _loadMore,
-        );
-      },
-    );
-  }
-
-  Widget _buildKanjiResultsList() {
-    if (_kanjiResults.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.fromLTRB(16, 0, 16, 28),
-        child: KitsuneEmptyState(
-          icon: Icons.search_off_rounded,
-          title: 'Không tìm thấy kanji',
-          message: 'Thử lại bằng chữ kanji, nghĩa, âm Hán Việt hoặc cách đọc.',
-        ),
+    if (sections.isEmpty) {
+      return KitsuneEmptyState(
+        key: ValueKey('empty-$_category-$hasQuery'),
+        icon: Icons.search_off_rounded,
+        title: 'Chưa tìm thấy kết quả',
+        message: 'Thử từ khóa ngắn hơn, cách đọc khác hoặc đổi loại nội dung.',
       );
     }
 
-    final extraFooter = _hasMoreKanji || _isLoadingMore ? 1 : 0;
-
-    return ListView.builder(
-      controller: _scrollController,
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 28),
-      itemCount: _kanjiResults.length + 1 + extraFooter,
-      itemBuilder: (_, index) {
-        if (index == 0) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: KitsuneSectionHeader(
-              title: 'Kanji results',
-              subtitle:
-                  '${_kanjiResults.length} mục đã nạp. Cuộn xuống để tải thêm nếu còn kết quả.',
-              accent: KitsuneColors.secondary,
-            ),
-          );
-        }
-
-        final dataIndex = index - 1;
-        if (dataIndex < _kanjiResults.length) {
-          return _buildKanjiCard(_kanjiResults[dataIndex]);
-        }
-
-        return _LoadMoreFooter(
-          isLoading: _isLoadingMore,
-          hasMore: _hasMoreKanji,
-          onTap: _loadMore,
-        );
-      },
+    return ListView(
+      key: ValueKey('results-$_category-$hasQuery'),
+      padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+      children: sections,
     );
+  }
+
+  void _appendSection(
+    List<Widget> output, {
+    required String title,
+    required int count,
+    required Iterable<Widget> children,
+  }) {
+    if (count == 0) return;
+    output
+      ..add(
+        Padding(
+          padding: const EdgeInsets.fromLTRB(2, 10, 2, 9),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              Text(
+                '$count kết quả',
+                style: const TextStyle(
+                  color: KitsuneColors.onSurfaceVariant,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+        ),
+      )
+      ..addAll(children);
   }
 
   Widget _buildVocabularyCard(VocabularyDto vocab) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: KitsuneSurface(
-        onTap: () => Navigator.pushNamed(context, '/vocabulary/${vocab.id}'),
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        vocab.word,
-                        style: AppTheme.japaneseStyle(
-                          fontSize: 27,
-                          fontWeight: FontWeight.w800,
-                          color: KitsuneColors.onSurface,
-                        ),
-                      ),
-                      if ((vocab.pronunciation ?? '').trim().isNotEmpty) ...[
-                        const SizedBox(height: AppTheme.space4),
-                        Text(
-                          vocab.pronunciation!,
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: KitsuneColors.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppTheme.space16),
-                Container(
-                  constraints: const BoxConstraints(maxWidth: 150),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: KitsuneColors.primarySurface,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Text(
-                    vocab.meaning,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: KitsuneColors.primaryDark,
-                    ),
-                    textAlign: TextAlign.right,
-                  ),
-                ),
-              ],
-            ),
-            if (vocab.kanjiComponents.isNotEmpty) ...[
-              const SizedBox(height: AppTheme.space12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: vocab.kanjiComponents.take(4).map((component) {
-                  return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: KitsuneColors.surfaceVariant,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Text(
-                      '${component.character} - ${component.amHanViet}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: KitsuneColors.onSurface,
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-            ],
-            const SizedBox(height: AppTheme.space14),
-            Row(
-              children: [
-                Text(
-                  'Open detail',
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                        color: KitsuneColors.primary,
-                      ),
-                ),
-                const SizedBox(width: 4),
-                const Icon(
-                  Icons.arrow_forward_rounded,
-                  size: 16,
-                  color: KitsuneColors.primary,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return SearchResultCard(
+      kind: 'Từ vựng',
+      title: vocab.word,
+      subtitle: vocab.meaning,
+      accent: KitsuneColors.primary,
+      icon: Icons.menu_book_rounded,
+      isJapaneseTitle: true,
+      meta: [
+        if (vocab.pronunciation?.trim().isNotEmpty == true)
+          vocab.pronunciation!,
+        ...vocab.kanjiComponents
+            .take(2)
+            .map((item) => '${item.character} · ${item.amHanViet}'),
+      ],
+      onTap: () => Navigator.pushNamed(context, '/vocabulary/${vocab.id}'),
     );
   }
 
   Widget _buildKanjiCard(KanjiDetailDto kanji) {
-    final accent =
-        KitsuneColors.jlptColors[kanji.jlptLevel] ?? KitsuneColors.secondary;
+    return SearchResultCard(
+      kind: 'Kanji',
+      title: '${kanji.character}  ${kanji.amHanViet}',
+      subtitle: kanji.meaning,
+      accent:
+          KitsuneColors.jlptColors[kanji.jlptLevel] ?? KitsuneColors.secondary,
+      icon: Icons.grid_view_rounded,
+      isJapaneseTitle: true,
+      meta: [
+        '${kanji.strokeCount} nét',
+        if (kanji.onyomi?.trim().isNotEmpty == true) 'On: ${kanji.onyomi}',
+        if (kanji.kunyomi?.trim().isNotEmpty == true) 'Kun: ${kanji.kunyomi}',
+      ],
+      onTap: () => Navigator.pushNamed(context, '/kanji/${kanji.id}'),
+    );
+  }
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: KitsuneSurface(
-        onTap: () => Navigator.pushNamed(context, '/kanji/${kanji.id}'),
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 70,
-              height: 70,
-              decoration: BoxDecoration(
-                color: accent.withValues(alpha: 0.14),
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Center(
-                child: Text(
-                  kanji.character,
-                  style: AppTheme.japaneseStyle(
-                    fontSize: 34,
-                    fontWeight: FontWeight.w800,
-                    color: accent,
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(width: AppTheme.space14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildGrammarCard(GrammarPoint grammar) {
+    return SearchResultCard(
+      kind: 'Ngữ pháp',
+      title: grammar.title,
+      subtitle: grammar.meaning,
+      accent: KitsuneColors.stamp,
+      icon: Icons.account_tree_rounded,
+      isJapaneseTitle: true,
+      meta: [
+        if (grammar.jlptLevel != null) 'JLPT N${grammar.jlptLevel}',
+        if (grammar.structure?.trim().isNotEmpty == true) grammar.structure!,
+      ],
+      onTap: () => _openGrammar(grammar),
+    );
+  }
+
+  Future<void> _openGrammar(GrammarPoint grammar) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return DraggableScrollableSheet(
+          initialChildSize: .72,
+          minChildSize: .45,
+          maxChildSize: .92,
+          builder: (context, controller) {
+            return Material(
+              color: KitsuneColors.surface,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(28)),
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.all(AppTheme.space20),
                 children: [
                   Row(
                     children: [
                       Expanded(
                         child: Text(
-                          kanji.amHanViet,
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    color: KitsuneColors.onSurface,
-                                  ),
+                          grammar.title,
+                          style: AppTheme.japaneseStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
-                      if (kanji.jlptLevel != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: KitsuneColors.jlptSurfaces[kanji.jlptLevel],
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            'N${kanji.jlptLevel}',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: accent,
-                            ),
-                          ),
-                        ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: AppTheme.space6),
                   Text(
-                    kanji.meaning,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: KitsuneColors.onSurfaceVariant,
-                        ),
+                    grammar.meaning,
+                    style: const TextStyle(
+                      color: KitsuneColors.stamp,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
-                  const SizedBox(height: AppTheme.space10),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _MiniTag(
-                        label: '${kanji.strokeCount} strokes',
-                        color: accent,
+                  if (grammar.structure?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 14),
+                    KitsuneSurface(
+                      color: KitsuneColors.stampSurface,
+                      child: Text(grammar.structure!,
+                          style: Theme.of(context).textTheme.titleMedium),
+                    ),
+                  ],
+                  if (grammar.explanation?.trim().isNotEmpty == true) ...[
+                    const SizedBox(height: 16),
+                    Text(grammar.explanation!,
+                        style: const TextStyle(height: 1.6)),
+                  ],
+                  if (grammar.examples.isNotEmpty) ...[
+                    const SizedBox(height: 20),
+                    Text('Ví dụ',
+                        style: Theme.of(context).textTheme.titleMedium),
+                    const SizedBox(height: 8),
+                    for (final example in grammar.examples)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: KitsuneSurface(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                example.japaneseText,
+                                style: AppTheme.japaneseStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              if (example.reading?.trim().isNotEmpty == true)
+                                Text(example.reading!,
+                                    style: const TextStyle(
+                                        color: KitsuneColors.primary)),
+                              if (example.meaningVi?.trim().isNotEmpty == true)
+                                Text(example.meaningVi!,
+                                    style:
+                                        Theme.of(context).textTheme.bodySmall),
+                            ],
+                          ),
+                        ),
                       ),
-                      if ((kanji.onyomi ?? '').trim().isNotEmpty)
-                        _MiniTag(
-                          label: 'On: ${kanji.onyomi!}',
-                          color: KitsuneColors.secondary,
-                        ),
-                      if ((kanji.kunyomi ?? '').trim().isNotEmpty)
-                        _MiniTag(
-                          label: 'Kun: ${kanji.kunyomi!}',
-                          color: KitsuneColors.primary,
-                        ),
-                    ],
-                  ),
+                  ],
                 ],
               ),
-            ),
-          ],
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
+  }
+
+  String _categoryLabel(SearchCategory category) {
+    switch (category) {
+      case SearchCategory.all:
+        return 'Tất cả';
+      case SearchCategory.vocabulary:
+        return 'Từ vựng';
+      case SearchCategory.kanji:
+        return 'Kanji';
+      case SearchCategory.grammar:
+        return 'Ngữ pháp';
+    }
+  }
+
+  IconData _categoryIcon(SearchCategory category) {
+    switch (category) {
+      case SearchCategory.all:
+        return Icons.auto_awesome_rounded;
+      case SearchCategory.vocabulary:
+        return Icons.menu_book_rounded;
+      case SearchCategory.kanji:
+        return Icons.grid_view_rounded;
+      case SearchCategory.grammar:
+        return Icons.account_tree_rounded;
+    }
   }
 }
 
@@ -705,110 +480,42 @@ class _CategoryPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final background = isSelected
-        ? KitsuneColors.onSurface
-        : KitsuneColors.surface.withValues(alpha: 0.92);
-    final foreground =
-        isSelected ? Colors.white : KitsuneColors.onSurfaceVariant;
-
     return Material(
-      color: Colors.transparent,
+      color: isSelected ? KitsuneColors.primary : KitsuneColors.surface,
+      borderRadius: BorderRadius.circular(999),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(999),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: 14,
-            vertical: 14,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 9),
           decoration: BoxDecoration(
-            color: background,
-            borderRadius: BorderRadius.circular(18),
+            borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: isSelected
-                  ? KitsuneColors.onSurface
+                  ? KitsuneColors.primary
                   : KitsuneColors.surfaceBorder,
             ),
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 18, color: foreground),
-              const SizedBox(width: 8),
+              Icon(
+                icon,
+                size: 16,
+                color: isSelected ? Colors.white : KitsuneColors.onSurface,
+              ),
+              const SizedBox(width: 6),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w700,
-                  color: foreground,
+                  color: isSelected ? Colors.white : KitsuneColors.onSurface,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
                 ),
               ),
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _MiniTag extends StatelessWidget {
-  const _MiniTag({
-    required this.label,
-    required this.color,
-  });
-
-  final String label;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.11),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
-    );
-  }
-}
-
-class _LoadMoreFooter extends StatelessWidget {
-  const _LoadMoreFooter({
-    required this.isLoading,
-    required this.hasMore,
-    required this.onTap,
-  });
-
-  final bool isLoading;
-  final bool hasMore;
-  final Future<void> Function() onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 20),
-        child: KitsuneLoadingFox(message: 'Đang tải thêm...', size: 72),
-      );
-    }
-
-    if (!hasMore) {
-      return const SizedBox.shrink();
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(top: 4, bottom: 20),
-      child: OutlinedButton(
-        onPressed: onTap,
-        child: const Text('Tải thêm'),
       ),
     );
   }

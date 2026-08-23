@@ -9,6 +9,8 @@ export type SrsMode =
   | 'WORD_FROM_MEAN'
   | 'FILL_BLANK'
   | 'ON_KUN_READ'
+  | 'ON_READ'
+  | 'KUN_READ'
   | 'HAN_VIET'
   | 'COMPOSE_KANJI'
   | 'DRAW_KANJI';

@@ -360,6 +360,9 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
             : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}".`) +
         (question.answerDetail ? `\n${question.answerDetail}` : ''),
     });
+    if (card.type === 'vocabulary') {
+      this.ttsService.speak(card.word);
+    }
     this.stats.update((stats) => ({
       ...stats,
       quizCompleted: stats.quizCompleted + (isCorrect ? 1 : 0),
@@ -415,6 +418,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       WORD_FROM_MEAN: 'Từ từ nghĩa',
       FILL_BLANK: 'Điền từ',
       ON_KUN_READ: 'Cách đọc',
+      ON_READ: 'Âm On',
+      KUN_READ: 'Âm Kun',
       HAN_VIET: 'Âm Hán Việt',
       COMPOSE_KANJI: 'Nhận dạng Kanji',
       DRAW_KANJI: 'Viết Kanji',
@@ -428,6 +433,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       WORD_FROM_MEAN: '#E2672B',
       FILL_BLANK: '#D9A441',
       ON_KUN_READ: '#B23A2E',
+      ON_READ: '#B23A2E',
+      KUN_READ: '#3B6FA0',
       HAN_VIET: '#5F7A52',
       COMPOSE_KANJI: '#4F8B5C',
       DRAW_KANJI: '#8D4024',
@@ -439,6 +446,13 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     const max = this.maxLevelCount();
     if (max === 0) return 0;
     return Math.max(4, Math.round((bucket.count / max) * 100));
+  }
+
+  getKanjiStrokeUrl(character: string): string {
+    const codePoint = character.trim().codePointAt(0);
+    if (codePoint === undefined) return '';
+    const hex = codePoint.toString(16).padStart(5, '0').toLowerCase();
+    return `https://wzwwopifwhijewbmyywz.supabase.co/storage/v1/object/public/kanji-strokes/${hex}.svg`;
   }
 
   // ─── Private ─────────────────────────────────────────────────────────────────
@@ -583,6 +597,9 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
     const pool = session.cards;
     this.currentQuestion.set(this.buildQuestion(card, pool));
+    if (card.type === 'vocabulary') {
+      this.ttsService.speak(card.word);
+    }
   }
 
   private applyLocalProgress(progress: SrsCardProgressUpdate): void {
@@ -686,7 +703,12 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     const modes =
       card.type === 'vocabulary'
         ? this.shuffle<SrsMode>(['MEAN_FROM_WORD', 'WORD_FROM_MEAN', 'FILL_BLANK'])
-        : this.shuffle<SrsMode>(['ON_KUN_READ', 'HAN_VIET', 'COMPOSE_KANJI']);
+        : this.shuffle<SrsMode>([
+            ...(card.onyomi?.trim() ? (['ON_READ'] as SrsMode[]) : []),
+            ...(card.kunyomi?.trim() ? (['KUN_READ'] as SrsMode[]) : []),
+            'HAN_VIET',
+            'COMPOSE_KANJI',
+          ]);
 
     // Always try to create a multiple-choice question
     for (const mode of modes) {
@@ -787,32 +809,26 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (mode === 'ON_KUN_READ') {
-      const correct = card.onyomi ?? card.kunyomi;
+    if (mode === 'ON_READ' || mode === 'KUN_READ') {
+      const isOnReading = mode === 'ON_READ';
+      const correct = isOnReading ? card.onyomi : card.kunyomi;
       if (!correct) return null;
       const readings = pool
         .filter((item) => item.type === 'kanji')
-        .map((item) => item.onyomi ?? item.kunyomi)
+        .map((item) => (isOnReading ? item.onyomi : item.kunyomi))
         .filter((value): value is string => !!value);
-      const fallbacks = [
-        'ジン',
-        'カ',
-        'ガク',
-        'ゴ',
-        'ホン',
-        'セイ',
-        'セン',
-        'ニチ',
-        'ゲツ',
-        'スイ',
-      ];
+      const fallbacks = isOnReading
+        ? ['ジン', 'カ', 'ガク', 'ゴ', 'ホン', 'セイ', 'セン', 'ニチ', 'ゲツ', 'スイ']
+        : ['ひと', 'いえ', 'まなぶ', 'かたる', 'もと', 'うまれる', 'さき', 'ひ', 'つき', 'みず'];
       const options = this.buildOptions(correct, readings, fallbacks);
       return {
         mode,
         kind: 'mc',
         prompt: card.character ?? '',
-        promptLabel: 'Chọn cách đọc đúng của kanji này',
-        helper: 'Dùng onyomi nếu có, nếu không thì dùng kunyomi.',
+        promptLabel: isOnReading ? 'Chọn âm On đúng' : 'Chọn âm Kun đúng',
+        helper: isOnReading
+          ? 'Chỉ đối chiếu cách đọc On-yomi (âm Hán Nhật).'
+          : 'Chỉ đối chiếu cách đọc Kun-yomi (âm Nhật).',
         options,
         correctAnswer: correct,
       };

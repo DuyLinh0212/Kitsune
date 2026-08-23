@@ -555,6 +555,19 @@
                       <p class="answer-dialog__eyebrow">Kết quả</p>
                       <h2 id="answer-dialog-title">{{ fb.correct ? 'Chính xác!' : 'Chưa chính xác' }}</h2>
                       <p class="answer-dialog__message">{{ fb.message }}</p>
+                      @if (!fb.correct && question.kind === 'drawing') {
+                        <div class="answer-dialog__stroke" aria-label="Mẫu thứ tự nét Kanji">
+                          <div class="answer-dialog__stroke-copy">
+                            <span>Mẫu nét cần xem lại</span>
+                            <strong>{{ card.character }}</strong>
+                            <small>{{ card.strokeCount ?? '—' }} nét · xem từ trái sang phải, trên xuống dưới</small>
+                          </div>
+                          <img
+                            [src]="getKanjiStrokeUrl(card.character ?? '')"
+                            [alt]="'Mẫu nét viết Kanji ' + (card.character ?? '')"
+                          />
+                        </div>
+                      }
                       <button type="button" class="quiz-submit-btn answer-dialog__button" (click)="continueAfterAnswer()">
                       OK · Câu tiếp theo
                       </button>

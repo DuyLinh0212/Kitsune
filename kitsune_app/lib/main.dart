@@ -264,11 +264,6 @@ const _navItems = [
     label: 'Ôn tập',
   ),
   _NavItem(
-    icon: Icons.menu_book_outlined,
-    selectedIcon: Icons.menu_book_rounded,
-    label: 'Ngữ pháp',
-  ),
-  _NavItem(
     icon: Icons.person_outline_rounded,
     selectedIcon: Icons.person_rounded,
     label: 'Cá nhân',
@@ -283,7 +278,6 @@ class _MainScreenState extends ConsumerState<MainScreen> {
     SearchPage(),
     TopicLearningPage(),
     SrsReviewPage(),
-    GrammarPage(),
     ProfilePage(),
   ];
 

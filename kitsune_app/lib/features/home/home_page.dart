@@ -16,7 +16,6 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  final _searchController = TextEditingController();
   int? _userId;
   List<double> _weekUsageHours = List<double>.filled(7, 0);
 
@@ -24,12 +23,6 @@ class _HomePageState extends ConsumerState<HomePage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _loadUserId());
-  }
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
   }
 
   Future<void> _loadUserId() async {
@@ -63,7 +56,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                 onRefresh: () async {
                   ref.invalidate(userStatsProvider(_userId!));
                   ref.invalidate(weekChartProvider(_userId!));
-                  ref.invalidate(dashboardFoldersProvider(_userId!));
                   ref.invalidate(dashboardQuizzesProvider(_userId!));
                   ref.invalidate(leaderboardProvider);
                   await _loadUserId();
@@ -74,36 +66,13 @@ class _HomePageState extends ConsumerState<HomePage> {
                   children: [
                     _buildHero(user),
                     const SizedBox(height: AppTheme.space16),
-                    KitsuneSearchField(
-                      controller: _searchController,
-                      hintText: 'Tìm từ vựng, kanji hoặc một việc cần làm...',
-                      onChanged: (_) => setState(() {}),
-                      onClear: () {
-                        _searchController.clear();
-                        setState(() {});
-                      },
-                    ),
-                    const SizedBox(height: AppTheme.space16),
-                    ElevatedButton.icon(
-                      onPressed: () => Navigator.pushNamed(context, '/exams'),
-                      icon: const Icon(Icons.assignment_rounded),
-                      label: const Text('Làm đề kiểm tra'),
-                    ),
+                    _buildQuickActions(),
                     const SizedBox(height: AppTheme.space24),
                     const KitsuneSectionHeader(
                       title: 'Nhịp học tuần này',
                     ),
                     const SizedBox(height: AppTheme.space12),
                     _buildWeekChart(),
-                    const SizedBox(height: AppTheme.space24),
-                    KitsuneSectionHeader(
-                      title: 'Thư mục gần đây',
-                      subtitle: 'Đi thẳng vào bộ từ bạn đang xây dựng.',
-                      actionLabel: 'Xem tất cả',
-                      onAction: () => Navigator.pushNamed(context, '/folders'),
-                    ),
-                    const SizedBox(height: AppTheme.space12),
-                    _buildRecentFolders(),
                     const SizedBox(height: AppTheme.space24),
                     KitsuneSectionHeader(
                       title: 'Quiz của bạn',
@@ -140,7 +109,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               'Xin chào ${user?.displayName ?? 'bạn'}, hôm nay mình học gì tiếp?',
           subtitle: stats.srsCardsDue > 0
               ? 'Bạn đang có ${stats.srsCardsDue} thẻ đến hạn. Đây là lúc tốt nhất để giữ nhịp nhớ lâu.'
-              : 'Hôm nay chưa có thẻ đến hạn. Đây là thời điểm đẹp để mở thêm quiz hoặc thư mục mới.',
+              : 'Hôm nay chưa có thẻ đến hạn. Bạn có thể mở một bài học hoặc thử quiz mới.',
           trailing: Column(
             children: [
               CircleAvatar(
@@ -179,6 +148,90 @@ class _HomePageState extends ConsumerState<HomePage> {
       error: (_, __) => const KitsuneSurface(
         child: SizedBox(height: 160),
       ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    final actions = [
+      (
+        label: 'Ôn tập',
+        detail: 'Giữ nhịp SRS',
+        icon: Icons.auto_awesome_motion_rounded,
+        color: KitsuneColors.primary,
+        route: '/srs',
+      ),
+      (
+        label: 'Quiz',
+        detail: 'Luyện phản xạ',
+        icon: Icons.quiz_rounded,
+        color: KitsuneColors.secondary,
+        route: '/quizzes',
+      ),
+      (
+        label: 'Đề kiểm tra',
+        detail: 'Đo tiến bộ',
+        icon: Icons.assignment_rounded,
+        color: KitsuneColors.stamp,
+        route: '/exams',
+      ),
+      (
+        label: 'Cộng đồng',
+        detail: 'Xem xếp hạng',
+        icon: Icons.groups_rounded,
+        color: KitsuneColors.success,
+        route: '/leaderboard',
+      ),
+    ];
+
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
+        childAspectRatio: 1.75,
+      ),
+      itemCount: actions.length,
+      itemBuilder: (context, index) {
+        final action = actions[index];
+        return KitsuneSurface(
+          onTap: () => Navigator.pushNamed(context, action.route),
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: action.color.withValues(alpha: .12),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(action.icon, color: action.color, size: 21),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      action.label,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    Text(
+                      action.detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -290,80 +343,6 @@ class _HomePageState extends ConsumerState<HomePage> {
     final displayHours = (totalMinutes / 60).toStringAsFixed(1);
     final normalizedHours = double.parse(displayHours).toString();
     return '$normalizedHours giờ';
-  }
-
-  Widget _buildRecentFolders() {
-    final folders = ref.watch(dashboardFoldersProvider(_userId!));
-    return folders.when(
-      data: (items) {
-        if (items.isEmpty) {
-          return KitsuneEmptyState(
-            icon: Icons.folder_open_rounded,
-            title: 'Chưa có thư mục nào',
-            message:
-                'Tạo thư mục đầu tiên để gom từ vựng theo chủ đề và ôn tập gọn hơn.',
-            action: SizedBox(
-              width: 180,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pushNamed(context, '/folders'),
-                child: const Text('Mở thư mục'),
-              ),
-            ),
-          );
-        }
-
-        return SizedBox(
-          height: 176,
-          child: ListView.separated(
-            scrollDirection: Axis.horizontal,
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: 12),
-            itemBuilder: (_, index) {
-              final folder = items[index];
-              final color = KitsuneColors
-                  .folderColors[index % KitsuneColors.folderColors.length];
-
-              return SizedBox(
-                width: 188,
-                child: KitsuneSurface(
-                  onTap: () =>
-                      Navigator.pushNamed(context, '/folders/${folder.id}'),
-                  color: KitsuneColors.surface,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        width: 46,
-                        height: 46,
-                        decoration: BoxDecoration(
-                          color: color.withValues(alpha: 0.13),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(Icons.folder_copy_rounded, color: color),
-                      ),
-                      const Spacer(),
-                      Text(
-                        folder.name,
-                        style: Theme.of(context).textTheme.titleLarge,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '${folder.vocabCount} mục đang chờ bạn quay lại',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        );
-      },
-      loading: () => const KitsuneSurface(child: SizedBox(height: 176)),
-      error: (_, __) => const SizedBox.shrink(),
-    );
   }
 
   Widget _buildMyQuizzes() {
