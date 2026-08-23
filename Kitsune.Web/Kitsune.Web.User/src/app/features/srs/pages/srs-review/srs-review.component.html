@@ -547,27 +547,61 @@
                       class="answer-dialog"
                       [class.answer-dialog--correct]="fb.correct"
                       [class.answer-dialog--wrong]="!fb.correct"
+                      [class.answer-dialog--dragging]="isAnswerDialogDragging()"
+                      [style.translate]="answerDialogOffset().x + 'px ' + answerDialogOffset().y + 'px'"
                       role="dialog"
                       aria-modal="true"
                       aria-labelledby="answer-dialog-title"
                     >
+                      <div
+                        class="answer-dialog__drag-handle"
+                        aria-label="Kéo để di chuyển hộp kết quả"
+                        (pointerdown)="startAnswerDialogDrag($event)"
+                        (pointermove)="moveAnswerDialog($event)"
+                        (pointerup)="endAnswerDialogDrag($event)"
+                        (pointercancel)="endAnswerDialogDrag($event)"
+                      >
+                        <span aria-hidden="true"></span>
+                        <small>Kéo để di chuyển</small>
+                      </div>
                       <span class="answer-dialog__icon" aria-hidden="true">{{ fb.correct ? '✓' : '!' }}</span>
                       <p class="answer-dialog__eyebrow">Kết quả</p>
                       <h2 id="answer-dialog-title">{{ fb.correct ? 'Chính xác!' : 'Chưa chính xác' }}</h2>
                       <p class="answer-dialog__message">{{ fb.message }}</p>
-                      @if (!fb.correct && question.kind === 'drawing') {
-                        <div class="answer-dialog__stroke" aria-label="Mẫu thứ tự nét Kanji">
-                          <div class="answer-dialog__stroke-copy">
-                            <span>Mẫu nét cần xem lại</span>
-                            <strong>{{ card.character }}</strong>
-                            <small>{{ card.strokeCount ?? '—' }} nét · xem từ trái sang phải, trên xuống dưới</small>
-                          </div>
-                          <img
-                            [src]="getKanjiStrokeUrl(card.character ?? '')"
-                            [alt]="'Mẫu nét viết Kanji ' + (card.character ?? '')"
-                          />
+                  @if (!fb.correct && card.type === 'kanji') {
+                    <div class="answer-dialog__stroke" aria-label="Mẫu thứ tự nét Kanji">
+                      <div class="answer-dialog__stroke-copy">
+                        <span>Mẫu nét cần xem lại</span>
+                        <strong>{{ card.character }}</strong>
+                      </div>
+                      <img
+                        [src]="getKanjiStrokeUrl(card.character ?? '')"
+                        [alt]="'Mẫu nét viết Kanji ' + (card.character ?? '')"
+                      />
+                      @if (card.onyomi || card.kunyomi || card.amHanViet) {
+                        <div class="answer-dialog__readings" aria-label="Cách đọc Kanji">
+                          @if (card.onyomi) {
+                            <span class="answer-dialog__reading answer-dialog__reading--on">
+                              <small>Âm On</small>
+                              <strong>{{ card.onyomi }}</strong>
+                            </span>
+                          }
+                          @if (card.kunyomi) {
+                            <span class="answer-dialog__reading answer-dialog__reading--kun">
+                              <small>Âm Kun</small>
+                              <strong>{{ card.kunyomi }}</strong>
+                            </span>
+                          }
+                          @if (card.amHanViet) {
+                            <span class="answer-dialog__reading answer-dialog__reading--han-viet">
+                              <small>Âm Hán Việt</small>
+                              <strong>{{ card.amHanViet }}</strong>
+                            </span>
+                          }
                         </div>
                       }
+                    </div>
+                  }
                       <button type="button" class="quiz-submit-btn answer-dialog__button" (click)="continueAfterAnswer()">
                       OK · Câu tiếp theo
                       </button>

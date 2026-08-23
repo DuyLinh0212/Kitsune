@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:kitsune_app/core/models/vocabulary.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
@@ -25,9 +26,11 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
   bool? _isBookmarked;
   String? _speakingWord;
 
-  Future<void> _speak(String word) async {
-    setState(() => _speakingWord = word);
-    await ref.read(ttsServiceProvider).speak(word);
+  Future<void> _speak(VocabularyDto vocab) async {
+    setState(() => _speakingWord = vocab.word);
+    await ref
+        .read(ttsServiceProvider)
+        .speakVocabulary(vocab.word, vocab.pronunciation);
     if (mounted) {
       setState(() => _speakingWord = null);
     }
@@ -183,7 +186,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                     ),
                   InkWell(
                     borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                    onTap: () => _speak(vocab.word),
+                    onTap: () => _speak(vocab),
                     child: KitsuneActionBadge(
                       icon: Icons.volume_up_rounded,
                       label: 'Phát âm',
@@ -257,7 +260,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => _speak(vocab.word),
+                            onPressed: () => _speak(vocab),
                             icon: const Icon(Icons.volume_up_rounded),
                             label: const Text('Nghe lại'),
                           ),

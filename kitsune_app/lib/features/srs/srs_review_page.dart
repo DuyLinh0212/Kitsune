@@ -87,6 +87,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   String? _selectedOption;
   bool? _lastAnswerCorrect;
   String? _feedbackMessage;
+  Offset _answerDialogOffset = Offset.zero;
+  final GlobalKey _answerDialogKey = GlobalKey();
   int _flashCompleted = 0;
   int _answersGiven = 0;
   int _mistakes = 0;
@@ -95,10 +97,12 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   String _countdownText = '';
   String? _speakingWord;
 
-  Future<void> _speak(String word) async {
+  Future<void> _speak(SRSCardDto card) async {
     if (!mounted) return;
-    setState(() => _speakingWord = word);
-    await ref.read(ttsServiceProvider).speak(word);
+    setState(() => _speakingWord = card.word);
+    await ref
+        .read(ttsServiceProvider)
+        .speakVocabulary(card.word, card.pronunciation);
     if (mounted) {
       setState(() => _speakingWord = null);
     }
@@ -108,7 +112,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     if (_quizQueue.isEmpty || _quizQueue.first.type != SrsItemType.vocabulary) {
       return;
     }
-    unawaited(_speak(_quizQueue.first.word));
+    unawaited(_speak(_quizQueue.first));
   }
 
   @override
@@ -189,6 +193,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     _selectedOption = null;
     _lastAnswerCorrect = null;
     _feedbackMessage = null;
+    _answerDialogOffset = Offset.zero;
     _currentQuestion = null;
     _isCardFlipped = false;
     _showStudyOverlay = false;
@@ -435,6 +440,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         _mistakes += 1;
       }
       _lastAnswerCorrect = isCorrect;
+      _answerDialogOffset = Offset.zero;
       _feedbackMessage = isCorrect
           ? 'Chính xác. Đáp án: "${_currentQuestion!.correctAnswer}".'
           : _currentQuestion!.isDrawing
@@ -478,6 +484,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       _selectedOption = null;
       _lastAnswerCorrect = null;
       _feedbackMessage = null;
+      _answerDialogOffset = Offset.zero;
     });
     _syncPhase();
   }
@@ -1270,9 +1277,11 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
   List<Widget> _buildAnswerDialogLayers() {
     final card = _quizQueue.first;
-    final question = _currentQuestion;
     final isCorrect = _lastAnswerCorrect ?? false;
-    final showStroke = !isCorrect && question?.isDrawing == true;
+    final showStroke = !isCorrect && card.type == SrsItemType.kanji;
+    final hasReadings = card.onyomi?.trim().isNotEmpty == true ||
+        card.kunyomi?.trim().isNotEmpty == true ||
+        card.amHanViet?.trim().isNotEmpty == true;
 
     return [
       const Positioned.fill(
@@ -1287,110 +1296,178 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
             child: SingleChildScrollView(
               physics: const NeverScrollableScrollPhysics(),
               padding: const EdgeInsets.all(18),
-              child: Material(
-                color: KitsuneColors.surface,
-                elevation: 18,
-                borderRadius: BorderRadius.circular(28),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 430),
-                  child: Padding(
-                    padding: const EdgeInsets.all(22),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Container(
-                          width: 48,
-                          height: 48,
-                          decoration: BoxDecoration(
-                            color: isCorrect
-                                ? KitsuneColors.successSurface
-                                : KitsuneColors.errorSurface,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(
-                            isCorrect
-                                ? Icons.check_rounded
-                                : Icons.priority_high_rounded,
-                            color: isCorrect
-                                ? KitsuneColors.success
-                                : KitsuneColors.error,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          isCorrect ? 'Chính xác!' : 'Chưa chính xác',
-                          style: Theme.of(context).textTheme.headlineSmall,
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          _feedbackMessage!,
-                          textAlign: TextAlign.center,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    color: KitsuneColors.onSurfaceVariant,
-                                    height: 1.45,
+              child: Transform.translate(
+                offset: _answerDialogOffset,
+                child: Material(
+                  key: _answerDialogKey,
+                  color: KitsuneColors.surface,
+                  elevation: 18,
+                  borderRadius: BorderRadius.circular(28),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 430),
+                    child: Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onPanUpdate: _moveAnswerDialog,
+                            child: const Padding(
+                              padding: EdgeInsets.only(bottom: 8),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  SizedBox(
+                                    width: 42,
+                                    height: 4,
+                                    child: DecoratedBox(
+                                      decoration: BoxDecoration(
+                                        color: Color(0xFFE6C8AE),
+                                        borderRadius: BorderRadius.all(
+                                          Radius.circular(999),
+                                        ),
+                                      ),
+                                    ),
                                   ),
-                        ),
-                        if (showStroke) ...[
-                          const SizedBox(height: 12),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: KitsuneColors.errorSurface,
-                              borderRadius: BorderRadius.circular(18),
+                                  SizedBox(height: 3),
+                                  Text(
+                                    'Kéo để di chuyển',
+                                    style: TextStyle(
+                                      color: KitsuneColors.onSurfaceMuted,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
                             ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                          ),
+                          Container(
+                            width: 48,
+                            height: 48,
+                            decoration: BoxDecoration(
+                              color: isCorrect
+                                  ? KitsuneColors.successSurface
+                                  : KitsuneColors.errorSurface,
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              isCorrect
+                                  ? Icons.check_rounded
+                                  : Icons.priority_high_rounded,
+                              color: isCorrect
+                                  ? KitsuneColors.success
+                                  : KitsuneColors.error,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            isCorrect ? 'Chính xác!' : 'Chưa chính xác',
+                            style: Theme.of(context).textTheme.headlineSmall,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            _feedbackMessage!,
+                            textAlign: TextAlign.center,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  color: KitsuneColors.onSurfaceVariant,
+                                  height: 1.45,
+                                ),
+                          ),
+                          if (showStroke) ...[
+                            const SizedBox(height: 12),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: KitsuneColors.errorSurface,
+                                borderRadius: BorderRadius.circular(18),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Row(
                                     children: [
-                                      const Text(
-                                        'MẪU NÉT CẦN XEM LẠI',
-                                        style: TextStyle(
-                                          color: KitsuneColors.error,
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w800,
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              'MẪU NÉT CẦN XEM LẠI',
+                                              style: TextStyle(
+                                                color: KitsuneColors.error,
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 6),
+                                            Text(
+                                              card.character ?? '',
+                                              style: AppTheme.japaneseStyle(
+                                                fontSize: 40,
+                                                fontWeight: FontWeight.w800,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      const SizedBox(height: 6),
-                                      Text(
-                                        card.character ?? '',
-                                        style: AppTheme.japaneseStyle(
-                                          fontSize: 40,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                      Text(
-                                        '${card.strokeCount ?? '—'} nét',
-                                        style: Theme.of(context)
-                                            .textTheme
-                                            .bodySmall,
+                                      KanjiStrokeWriter(
+                                        character: card.character ?? '',
+                                        width: 120,
+                                        height: 120,
+                                        compact: true,
                                       ),
                                     ],
                                   ),
-                                ),
-                                KanjiStrokeWriter(
-                                  character: card.character ?? '',
-                                  width: 120,
-                                  height: 120,
-                                  compact: true,
-                                ),
-                              ],
+                                  if (hasReadings) ...[
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 6,
+                                      runSpacing: 6,
+                                      children: [
+                                        if (card.onyomi?.trim().isNotEmpty ==
+                                            true)
+                                          _readingChip(
+                                            'Âm On',
+                                            card.onyomi!,
+                                            KitsuneColors.primary,
+                                          ),
+                                        if (card.kunyomi?.trim().isNotEmpty ==
+                                            true)
+                                          _readingChip(
+                                            'Âm Kun',
+                                            card.kunyomi!,
+                                            KitsuneColors.secondary,
+                                          ),
+                                        if (card.amHanViet?.trim().isNotEmpty ==
+                                            true)
+                                          _readingChip(
+                                            'Âm Hán Việt',
+                                            card.amHanViet!,
+                                            KitsuneColors.error,
+                                          ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ],
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton(
+                              onPressed: _continueAfterAnswer,
+                              child: const Text('OK · Câu tiếp theo'),
                             ),
                           ),
                         ],
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _continueAfterAnswer,
-                            child: const Text('OK · Câu tiếp theo'),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -1400,6 +1477,26 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         ),
       ),
     ];
+  }
+
+  void _moveAnswerDialog(DragUpdateDetails details) {
+    final dialogBox =
+        _answerDialogKey.currentContext?.findRenderObject() as RenderBox?;
+    if (dialogBox == null) return;
+
+    final viewport = MediaQuery.sizeOf(context);
+    final horizontalLimit =
+        max(0.0, (viewport.width - dialogBox.size.width) / 2 - 12);
+    final verticalLimit =
+        max(0.0, (viewport.height - dialogBox.size.height) / 2 - 12);
+    final nextOffset = _answerDialogOffset + details.delta;
+
+    setState(() {
+      _answerDialogOffset = Offset(
+        nextOffset.dx.clamp(-horizontalLimit, horizontalLimit).toDouble(),
+        nextOffset.dy.clamp(-verticalLimit, verticalLimit).toDouble(),
+      );
+    });
   }
 
   Widget _buildSetupQuantity() {
@@ -1607,7 +1704,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
             const SizedBox(height: AppTheme.space10),
             InkWell(
               borderRadius: BorderRadius.circular(24),
-              onTap: () => _speak(card.word),
+              onTap: () => _speak(card),
               child: Padding(
                 padding: const EdgeInsets.all(6),
                 child: Icon(
@@ -1681,7 +1778,7 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
                 const SizedBox(width: AppTheme.space8),
                 InkWell(
                   borderRadius: BorderRadius.circular(20),
-                  onTap: () => _speak(card.word),
+                  onTap: () => _speak(card),
                   child: Padding(
                     padding: const EdgeInsets.all(4),
                     child: Icon(

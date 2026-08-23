@@ -23,9 +23,11 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
   bool _isSearching = false;
   String? _speakingWord;
 
-  Future<void> _speak(String word) async {
-    setState(() => _speakingWord = word);
-    await ref.read(ttsServiceProvider).speak(word);
+  Future<void> _speak(VocabularyDto vocab) async {
+    setState(() => _speakingWord = vocab.word);
+    await ref
+        .read(ttsServiceProvider)
+        .speakVocabulary(vocab.word, vocab.pronunciation);
     if (mounted) {
       setState(() => _speakingWord = null);
     }
@@ -213,7 +215,7 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
                         const SizedBox(width: AppTheme.space8),
                         InkWell(
                           borderRadius: BorderRadius.circular(20),
-                          onTap: () => _speak(vocab.word),
+                          onTap: () => _speak(vocab),
                           child: Padding(
                             padding: const EdgeInsets.all(4),
                             child: Icon(

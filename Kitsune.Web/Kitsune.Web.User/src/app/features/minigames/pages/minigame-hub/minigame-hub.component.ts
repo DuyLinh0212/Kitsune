@@ -121,7 +121,7 @@ export class MinigameHubComponent implements OnDestroy {
 
   playAudio(): void {
     const target = this.currentWord();
-    if (target) this.tts.speak(target.word);
+    if (target) this.tts.speakVocabulary(target.word, target.pronunciation);
   }
 
   selectKana(char: string): void {

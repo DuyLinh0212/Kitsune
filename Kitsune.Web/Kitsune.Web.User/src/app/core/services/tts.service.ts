@@ -8,7 +8,7 @@ export class TtsService {
   readonly speakingText = signal<string | null>(null);
   private activeUtterance: SpeechSynthesisUtterance | null = null;
 
-  speak(text: string, lang = 'ja-JP'): void {
+  speak(text: string, lang = 'ja-JP', displayText = text): void {
     if (!this.isSupported || !text.trim()) return;
 
     const synthesis = window.speechSynthesis;
@@ -21,17 +21,22 @@ export class TtsService {
     const japaneseVoice = synthesis.getVoices().find((voice) => voice.lang.toLowerCase().startsWith('ja'));
     if (japaneseVoice) utterance.voice = japaneseVoice;
 
-    utterance.onstart = () => this.speakingText.set(text);
+    utterance.onstart = () => this.speakingText.set(displayText);
     utterance.onend = () => this.finishSpeaking();
     utterance.onerror = () => this.finishSpeaking();
 
     this.activeUtterance = utterance;
-    this.speakingText.set(text);
+    this.speakingText.set(displayText);
     synthesis.resume();
     synthesis.speak(utterance);
     window.setTimeout(() => {
       if (synthesis.paused) synthesis.resume();
     }, 100);
+  }
+
+  speakVocabulary(word: string, pronunciation: string | null | undefined): void {
+    const spokenText = pronunciation?.trim() || word;
+    this.speak(spokenText, 'ja-JP', word);
   }
 
   isSpeaking(text: string): boolean {

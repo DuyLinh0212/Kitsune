@@ -56,7 +56,7 @@ export class VocabularyDetailComponent implements OnInit {
   speakWord(): void {
     const v = this.vocab();
     if (!v) return;
-    this.ttsService.speak(v.word);
+    this.ttsService.speakVocabulary(v.word, v.pronunciation);
   }
 
   addToSRS(): void {

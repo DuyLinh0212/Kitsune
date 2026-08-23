@@ -131,7 +131,7 @@ export class VocabularySearchComponent implements OnInit {
 
 
   speakWord(vocab: VocabularyDto): void {
-    this.ttsService.speak(vocab.word);
+    this.ttsService.speakVocabulary(vocab.word, vocab.pronunciation);
   }
 
   // --- Bookmark (Yêu thích) ---

@@ -120,6 +120,6 @@ export class LessonDetailComponent implements OnInit {
 
   speak(): void {
     const item = this.activeItem();
-    if (item) this.tts.speak(item.word);
+    if (item) this.tts.speakVocabulary(item.word, item.pronunciation);
   }
 }

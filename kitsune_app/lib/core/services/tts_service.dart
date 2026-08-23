@@ -15,12 +15,22 @@ class TtsService {
   String? _speakingText;
   String? _pendingText;
 
-  Future<void> speak(String text, {String lang = 'ja-JP'}) async {
+  Future<void> speak(
+    String text, {
+    String lang = 'ja-JP',
+    String? displayText,
+  }) async {
     if (text.trim().isEmpty) return;
-    _pendingText = text;
+    _pendingText = displayText ?? text;
     await _tts.stop();
     await _tts.setLanguage(lang);
     await _tts.speak(text);
+  }
+
+  Future<void> speakVocabulary(String word, String? pronunciation) {
+    final spokenText =
+        pronunciation?.trim().isNotEmpty == true ? pronunciation! : word;
+    return speak(spokenText, displayText: word);
   }
 
   bool isSpeaking(String text) => _speakingText == text;

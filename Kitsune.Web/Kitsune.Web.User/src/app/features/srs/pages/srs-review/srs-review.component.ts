@@ -95,6 +95,17 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   readonly selectedOption = signal<string | null>(null);
   readonly typedAnswer = signal('');
   readonly answerFeedback = signal<{ correct: boolean; message: string } | null>(null);
+  readonly answerDialogOffset = signal({ x: 0, y: 0 });
+  readonly isAnswerDialogDragging = signal(false);
+  private answerDialogDrag:
+    | {
+        pointerId: number;
+        startClientX: number;
+        startClientY: number;
+        startOffset: { x: number; y: number };
+        element: HTMLElement;
+      }
+    | null = null;
 
   // ─── Loading / feedback ─────────────────────────────────────────────────────
   readonly isSubmitting = signal(false);
@@ -284,7 +295,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
   speakWord(card: SRSCardDto, event: Event): void {
     event.stopPropagation();
-    this.ttsService.speak(card.word);
+    this.ttsService.speakVocabulary(card.word, card.pronunciation);
   }
 
   markFlashcardLearned(): void {
@@ -361,7 +372,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
         (question.answerDetail ? `\n${question.answerDetail}` : ''),
     });
     if (card.type === 'vocabulary') {
-      this.ttsService.speak(card.word);
+      this.ttsService.speakVocabulary(card.word, card.pronunciation);
     }
     this.stats.update((stats) => ({
       ...stats,
@@ -385,6 +396,53 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     const feedback = this.answerFeedback();
     if (!feedback) return;
     this.advanceQuizQueue(feedback.correct);
+  }
+
+  startAnswerDialogDrag(event: PointerEvent): void {
+    if (event.pointerType === 'mouse' && event.button !== 0) return;
+
+    const element = event.currentTarget as HTMLElement;
+    this.answerDialogDrag = {
+      pointerId: event.pointerId,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startOffset: this.answerDialogOffset(),
+      element,
+    };
+    element.setPointerCapture(event.pointerId);
+    this.isAnswerDialogDragging.set(true);
+    event.preventDefault();
+  }
+
+  moveAnswerDialog(event: PointerEvent): void {
+    const drag = this.answerDialogDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    const bounds = drag.element.closest('.answer-dialog')?.getBoundingClientRect();
+    if (!bounds) return;
+
+    const horizontalLimit = Math.max(0, (window.innerWidth - bounds.width) / 2 - 12);
+    const verticalLimit = Math.max(0, (window.innerHeight - bounds.height) / 2 - 12);
+    const x = this.clampDialogOffset(
+      drag.startOffset.x + event.clientX - drag.startClientX,
+      horizontalLimit,
+    );
+    const y = this.clampDialogOffset(
+      drag.startOffset.y + event.clientY - drag.startClientY,
+      verticalLimit,
+    );
+    this.answerDialogOffset.set({ x, y });
+  }
+
+  endAnswerDialogDrag(event: PointerEvent): void {
+    const drag = this.answerDialogDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+
+    if (drag.element.hasPointerCapture(event.pointerId)) {
+      drag.element.releasePointerCapture(event.pointerId);
+    }
+    this.answerDialogDrag = null;
+    this.isAnswerDialogDragging.set(false);
   }
 
   async reloadActiveFolder(): Promise<void> {
@@ -598,7 +656,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     const pool = session.cards;
     this.currentQuestion.set(this.buildQuestion(card, pool));
     if (card.type === 'vocabulary') {
-      this.ttsService.speak(card.word);
+      this.ttsService.speakVocabulary(card.word, card.pronunciation);
     }
   }
 
@@ -932,10 +990,17 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     return value.trim().toLocaleLowerCase();
   }
 
+  private clampDialogOffset(value: number, limit: number): number {
+    return Math.min(Math.max(value, -limit), limit);
+  }
+
   private clearAnswerState(): void {
     this.selectedOption.set(null);
     this.typedAnswer.set('');
     this.answerFeedback.set(null);
+    this.answerDialogOffset.set({ x: 0, y: 0 });
+    this.isAnswerDialogDragging.set(false);
+    this.answerDialogDrag = null;
   }
 
   private startCountdownTimer(): void {

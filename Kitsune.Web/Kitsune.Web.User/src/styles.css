@@ -91,6 +91,10 @@ app-srs-review .srs-shell--studying .flashcard { height: min(430px,calc(100dvh -
 
 app-srs-review .answer-dialog-backdrop { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: center; padding: 20px; background: rgba(49,36,20,.38); backdrop-filter: blur(4px); animation: answer-backdrop-in .18s ease-out; }
 app-srs-review .answer-dialog { width: min(100%,500px); display: grid; justify-items: center; padding: 24px; border: 1px solid #ebc9b4; border-radius: 24px; background: #fffdf8; box-shadow: 0 24px 70px rgba(55,31,15,.24); color: var(--ink-primary); text-align: center; animation: answer-dialog-in .22s cubic-bezier(.2,.8,.2,1); }
+app-srs-review .answer-dialog__drag-handle { display: grid; justify-items: center; gap: 3px; width: 100%; margin: -8px 0 8px; color: #9a6b4c; cursor: grab; touch-action: none; user-select: none; }
+app-srs-review .answer-dialog__drag-handle span { width: 42px; height: 4px; border-radius: 999px; background: #e6c8ae; }
+app-srs-review .answer-dialog__drag-handle small { font-size: 10px; font-weight: 750; letter-spacing: .02em; }
+app-srs-review .answer-dialog--dragging .answer-dialog__drag-handle { cursor: grabbing; }
 app-srs-review .answer-dialog__icon { width: 52px; height: 52px; display: grid; place-items: center; margin-bottom: 12px; border-radius: 50%; background: #e8f8ed; color: #15803d; font-size: 28px; font-weight: 900; }
 app-srs-review .answer-dialog--wrong .answer-dialog__icon { background: #fff0ee; color: #b42318; }
 app-srs-review .answer-dialog__eyebrow { margin: 0 0 4px; color: #9a6b4c; font-size: 11px; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
@@ -101,8 +105,14 @@ app-srs-review .answer-dialog__stroke { width: 100%; display: grid; grid-templat
 app-srs-review .answer-dialog__stroke-copy { display: grid; gap: 4px; color: #8a2518; }
 app-srs-review .answer-dialog__stroke-copy span { font-size: 12px; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
 app-srs-review .answer-dialog__stroke-copy strong { font-family: 'Noto Serif JP',serif; font-size: 40px; line-height: 1; }
-app-srs-review .answer-dialog__stroke-copy small { color: var(--ink-secondary); font-size: 11px; line-height: 1.4; }
 app-srs-review .answer-dialog__stroke img { width: 132px; height: 132px; object-fit: contain; border: 1px solid var(--line-delicate); border-radius: 12px; background: #fffdf8; }
+app-srs-review .answer-dialog__readings { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+app-srs-review .answer-dialog__reading { display: grid; gap: 3px; min-width: 0; padding: 8px 9px; border: 1px solid rgba(175, 75, 45, .16); border-radius: 10px; background: rgba(255, 253, 248, .86); }
+app-srs-review .answer-dialog__reading small { color: #9a6b4c; font-size: 10px; font-weight: 800; letter-spacing: .02em; }
+app-srs-review .answer-dialog__reading strong { overflow-wrap: anywhere; color: #7b291e; font-family: 'Noto Sans JP', sans-serif; font-size: 13px; line-height: 1.28; }
+app-srs-review .answer-dialog__reading--on { border-color: rgba(201, 115, 32, .28); }
+app-srs-review .answer-dialog__reading--kun { border-color: rgba(55, 120, 97, .28); }
+app-srs-review .answer-dialog__reading--han-viet { border-color: rgba(166, 58, 43, .28); }
 app-srs-review .answer-dialog__button { width: 100%; background: linear-gradient(135deg,var(--accent-deep),var(--accent-seal)); }
 @keyframes answer-backdrop-in { from { opacity: 0; } }
 @keyframes answer-dialog-in { from { opacity: 0; transform: translateY(10px) scale(.97); } }
@@ -120,6 +130,8 @@ app-srs-review .answer-dialog__button { width: 100%; background: linear-gradient
   app-srs-review .answer-dialog { padding: 20px; }
   app-srs-review .answer-dialog__stroke { grid-template-columns: 1fr 104px; }
   app-srs-review .answer-dialog__stroke img { width: 104px; height: 104px; }
+  app-srs-review .answer-dialog__readings { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  app-srs-review .answer-dialog__reading--han-viet { grid-column: 1 / -1; }
 }
 
 /* ===== AUTH PAGES ===== */

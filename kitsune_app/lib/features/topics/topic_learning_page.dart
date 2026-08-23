@@ -510,7 +510,10 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                                           fontSize: 22,
                                           fontWeight: FontWeight.w700)),
                                   IconButton(
-                                      onPressed: () => _tts.speak(item.word),
+                                      onPressed: () => _tts.speakVocabulary(
+                                            item.word,
+                                            item.pronunciation,
+                                          ),
                                       icon:
                                           const Icon(Icons.volume_up_rounded)),
                                   if (item.exampleSentence != null)
@@ -738,7 +741,9 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
       setState(() => _seconds--);
       if (_seconds <= 0) _finish();
     });
-    if (widget.type == _MobileGame.listening) _tts.speak(current.word);
+    if (widget.type == _MobileGame.listening) {
+      _tts.speakVocabulary(current.word, current.pronunciation);
+    }
   }
 
   List<GameVocabularyDto> _options(int count) {
@@ -759,7 +764,9 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
       _index++;
       _kana.clear();
     });
-    if (widget.type == _MobileGame.listening) _tts.speak(current.word);
+    if (widget.type == _MobileGame.listening) {
+      _tts.speakVocabulary(current.word, current.pronunciation);
+    }
   }
 
   void _finish() {
@@ -923,7 +930,10 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
       const SizedBox(height: 14),
       listening
           ? IconButton.filled(
-              onPressed: () => _tts.speak(current.word),
+              onPressed: () => _tts.speakVocabulary(
+                    current.word,
+                    current.pronunciation,
+                  ),
               iconSize: 52,
               icon: const Icon(Icons.volume_up_rounded))
           : Text(current.meaning,
