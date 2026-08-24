@@ -2,12 +2,12 @@
 <main class="game-page" [class.game-page--playing]="screen() === 'playing'">
   @if (screen() === 'hub' || screen() === 'loading') {
     <header class="game-hero">
-      <img src="/images/minigame-hub-v3.png" alt="Cáo Kitsune khám phá bốn trò chơi từ vựng" />
+      <img src="/images/minigame-hub-v3.png" alt="Cáo Kitsune khám phá các trò chơi từ vựng" />
       <div>
         <a routerLink="/topics">← Trở lại lộ trình</a>
         <p class="eyebrow">Kitsune playground</p>
         <h1>Chơi nhanh.<br /><em>Nhớ thật lâu.</em></h1>
-        <p>Bốn thử thách ngắn để đổi nhịp, vẫn dùng chính kho từ vựng đang học.</p>
+        <p>Năm thử thách ngắn, dùng chính kho từ vựng đang học.</p>
       </div>
     </header>
     <section class="game-grid">
@@ -42,7 +42,9 @@
         <div class="prompt"><span>Ghép cách đọc cho</span><h2>{{ target.word }}</h2><p>{{ target.meaning }}</p></div>
         <div class="kana-answer">{{ kanaSelection().join('') || '＿ ＿ ＿' }}</div>
         <div class="kana-grid">
-          @for (kana of kanaOptions(); track $index) { <button type="button" (click)="selectKana(kana)">{{ kana }}</button> }
+          @for (kana of kanaOptions(); track $index; let index = $index) {
+            <button type="button" [class.kana-used]="isKanaUsed(index)" [disabled]="isKanaUsed(index)" (click)="selectKana(kana, index)">{{ kana }}</button>
+          }
         </div>
         <div class="stage-actions"><button type="button" (click)="undoKana()">Xóa một ô</button><button type="button" class="primary" (click)="submitKana()">Kiểm tra</button></div>
       } @else if (game.type === 'MEMORY_MATCH') {
@@ -55,11 +57,32 @@
           }
         </div>
       } @else if (game.type === 'LISTENING' && currentWord(); as target) {
-        <div class="prompt"><span>Nghe và chọn nghĩa đúng</span><button class="listen-button" type="button" (click)="playAudio()" aria-label="Phát lại âm thanh">♪</button></div>
+        <div class="listening-scene" aria-hidden="true"><span>音</span><i></i><i></i><i></i></div>
+        <div class="prompt listening-prompt"><span>Nghe và chọn nghĩa đúng</span><button class="listen-button" type="button" (click)="playAudio()" aria-label="Phát lại âm thanh">♪</button><small>Chạm để nghe lại</small></div>
         <div class="listening-options">
           @for (option of listeningOptions(); track option; let index = $index) {
             <button type="button" (click)="chooseListening(option)"><span>{{ 'ABCD'[index] }}</span>{{ option }}</button>
           }
+        </div>
+      } @else if (game.type === 'SHIRITORI') {
+        <div class="shiritori-board">
+          <div class="shiritori-heading">
+            <div><span>しりとり</span><h2>Nối từ với Kitsune</h2></div>
+            <p>Từ của bạn phải bắt đầu bằng <strong>{{ shiritoriRequired() }}</strong></p>
+          </div>
+          <div class="shiritori-chain" aria-live="polite">
+            @for (turn of shiritoriHistory(); track $index) {
+              <article [class.turn-user]="turn.speaker === 'Bạn'">
+                <small>{{ turn.speaker }}</small><strong>{{ turn.word }}</strong><span>{{ turn.reading }}</span>
+              </article>
+              @if (!$last) { <b>→</b> }
+            }
+          </div>
+          <form class="shiritori-form" (ngSubmit)="submitShiritori()">
+            <label for="shiritori-word">Đến lượt bạn · còn {{ secondsLeft() }} giây</label>
+            <div><input id="shiritori-word" type="text" lang="ja" autocomplete="off" [ngModel]="shiritoriInput()" (ngModelChange)="onShiritoriInput($event)" name="shiritoriWord" [disabled]="shiritoriTurn() === 'bot'" placeholder="Nhập từ bằng Kanji…" /><button type="submit" [disabled]="shiritoriTurn() === 'bot'">Nối từ</button></div>
+            @if (shiritoriError()) { <p>{{ shiritoriError() }}</p> }
+          </form>
         </div>
       }
       @if (feedback() === 'correct') { <div class="feedback">Chính xác!</div> }

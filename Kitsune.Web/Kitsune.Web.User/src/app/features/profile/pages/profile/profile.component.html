@@ -205,6 +205,7 @@
         </div>
       } @else if (srsStats(); as s) {
         <div class="srs-stats-grid">
+          <app-knowledge-graph class="knowledge-graph-wide" [graph]="knowledgeGraph()" />
           <!-- Overview numbers -->
           <div class="info-card srs-overview-card">
             <h2 class="panel-title">Tổng quan</h2>

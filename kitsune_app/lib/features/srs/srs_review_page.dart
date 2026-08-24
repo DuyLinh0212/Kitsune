@@ -26,6 +26,8 @@ enum _ReviewMode {
   kunRead,
   hanViet,
   composeKanji,
+  kanjiInContext,
+  wordFromHiragana,
   drawKanji,
 }
 
@@ -38,6 +40,8 @@ class _QuizPrompt {
     required this.options,
     required this.correctAnswer,
     this.isDrawing = false,
+    this.audioWord,
+    this.audioPronunciation,
   });
 
   final _ReviewMode mode;
@@ -47,6 +51,8 @@ class _QuizPrompt {
   final List<String> options;
   final String correctAnswer;
   final bool isDrawing;
+  final String? audioWord;
+  final String? audioPronunciation;
 }
 
 class _DashboardFolder {
@@ -108,11 +114,21 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
     }
   }
 
+  Future<void> _speakWord(String word, String? pronunciation) async {
+    if (!mounted) return;
+    setState(() => _speakingWord = word);
+    await ref.read(ttsServiceProvider).speakVocabulary(word, pronunciation);
+    if (mounted) setState(() => _speakingWord = null);
+  }
+
   void _announceCurrentVocabulary() {
-    if (_quizQueue.isEmpty || _quizQueue.first.type != SrsItemType.vocabulary) {
-      return;
+    if (_quizQueue.isEmpty) return;
+    final question = _currentQuestion;
+    if (question?.audioWord != null) {
+      unawaited(_speakWord(question!.audioWord!, question.audioPronunciation));
+    } else if (_quizQueue.first.type == SrsItemType.vocabulary) {
+      unawaited(_speak(_quizQueue.first));
     }
-    unawaited(_speak(_quizQueue.first));
   }
 
   @override
@@ -433,6 +449,8 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
   Future<void> _recordQuizResult(bool isCorrect) async {
     if (_quizQueue.isEmpty || _currentQuestion == null || _isSubmitting) return;
+    final card = _quizQueue.first;
+    final question = _currentQuestion!;
     setState(() {
       _isSubmitting = true;
       _answersGiven += 1;
@@ -451,8 +469,12 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
 
     try {
       final repo = ref.read(kitsuneApiProvider);
-      final progressRequest =
-          repo.submitQuizAnswer(_quizQueue.first.id, isCorrect);
+      unawaited(repo.recordSrsKnowledgeEvidence(
+        card: card,
+        questionMode: _knowledgeModeCode(question.mode),
+        correct: isCorrect,
+      ));
+      final progressRequest = repo.submitQuizAnswer(card.id, isCorrect);
       // The answer and card are already fixed; keep persistence asynchronous so
       // the learner can continue immediately after pressing OK.
       setState(() => _isSubmitting = false);
@@ -664,16 +686,18 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
       );
     }
     final modes = card.type == SrsItemType.vocabulary
-        ? _shuffle(const [
+        ? _shuffle([
             _ReviewMode.meanFromWord,
             _ReviewMode.wordFromMean,
             _ReviewMode.fillBlank,
+            if (_canAskWordFromHiragana(card)) _ReviewMode.wordFromHiragana,
           ])
         : _shuffle([
             if (card.onyomi?.trim().isNotEmpty == true) _ReviewMode.onRead,
             if (card.kunyomi?.trim().isNotEmpty == true) _ReviewMode.kunRead,
             _ReviewMode.hanViet,
             _ReviewMode.composeKanji,
+            if (_contextExamples(card).isNotEmpty) _ReviewMode.kanjiInContext,
           ]);
 
     for (final mode in modes) {
@@ -741,6 +765,29 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
             ],
           ),
           correctAnswer: card.meaning,
+        );
+      }
+
+      if (mode == _ReviewMode.wordFromHiragana &&
+          _canAskWordFromHiragana(card)) {
+        return _QuizPrompt(
+          mode: mode,
+          prompt: card.pronunciation!,
+          promptLabel: 'Chọn từ Kanji đúng với cách đọc này',
+          helper: card.meaning,
+          options: _buildOptions(
+            card.word,
+            pool
+                .where((item) =>
+                    item.type == SrsItemType.vocabulary &&
+                    _containsKanji(item.word))
+                .map((item) => item.word)
+                .toList(),
+            const ['学校', '先生', '時間', '家族'],
+          ),
+          correctAnswer: card.word,
+          audioWord: card.word,
+          audioPronunciation: card.pronunciation,
         );
       }
 
@@ -837,6 +884,31 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
           correctAnswer: card.character!,
         );
       }
+
+      if (mode == _ReviewMode.kanjiInContext) {
+        final character = card.character;
+        final examples = _contextExamples(card);
+        if (character == null || examples.isEmpty) return null;
+        final example = examples[_rng.nextInt(examples.length)];
+        return _QuizPrompt(
+          mode: mode,
+          prompt: example.word.replaceFirst(character, '＿'),
+          promptLabel: 'Chọn Kanji phù hợp với chỗ trống',
+          helper:
+              '${example.pronunciation ?? 'Chưa có phiên âm'} · ${example.meaning}',
+          options: _buildOptions(
+            character,
+            pool
+                .where((item) => item.type == SrsItemType.kanji)
+                .map((item) => item.character ?? '')
+                .toList(),
+            const ['学', '校', '生', '語', '日'],
+          ),
+          correctAnswer: character,
+          audioWord: example.word,
+          audioPronunciation: example.pronunciation,
+        );
+      }
     }
 
     return null;
@@ -861,13 +933,32 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
   }
 
   bool _shouldUseDrawing(SRSCardDto card) {
-    final probability = switch (card.wrongReviewCount) {
-      >= 3 => 0.8,
-      2 => 0.6,
-      1 => 0.38,
-      _ => 0.15,
-    };
+    final level = card.boxLevel.clamp(1, 7);
+    final levelProbability = 0.08 + (level - 1) * 0.045;
+    final wrongBonus = min(0.12, max(0, card.wrongReviewCount) * 0.02);
+    final probability = min(0.4, levelProbability + wrongBonus);
     return _rng.nextDouble() < probability;
+  }
+
+  bool _canAskWordFromHiragana(SRSCardDto card) {
+    final reading = card.pronunciation?.trim();
+    return reading != null &&
+        reading.isNotEmpty &&
+        reading != card.word.trim() &&
+        _containsKanji(card.word);
+  }
+
+  bool _containsKanji(String value) =>
+      RegExp(r'[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]').hasMatch(value);
+
+  List<SrsVocabularyExample> _contextExamples(SRSCardDto card) {
+    final character = card.character;
+    if (character == null) return const [];
+    return card.examples
+        .where((example) =>
+            example.word.contains(character) &&
+            example.pronunciation?.trim().isNotEmpty == true)
+        .toList();
   }
 
   List<T> _shuffle<T>(List<T> items) {
@@ -2165,9 +2256,28 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         return 'Âm Hán Việt';
       case _ReviewMode.composeKanji:
         return 'Nhận dạng Kanji';
+      case _ReviewMode.kanjiInContext:
+        return 'Điền Kanji vào từ';
+      case _ReviewMode.wordFromHiragana:
+        return 'Hiragana sang Kanji';
       case _ReviewMode.drawKanji:
         return 'Viết Kanji';
     }
+  }
+
+  String _knowledgeModeCode(_ReviewMode mode) {
+    return switch (mode) {
+      _ReviewMode.meanFromWord => 'MEAN_FROM_WORD',
+      _ReviewMode.wordFromMean => 'WORD_FROM_MEAN',
+      _ReviewMode.fillBlank => 'FILL_BLANK',
+      _ReviewMode.onRead => 'ON_READ',
+      _ReviewMode.kunRead => 'KUN_READ',
+      _ReviewMode.hanViet => 'HAN_VIET',
+      _ReviewMode.composeKanji => 'COMPOSE_KANJI',
+      _ReviewMode.kanjiInContext => 'KANJI_IN_CONTEXT',
+      _ReviewMode.wordFromHiragana => 'WORD_FROM_HIRAGANA',
+      _ReviewMode.drawKanji => 'DRAW_KANJI',
+    };
   }
 
   Color _modeColor(_ReviewMode mode) {
@@ -2186,6 +2296,10 @@ class _SrsReviewPageState extends ConsumerState<SrsReviewPage> {
         return KitsuneColors.secondary;
       case _ReviewMode.composeKanji:
         return KitsuneColors.success;
+      case _ReviewMode.kanjiInContext:
+        return const Color(0xFFA64B78);
+      case _ReviewMode.wordFromHiragana:
+        return const Color(0xFF7357B5);
       case _ReviewMode.drawKanji:
         return KitsuneColors.primary;
     }

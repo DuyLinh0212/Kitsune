@@ -12,6 +12,7 @@ import 'package:kitsune_app/core/models/exam.dart';
 import 'package:kitsune_app/core/models/folder.dart';
 import 'package:kitsune_app/core/models/grammar.dart';
 import 'package:kitsune_app/core/models/kanji.dart';
+import 'package:kitsune_app/core/models/learning_knowledge.dart';
 import 'package:kitsune_app/core/models/quiz.dart';
 import 'package:kitsune_app/core/models/srs.dart';
 import 'package:kitsune_app/core/models/user.dart';
@@ -20,6 +21,7 @@ import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/srs/srs_engine.dart';
 import 'package:kitsune_app/core/models/topic.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 /// Single entry point for every Supabase REST/Storage/Auth call the app makes.
 /// Replaces the previous per-feature `*_repository.dart` files.
@@ -28,9 +30,11 @@ class KitsuneApi {
   static const _lessonSrsCachePrefix = 'kitsune.srs.lessonSession.';
   static const _globalSrsId = 0;
   static const _globalSrsName = 'SRS chung';
+  static const _knowledgeQueuePrefix = 'kitsune.knowledge.pending.v2.';
 
   final SupabaseClient client;
   UserProfile? _currentUser;
+  Future<void>? _knowledgeFlush;
 
   KitsuneApi({required this.client});
 
@@ -1878,6 +1882,15 @@ class KitsuneApi {
             .toList(),
       );
     }
+    try {
+      await recordExamKnowledgeEvidence(
+        exam: exam,
+        evaluatedAnswers: evaluated,
+        attemptId: attemptId,
+      );
+    } catch (_) {
+      // The canonical exam attempt is already saved; evidence stays queued.
+    }
     return ExamAttemptResult(
         id: attemptId,
         correctCount: correctCount,
@@ -2707,7 +2720,7 @@ class KitsuneApi {
         await client.dio.get(client.table('Vocabularies'), queryParameters: {
       'select': 'Id,Word,Pronunciation,Meaning',
       'Pronunciation': 'not.is.null',
-      'limit': '${(limit * 3).clamp(20, 90)}',
+      'limit': '${(limit * 3).clamp(20, 500)}',
     });
     final rows = (response.data as List<dynamic>).cast<Map<String, dynamic>>()
       ..shuffle();
@@ -2734,6 +2747,312 @@ class KitsuneApi {
       'DurationSeconds': durationSeconds,
     });
   }
+
+  // ── Persistent learner Knowledge Graph ────────────────────────────────────
+
+  Future<void> recordSrsKnowledgeEvidence({
+    required SRSCardDto card,
+    required String questionMode,
+    required bool correct,
+  }) async {
+    final userId = await getCurrentUserId();
+    final skillCode = _srsSkillCode(questionMode);
+    if (skillCode == null) return;
+    final sessionKey = const Uuid().v4();
+    final occurredAt = DateTime.now().toUtc().toIso8601String();
+    final rows = <Map<String, dynamic>>[
+      _knowledgeEvidenceRow(
+        userId: userId,
+        skillCode: skillCode,
+        sourceType: 'SRS',
+        sourceCardId: card.id,
+        sourceAttemptId: null,
+        sourceQuestionId: null,
+        sessionKey: sessionKey,
+        questionMode: questionMode,
+        itemType: card.type == SrsItemType.kanji ? 'KANJI' : 'VOCABULARY',
+        vocabularyId: card.vocabularyId,
+        kanjiId: card.kanjiId,
+        strokeCount: card.strokeCount,
+        correct: correct,
+        occurredAt: occurredAt,
+      ),
+    ];
+    if (card.type == SrsItemType.kanji && card.strokeCount != null) {
+      rows.add(_knowledgeEvidenceRow(
+        userId: userId,
+        skillCode: _strokeSkillCode(card.strokeCount!),
+        sourceType: 'SRS',
+        sourceCardId: card.id,
+        sourceAttemptId: null,
+        sourceQuestionId: null,
+        sessionKey: sessionKey,
+        questionMode: questionMode,
+        itemType: 'KANJI',
+        vocabularyId: card.vocabularyId,
+        kanjiId: card.kanjiId,
+        strokeCount: card.strokeCount,
+        correct: correct,
+        occurredAt: occurredAt,
+      ));
+    }
+    await _queueKnowledgeEvidence(userId, rows);
+  }
+
+  Future<void> recordExamKnowledgeEvidence({
+    required ExamDetail exam,
+    required List<Map<String, dynamic>> evaluatedAnswers,
+    required int attemptId,
+  }) async {
+    final userId = await getCurrentUserId();
+    final answers = <int, bool>{
+      for (final answer in evaluatedAnswers)
+        answer['QuestionId'] as int: answer['IsCorrect'] == true,
+    };
+    final occurredAt = DateTime.now().toUtc().toIso8601String();
+    final rows = exam.questions.map((question) {
+      return _knowledgeEvidenceRow(
+        userId: userId,
+        skillCode: _examSkillCode(question.type),
+        sourceType: 'EXAM',
+        sourceCardId: null,
+        sourceAttemptId: attemptId,
+        sourceQuestionId: question.id,
+        sessionKey: const Uuid().v4(),
+        questionMode: question.type,
+        itemType: _examItemType(question.type),
+        vocabularyId: null,
+        kanjiId: null,
+        strokeCount: null,
+        correct: answers[question.id] ?? false,
+        occurredAt: occurredAt,
+      );
+    }).toList();
+    await _queueKnowledgeEvidence(userId, rows);
+  }
+
+  Future<LearningKnowledgeGraph> loadKnowledgeGraph() async {
+    final userId = await getCurrentUserId();
+    try {
+      await flushPendingKnowledgeEvidence();
+    } catch (_) {
+      // Continue with the last successfully synchronized evidence.
+    }
+    final response = await client.dio.get(
+      client.table('LearningKnowledgeStats'),
+      queryParameters: {
+        'select': 'UserId,SkillCode,Label,Attempts,Correct,Score',
+        'UserId': 'eq.$userId',
+      },
+    );
+    final rows = (response.data as List<dynamic>)
+        .map((row) => Map<String, dynamic>.from(row as Map))
+        .toList();
+    return LearningKnowledgeGraph.fromStats(
+      rows,
+      title: 'Bản đồ năng lực cá nhân',
+      subtitle: 'Tổng hợp từ câu ôn tập và đề kiểm tra trên mọi thiết bị.',
+    );
+  }
+
+  Future<LearningKnowledgeGraph> loadExamKnowledgeGraph(int attemptId) async {
+    try {
+      await flushPendingKnowledgeEvidence();
+    } catch (_) {
+      // The result screen can still use evidence already synchronized.
+    }
+    final response = await client.dio.get(
+      client.table('LearningEvidence'),
+      queryParameters: {
+        'select': 'SkillCode,IsCorrect',
+        'SourceAttemptId': 'eq.$attemptId',
+      },
+    );
+    final grouped = <String, List<bool>>{};
+    for (final raw in response.data as List<dynamic>) {
+      final row = Map<String, dynamic>.from(raw as Map);
+      final code = row['SkillCode'] as String;
+      grouped.putIfAbsent(code, () => <bool>[]).add(row['IsCorrect'] == true);
+    }
+    final rows = grouped.entries.map((entry) {
+      final correct = entry.value.where((value) => value).length;
+      return <String, dynamic>{
+        'SkillCode': entry.key,
+        'Label': _knowledgeSkillLabel(entry.key),
+        'Attempts': entry.value.length,
+        'Correct': correct,
+      };
+    }).toList();
+    return LearningKnowledgeGraph.fromStats(
+      rows,
+      title: 'Bản đồ năng lực của đề này',
+      subtitle: 'Được đọc từ evidence đã lưu của lần làm đề này.',
+    );
+  }
+
+  Future<void> flushPendingKnowledgeEvidence() {
+    final active = _knowledgeFlush;
+    if (active != null) return active;
+    late final Future<void> operation;
+    operation = _flushPendingKnowledgeEvidenceCore().whenComplete(() {
+      if (identical(_knowledgeFlush, operation)) _knowledgeFlush = null;
+    });
+    _knowledgeFlush = operation;
+    return operation;
+  }
+
+  Future<void> _queueKnowledgeEvidence(
+    int userId,
+    List<Map<String, dynamic>> rows,
+  ) async {
+    if (rows.isEmpty) return;
+    final preferences = await SharedPreferences.getInstance();
+    final key = '$_knowledgeQueuePrefix$userId';
+    final existing = _decodeKnowledgeQueue(preferences.getString(key));
+    final next = [...existing, ...rows];
+    await preferences.setString(
+      key,
+      jsonEncode(next.length > 2000 ? next.sublist(next.length - 2000) : next),
+    );
+    try {
+      await flushPendingKnowledgeEvidence();
+    } catch (_) {
+      // Keep the queue for the next review/profile load.
+    }
+  }
+
+  Future<void> _flushPendingKnowledgeEvidenceCore() async {
+    final userId = await getCurrentUserId();
+    final preferences = await SharedPreferences.getInstance();
+    final key = '$_knowledgeQueuePrefix$userId';
+    final pending = _decodeKnowledgeQueue(preferences.getString(key));
+    if (pending.isEmpty) return;
+    await client.dio.post(
+      client.table('LearningEvidence'),
+      queryParameters: {'on_conflict': 'Id'},
+      data: pending,
+      options: Options(headers: {
+        'Prefer': 'resolution=ignore-duplicates,return=minimal',
+      }),
+    );
+    final persistedIds = pending.map((row) => row['Id'] as String).toSet();
+    final latest = _decodeKnowledgeQueue(preferences.getString(key));
+    final remaining = latest
+        .where((row) => !persistedIds.contains(row['Id'] as String))
+        .toList();
+    await preferences.setString(key, jsonEncode(remaining));
+  }
+
+  List<Map<String, dynamic>> _decodeKnowledgeQueue(String? raw) {
+    if (raw == null || raw.isEmpty) return <Map<String, dynamic>>[];
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded
+          .map((row) => Map<String, dynamic>.from(row as Map))
+          .toList();
+    } catch (_) {
+      return <Map<String, dynamic>>[];
+    }
+  }
+
+  Map<String, dynamic> _knowledgeEvidenceRow({
+    required int userId,
+    required String skillCode,
+    required String sourceType,
+    required int? sourceCardId,
+    required int? sourceAttemptId,
+    required int? sourceQuestionId,
+    required String sessionKey,
+    required String questionMode,
+    required String itemType,
+    required int? vocabularyId,
+    required int? kanjiId,
+    required int? strokeCount,
+    required bool correct,
+    required String occurredAt,
+  }) {
+    return <String, dynamic>{
+      'Id': const Uuid().v4(),
+      'UserId': userId,
+      'SkillCode': skillCode,
+      'SourceType': sourceType,
+      'SourceCardId': sourceCardId,
+      'SourceAttemptId': sourceAttemptId,
+      'SourceQuestionId': sourceQuestionId,
+      'SessionKey': sessionKey,
+      'QuestionMode': questionMode,
+      'ItemType': itemType,
+      'VocabularyId': vocabularyId,
+      'KanjiId': kanjiId,
+      'StrokeCount': strokeCount,
+      'IsCorrect': correct,
+      'ResponseTimeMs': null,
+      'Properties': <String, dynamic>{},
+      'OccurredAt': occurredAt,
+    };
+  }
+
+  String? _srsSkillCode(String mode) => switch (mode) {
+        'MEAN_FROM_WORD' => 'shape_meaning',
+        'WORD_FROM_MEAN' || 'WORD_FROM_HIRAGANA' => 'word_recall',
+        'FILL_BLANK' => 'vocab_context',
+        'ON_READ' => 'on_reading',
+        'KUN_READ' => 'kun_reading',
+        'HAN_VIET' => 'han_viet',
+        'COMPOSE_KANJI' => 'shape_meaning',
+        'DRAW_KANJI' => 'handwriting',
+        'KANJI_IN_CONTEXT' => 'kanji_context',
+        _ => null,
+      };
+
+  String _strokeSkillCode(int count) => count > 14
+      ? 'stroke_15_plus'
+      : count >= 9
+          ? 'stroke_9_14'
+          : 'stroke_1_8';
+
+  String _examSkillCode(String type) {
+    if (type == 'KANJI_READING') return 'on_kun_reading';
+    if (type == 'KANJI_WRITING') return 'handwriting';
+    if (type == 'VOCAB_MEANING' || type == 'SYNONYM' || type == 'ANTONYM') {
+      return 'vocabulary';
+    }
+    if (type == 'VOCAB_USAGE') return 'vocab_context';
+    if (type == 'SENTENCE_ORDER') return 'sentence_structure';
+    if (type.startsWith('GRAMMAR_')) return 'grammar';
+    return 'reading';
+  }
+
+  String _examItemType(String type) {
+    if (type.startsWith('KANJI_')) return 'KANJI';
+    if (type.startsWith('VOCAB_') || type == 'SYNONYM' || type == 'ANTONYM') {
+      return 'VOCABULARY';
+    }
+    if (type.startsWith('GRAMMAR_') || type == 'SENTENCE_ORDER') {
+      return 'GRAMMAR';
+    }
+    return 'READING';
+  }
+
+  String _knowledgeSkillLabel(String code) => switch (code) {
+        'shape_meaning' => 'Nhớ mặt chữ & nghĩa',
+        'word_recall' => 'Gợi nhớ từ vựng',
+        'vocab_context' => 'Từ vựng trong ngữ cảnh',
+        'on_reading' => 'Âm On',
+        'kun_reading' => 'Âm Kun',
+        'han_viet' => 'Âm Hán Việt',
+        'handwriting' => 'Viết Kanji',
+        'kanji_context' => 'Kanji trong từ ghép',
+        'stroke_1_8' => 'Kanji 1–8 nét',
+        'stroke_9_14' => 'Kanji 9–14 nét',
+        'stroke_15_plus' => 'Kanji trên 14 nét',
+        'on_kun_reading' => 'Đọc Kanji',
+        'vocabulary' => 'Vốn từ & sắc thái',
+        'sentence_structure' => 'Cấu trúc câu',
+        'grammar' => 'Ngữ pháp',
+        'reading' => 'Đọc hiểu',
+        _ => code,
+      };
 
   // ── Shared helpers ───────────────────────────────────────────────────────────
 

@@ -13,6 +13,8 @@ export type SrsMode =
   | 'KUN_READ'
   | 'HAN_VIET'
   | 'COMPOSE_KANJI'
+  | 'KANJI_IN_CONTEXT'
+  | 'WORD_FROM_HIRAGANA'
   | 'DRAW_KANJI';
 
 export interface SrsVocabularyExample {

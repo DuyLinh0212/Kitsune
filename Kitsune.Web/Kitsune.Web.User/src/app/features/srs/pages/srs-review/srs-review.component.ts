@@ -12,6 +12,7 @@ import {
   SrsService,
 } from '../../../../core/services/srs.service';
 import { TtsService } from '../../../../core/services/tts.service';
+import { LearningKnowledgeService } from '../../../../core/services/learning-knowledge.service';
 import { KanjiDrawingReviewComponent } from '../../components/kanji-drawing-review/kanji-drawing-review.component';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
@@ -31,6 +32,8 @@ interface QuizQuestion {
   options: string[];
   correctAnswer: string;
   answerDetail?: string;
+  audioWord?: string;
+  audioPronunciation?: string | null;
 }
 
 interface SessionStats {
@@ -66,6 +69,7 @@ interface LevelBucket {
 })
 export class SrsReviewComponent implements OnInit, OnDestroy {
   private readonly srsService = inject(SrsService);
+  private readonly learningKnowledge = inject(LearningKnowledgeService);
   readonly ttsService = inject(TtsService);
 
   // ─── Core state ────────────────────────────────────────────────────────────
@@ -371,8 +375,11 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
             : `✗ Chưa đúng. Đáp án đúng là "${question.correctAnswer}".`) +
         (question.answerDetail ? `\n${question.answerDetail}` : ''),
     });
-    if (card.type === 'vocabulary') {
-      this.ttsService.speakVocabulary(card.word, card.pronunciation);
+    if (question.audioWord || card.type === 'vocabulary') {
+      this.ttsService.speakVocabulary(
+        question.audioWord ?? card.word,
+        question.audioPronunciation ?? card.pronunciation,
+      );
     }
     this.stats.update((stats) => ({
       ...stats,
@@ -382,14 +389,19 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     }));
     this.isSubmitting.set(true);
     const progress = this.srsService.previewCardProgress(card, isCorrect, false);
+    this.learningKnowledge.recordSrs(card, question.mode, isCorrect);
     this.applyLocalProgress(progress);
     this.isSubmitting.set(false);
-    void firstValueFrom(this.srsService.submitQuizAnswer(card, isCorrect)).catch(
-      (error: unknown) => {
+    void firstValueFrom(this.srsService.submitQuizAnswer(card, isCorrect))
+      .then(() => {
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new CustomEvent('kitsune:srs-due-changed'));
+        }
+      })
+      .catch((error: unknown) => {
         console.error(error);
         this.showToast('error', 'Chưa thể đồng bộ kết quả ôn tập.');
-      },
-    );
+      });
   }
 
   continueAfterAnswer(): void {
@@ -480,6 +492,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       KUN_READ: 'Âm Kun',
       HAN_VIET: 'Âm Hán Việt',
       COMPOSE_KANJI: 'Nhận dạng Kanji',
+      KANJI_IN_CONTEXT: 'Điền Kanji vào từ',
+      WORD_FROM_HIRAGANA: 'Hiragana sang Kanji',
       DRAW_KANJI: 'Viết Kanji',
     };
     return labels[mode] ?? mode;
@@ -495,6 +509,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       KUN_READ: '#3B6FA0',
       HAN_VIET: '#5F7A52',
       COMPOSE_KANJI: '#4F8B5C',
+      KANJI_IN_CONTEXT: '#A64B78',
+      WORD_FROM_HIRAGANA: '#7357B5',
       DRAW_KANJI: '#8D4024',
     };
     return colors[mode] ?? '#6b7280';
@@ -654,9 +670,13 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     }
 
     const pool = session.cards;
-    this.currentQuestion.set(this.buildQuestion(card, pool));
-    if (card.type === 'vocabulary') {
-      this.ttsService.speakVocabulary(card.word, card.pronunciation);
+    const question = this.buildQuestion(card, pool);
+    this.currentQuestion.set(question);
+    if (question.audioWord || card.type === 'vocabulary') {
+      this.ttsService.speakVocabulary(
+        question.audioWord ?? card.word,
+        question.audioPronunciation ?? card.pronunciation,
+      );
     }
   }
 
@@ -695,6 +715,9 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     this.activeSession.set(updatedSession);
     this.dashboardFolders.set([this.toDashboardFolder(updatedSession)]);
     this.updateCountdown();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('kitsune:srs-due-changed'));
+    }
   }
 
   private buildLocalOverview(
@@ -760,12 +783,20 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
 
     const modes =
       card.type === 'vocabulary'
-        ? this.shuffle<SrsMode>(['MEAN_FROM_WORD', 'WORD_FROM_MEAN', 'FILL_BLANK'])
+        ? this.shuffle<SrsMode>([
+            'MEAN_FROM_WORD',
+            'WORD_FROM_MEAN',
+            'FILL_BLANK',
+            ...(this.canAskWordFromHiragana(card) ? (['WORD_FROM_HIRAGANA'] as SrsMode[]) : []),
+          ])
         : this.shuffle<SrsMode>([
             ...(card.onyomi?.trim() ? (['ON_READ'] as SrsMode[]) : []),
             ...(card.kunyomi?.trim() ? (['KUN_READ'] as SrsMode[]) : []),
             'HAN_VIET',
             'COMPOSE_KANJI',
+            ...(this.getContextExamples(card).length > 0
+              ? (['KANJI_IN_CONTEXT'] as SrsMode[])
+              : []),
           ]);
 
     // Always try to create a multiple-choice question
@@ -831,6 +862,23 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
           helper: card.pronunciation ?? 'Dựa trên từ đang hiển thị.',
           options,
           correctAnswer: card.meaning,
+        };
+      }
+
+      if (mode === 'WORD_FROM_HIRAGANA' && this.canAskWordFromHiragana(card)) {
+        const words = pool
+          .filter((item) => item.type === 'vocabulary' && this.containsKanji(item.word))
+          .map((item) => item.word);
+        return {
+          mode,
+          kind: 'mc',
+          prompt: card.pronunciation ?? '',
+          promptLabel: 'Chọn từ Kanji đúng với cách đọc này',
+          helper: card.meaning,
+          options: this.buildOptions(card.word, words, ['学校', '先生', '時間', '家族']),
+          correctAnswer: card.word,
+          audioWord: card.word,
+          audioPronunciation: card.pronunciation,
         };
       }
 
@@ -943,6 +991,30 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       };
     }
 
+    if (mode === 'KANJI_IN_CONTEXT') {
+      const correct = card.character;
+      const examples = this.getContextExamples(card);
+      if (!correct || examples.length === 0) return null;
+      const example = examples[Math.floor(Math.random() * examples.length)];
+      const blankWord = example.word.replace(correct, '＿');
+      const poolItems = pool
+        .filter((item) => item.type === 'kanji')
+        .map((item) => item.character)
+        .filter((value): value is string => !!value);
+      return {
+        mode,
+        kind: 'mc',
+        prompt: blankWord,
+        promptLabel: 'Chọn Kanji phù hợp với chỗ trống',
+        helper: `${example.pronunciation ?? 'Chưa có phiên âm'} · ${example.meaning}`,
+        options: this.buildOptions(correct, poolItems, ['学', '校', '生', '語', '日']),
+        correctAnswer: correct,
+        answerDetail: `Từ hoàn chỉnh: ${example.word} · ${example.meaning}`,
+        audioWord: example.word,
+        audioPronunciation: example.pronunciation,
+      };
+    }
+
     return null;
   }
 
@@ -966,15 +1038,28 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   }
 
   private shouldUseDrawing(card: SRSCardDto): boolean {
-    const probability =
-      card.wrongReviewCount >= 3
-        ? 0.8
-        : card.wrongReviewCount === 2
-          ? 0.6
-          : card.wrongReviewCount === 1
-            ? 0.38
-            : 0.15;
+    const normalizedLevel = Math.min(7, Math.max(1, card.boxLevel || 1));
+    const levelProbability = 0.08 + (normalizedLevel - 1) * 0.045;
+    const wrongAnswerBonus = Math.min(0.12, Math.max(0, card.wrongReviewCount) * 0.02);
+    const probability = Math.min(0.4, levelProbability + wrongAnswerBonus);
     return Math.random() < probability;
+  }
+
+  private canAskWordFromHiragana(card: SRSCardDto): boolean {
+    const reading = card.pronunciation?.trim();
+    return !!reading && reading !== card.word.trim() && this.containsKanji(card.word);
+  }
+
+  private containsKanji(value: string): boolean {
+    return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(value);
+  }
+
+  private getContextExamples(card: SRSCardDto): SRSCardDto['examples'] {
+    const character = card.character;
+    if (!character) return [];
+    return card.examples.filter(
+      (example) => example.word.includes(character) && !!example.pronunciation?.trim(),
+    );
   }
 
   private shuffle<T>(items: T[]): T[] {

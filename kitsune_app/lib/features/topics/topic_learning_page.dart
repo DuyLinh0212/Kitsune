@@ -613,7 +613,7 @@ class _ErrorState extends StatelessWidget {
       ]));
 }
 
-enum _MobileGame { bubble, kana, memory, listening }
+enum _MobileGame { bubble, kana, memory, listening, shiritori }
 
 class MobileGameHubPage extends StatelessWidget {
   const MobileGameHubPage({super.key});
@@ -642,41 +642,79 @@ class MobileGameHubPage extends StatelessWidget {
       'Nghe và chọn nghĩa',
       Icons.headphones_rounded
     ),
+    (
+      _MobileGame.shiritori,
+      'Nối từ với máy',
+      '10 giây mỗi lượt · nhập bằng Kanji',
+      Icons.hub_rounded
+    ),
   ];
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    return Scaffold(
       backgroundColor: const Color(0xFFFBF7ED),
       appBar: AppBar(
-          title: const Text('Kitsune Playground'),
-          backgroundColor: const Color(0xFFFBF7ED)),
-      body: ListView(padding: const EdgeInsets.all(18), children: [
-        ClipRRect(
-            borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(32),
-                bottomLeft: Radius.circular(4),
-                bottomRight: Radius.circular(4),
-                topLeft: Radius.circular(4)),
-            child: Image.asset('assets/images/minigame-hub-v3.png',
-                height: 190, fit: BoxFit.cover)),
-        const SizedBox(height: 18),
-        ...games.map((game) => Card(
-            elevation: 0,
-            color: const Color(0xFFFFFDF7),
-            shape: RoundedRectangleBorder(
-                side: const BorderSide(color: Color(0xFFD8CBB8)),
-                borderRadius: BorderRadius.circular(14)),
-            child: ListTile(
-                leading: CircleAvatar(
-                    backgroundColor: const Color(0xFF3D3565),
-                    child: Icon(game.$4, color: Colors.white)),
-                title: Text(game.$2,
-                    style: const TextStyle(fontWeight: FontWeight.w800)),
-                subtitle: Text(game.$3),
-                trailing: const Icon(Icons.arrow_forward_rounded),
-                onTap: () => Navigator.of(context).push(MaterialPageRoute(
-                    builder: (_) =>
-                        _MobileGamePage(type: game.$1, title: game.$2))))))
-      ]));
+        title: const Text('Kitsune Playground'),
+        backgroundColor: const Color(0xFFFBF7ED),
+      ),
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(22),
+                  child: Image.asset(
+                    'assets/images/minigame-hub-v3.png',
+                    height: min(128, constraints.maxHeight * .22),
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(height: 9),
+                Expanded(
+                  child: Column(
+                    children: games
+                        .map((game) => Expanded(
+                              child: Card(
+                                elevation: 0,
+                                margin: const EdgeInsets.symmetric(vertical: 3),
+                                color: const Color(0xFFFFFDF7),
+                                shape: RoundedRectangleBorder(
+                                  side: const BorderSide(
+                                      color: Color(0xFFD8CBB8)),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: ListTile(
+                                  leading: CircleAvatar(
+                                    backgroundColor: const Color(0xFF3D3565),
+                                    child: Icon(game.$4, color: Colors.white),
+                                  ),
+                                  title: Text(game.$2,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w800)),
+                                  subtitle: Text(game.$3),
+                                  trailing:
+                                      const Icon(Icons.arrow_forward_rounded),
+                                  onTap: () => Navigator.of(context)
+                                      .push(MaterialPageRoute(
+                                    builder: (_) => _MobileGamePage(
+                                        type: game.$1, title: game.$2),
+                                  )),
+                                ),
+                              ),
+                            ))
+                        .toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _MemoryTile {
@@ -696,35 +734,58 @@ class _MobileGamePage extends ConsumerStatefulWidget {
   ConsumerState<_MobileGamePage> createState() => _MobileGamePageState();
 }
 
-class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
+class _MobileGamePageState extends ConsumerState<_MobileGamePage>
+    with SingleTickerProviderStateMixin {
   final _tts = TtsService();
+  late final AnimationController _floatController;
   Timer? _timer;
   List<GameVocabularyDto> _items = [];
+  List<GameVocabularyDto> _roundOptions = [];
   List<_MemoryTile> _memory = [];
   final List<String> _memoryOpen = [];
   final List<String> _kana = [];
+  List<String> _kanaTiles = [];
+  final List<int> _usedKanaIndexes = [];
+  final TextEditingController _shiritoriController = TextEditingController();
+  final List<({String speaker, GameVocabularyDto item})> _shiritoriHistory = [];
+  String _shiritoriRequired = '';
+  String? _shiritoriError;
+  bool _botThinking = false;
   int _index = 0, _score = 0, _correct = 0, _wrong = 0, _seconds = 60;
   bool _loading = true, _finished = false;
   GameVocabularyDto get current => _items[_index % _items.length];
   @override
   void initState() {
     super.initState();
+    _floatController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 7),
+    )..repeat(reverse: true);
     _load();
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _floatController.dispose();
+    _shiritoriController.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
-    final items = await ref
-        .read(kitsuneApiProvider)
-        .getGameVocabulary(limit: widget.type == _MobileGame.memory ? 10 : 30);
+    final items = await ref.read(kitsuneApiProvider).getGameVocabulary(
+        limit: widget.type == _MobileGame.memory
+            ? 10
+            : widget.type == _MobileGame.shiritori
+                ? 120
+                : 30);
     if (!mounted) return;
     _items = items;
-    _seconds = widget.type == _MobileGame.memory ? 90 : 60;
+    _seconds = widget.type == _MobileGame.memory
+        ? 90
+        : widget.type == _MobileGame.shiritori
+            ? 10
+            : 60;
     if (widget.type == _MobileGame.memory) {
       _memory = items
           .take(10)
@@ -735,6 +796,8 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
           .toList()
         ..shuffle();
     }
+    _prepareRound();
+    if (widget.type == _MobileGame.shiritori) _startShiritori();
     setState(() => _loading = false);
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
@@ -752,6 +815,20 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
     return [current, ...others.take(count - 1)]..shuffle();
   }
 
+  void _prepareRound() {
+    if (_items.isEmpty) return;
+    _roundOptions = _options(widget.type == _MobileGame.listening ? 4 : 8);
+    final chars = [
+      ...current.pronunciation.characters,
+      ...'あいうえおかきくけこさしすせそ'
+          .characters
+          .take(max(4, 12 - current.pronunciation.characters.length)),
+    ];
+    chars.shuffle();
+    _kanaTiles = chars;
+    _usedKanaIndexes.clear();
+  }
+
   void _answer(bool ok, {bool timePenalty = false}) {
     setState(() {
       if (ok) {
@@ -763,6 +840,7 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
       }
       _index++;
       _kana.clear();
+      _prepareRound();
     });
     if (widget.type == _MobileGame.listening) {
       _tts.speakVocabulary(current.word, current.pronunciation);
@@ -778,12 +856,109 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
           'BUBBLE_POP',
           'KANA_PATH',
           'MEMORY_MATCH',
-          'LISTENING'
+          'LISTENING',
+          'SHIRITORI'
         ][widget.type.index],
         _score,
         _correct,
         _wrong,
-        (widget.type == _MobileGame.memory ? 90 : 60) - _seconds);
+        (widget.type == _MobileGame.memory
+                ? 90
+                : widget.type == _MobileGame.shiritori
+                    ? 10
+                    : 60) -
+            _seconds);
+  }
+
+  void _startShiritori() {
+    final choices = _items
+        .where((item) =>
+            _containsKanji(item.word) &&
+            _normalizeReading(item.pronunciation).length >= 2 &&
+            !_normalizeReading(item.pronunciation).endsWith('ん'))
+        .toList();
+    if (choices.isEmpty) {
+      _shiritoriError = 'Kho từ chưa đủ dữ liệu Kanji.';
+      return;
+    }
+    final first = choices[Random().nextInt(choices.length)];
+    _shiritoriHistory
+      ..clear()
+      ..add((speaker: 'Kitsune', item: first));
+    _shiritoriRequired = _readingTail(first.pronunciation);
+    _tts.speakVocabulary(first.word, first.pronunciation);
+  }
+
+  void _submitShiritori() {
+    if (_botThinking) return;
+    final input = _shiritoriController.text.trim();
+    if (!_containsKanji(input)) {
+      setState(() => _shiritoriError = 'Hãy nhập một từ có Kanji.');
+      return;
+    }
+    final used = _shiritoriHistory.map((turn) => turn.item.word).toSet();
+    final matches =
+        _items.where((item) => item.word == input && !used.contains(item.word));
+    final match = matches.isEmpty ? null : matches.first;
+    if (match == null) {
+      setState(
+          () => _shiritoriError = 'Từ không có trong kho hoặc đã được dùng.');
+      return;
+    }
+    if (!_normalizeReading(match.pronunciation)
+        .startsWith(_shiritoriRequired)) {
+      setState(() =>
+          _shiritoriError = 'Từ phải bắt đầu bằng “$_shiritoriRequired”.');
+      return;
+    }
+    setState(() {
+      _shiritoriHistory.add((speaker: 'Bạn', item: match));
+      _correct++;
+      _score += 150 + _seconds * 5;
+      _shiritoriController.clear();
+      _shiritoriError = null;
+      _botThinking = true;
+    });
+    final required = _readingTail(match.pronunciation);
+    final nextUsed = _shiritoriHistory.map((turn) => turn.item.word).toSet();
+    final botChoices = _items
+        .where((item) =>
+            _containsKanji(item.word) &&
+            !nextUsed.contains(item.word) &&
+            _normalizeReading(item.pronunciation).startsWith(required) &&
+            !_normalizeReading(item.pronunciation).endsWith('ん'))
+        .toList();
+    if (botChoices.isEmpty) {
+      setState(() => _score += 500);
+      _finish();
+      return;
+    }
+    final bot = botChoices[Random().nextInt(botChoices.length)];
+    Future.delayed(const Duration(milliseconds: 450), () {
+      if (!mounted || _finished) return;
+      setState(() {
+        _shiritoriHistory.add((speaker: 'Kitsune', item: bot));
+        _shiritoriRequired = _readingTail(bot.pronunciation);
+        _botThinking = false;
+        _seconds = 10;
+      });
+      _tts.speakVocabulary(bot.word, bot.pronunciation);
+    });
+  }
+
+  bool _containsKanji(String value) =>
+      RegExp(r'[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]').hasMatch(value);
+
+  String _normalizeReading(String value) => String.fromCharCodes(value
+      .trim()
+      .replaceAll(RegExp(r'[\s・.]'), '')
+      .runes
+      .map((code) => code >= 0x30A1 && code <= 0x30F6 ? code - 0x60 : code));
+
+  String _readingTail(String value) {
+    final reading = _normalizeReading(value).replaceAll(RegExp(r'ー+$'), '');
+    final chars = reading.characters.toList();
+    return chars.skip(max(0, chars.length - 2)).join();
   }
 
   void _flip(_MemoryTile tile) {
@@ -866,6 +1041,7 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
   Widget _gameBody() {
     if (widget.type == _MobileGame.memory) {
       return GridView.count(
+          physics: const NeverScrollableScrollPhysics(),
           crossAxisCount: 4,
           mainAxisSpacing: 7,
           crossAxisSpacing: 7,
@@ -886,11 +1062,6 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
               .toList());
     }
     if (widget.type == _MobileGame.kana) {
-      final chars = [
-        ...current.pronunciation.characters,
-        ...'あいうえおかきくけこ'.characters.take(5)
-      ].toList()
-        ..shuffle();
       return Column(children: [
         Text(current.word,
             style: const TextStyle(fontSize: 56, fontWeight: FontWeight.w700)),
@@ -899,20 +1070,39 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
         Text(_kana.join().isEmpty ? '＿ ＿ ＿' : _kana.join(),
             style: const TextStyle(fontSize: 34, color: Color(0xFFD85B3F))),
         const SizedBox(height: 16),
-        Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: chars
-                .map((char) => OutlinedButton(
-                    onPressed: () => setState(() => _kana.add(char)),
-                    child: Text(char, style: const TextStyle(fontSize: 20))))
-                .toList()),
+        Expanded(
+            child: GridView.builder(
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4, mainAxisSpacing: 7, crossAxisSpacing: 7),
+                itemCount: _kanaTiles.length,
+                itemBuilder: (context, tileIndex) => FilledButton(
+                    onPressed: _usedKanaIndexes.contains(tileIndex)
+                        ? null
+                        : () => setState(() {
+                              _usedKanaIndexes.add(tileIndex);
+                              _kana.add(_kanaTiles[tileIndex]);
+                            }),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: [
+                          const Color(0xFF3FA8DD),
+                          const Color(0xFF42BE68),
+                          const Color(0xFFD9468B),
+                        ][tileIndex % 3],
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12))),
+                    child: Text(_kanaTiles[tileIndex],
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.w900))))),
         const Spacer(),
         Row(children: [
           OutlinedButton(
               onPressed: _kana.isEmpty
                   ? null
-                  : () => setState(() => _kana.removeLast()),
+                  : () => setState(() {
+                        _kana.removeLast();
+                        _usedKanaIndexes.removeLast();
+                      }),
               child: const Text('Xóa')),
           const Spacer(),
           FilledButton(
@@ -921,8 +1111,76 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
         ])
       ]);
     }
+    if (widget.type == _MobileGame.shiritori) {
+      return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          const Text('しりとり',
+              style: TextStyle(
+                  color: Color(0xFFD85B3F), fontWeight: FontWeight.w900)),
+          Text('Bắt đầu bằng $_shiritoriRequired',
+              style: const TextStyle(fontWeight: FontWeight.w800)),
+        ]),
+        const SizedBox(height: 12),
+        Expanded(
+            child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+              color: const Color(0xFFF6E8CE),
+              borderRadius: BorderRadius.circular(18)),
+          child: ListView.separated(
+            reverse: true,
+            scrollDirection: Axis.horizontal,
+            itemCount: _shiritoriHistory.length,
+            separatorBuilder: (_, __) => const Icon(Icons.arrow_forward_rounded,
+                color: Color(0xFFD85B3F)),
+            itemBuilder: (context, historyIndex) {
+              final turn = _shiritoriHistory.reversed.toList()[historyIndex];
+              return Center(
+                  child: Container(
+                      width: 132,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                          color: turn.speaker == 'Bạn'
+                              ? const Color(0xFFFFE8BE)
+                              : const Color(0xFFE4F8F7),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(
+                              color: turn.speaker == 'Bạn'
+                                  ? const Color(0xFFF1A84B)
+                                  : const Color(0xFF65BFC3))),
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text(turn.speaker,
+                            style: const TextStyle(fontSize: 11)),
+                        Text(turn.item.word,
+                            style: const TextStyle(
+                                fontSize: 25, fontWeight: FontWeight.w900)),
+                        Text(turn.item.pronunciation,
+                            style: const TextStyle(fontSize: 12)),
+                      ])));
+            },
+          ),
+        )),
+        const SizedBox(height: 12),
+        TextField(
+          controller: _shiritoriController,
+          enabled: !_botThinking,
+          textInputAction: TextInputAction.done,
+          onSubmitted: (_) => _submitShiritori(),
+          decoration: InputDecoration(
+            labelText:
+                _botThinking ? 'Kitsune đang nghĩ…' : 'Bạn còn $_seconds giây',
+            hintText: 'Nhập từ bằng Kanji…',
+            errorText: _shiritoriError,
+            suffixIcon: IconButton.filled(
+                onPressed: _botThinking ? null : _submitShiritori,
+                icon: const Icon(Icons.arrow_forward_rounded)),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+          ),
+        ),
+      ]);
+    }
     final listening = widget.type == _MobileGame.listening;
-    final options = _options(listening ? 4 : 8);
+    final options = _roundOptions;
     return Column(children: [
       Text(listening ? 'Nghe và chọn nghĩa đúng' : 'Tìm từ có nghĩa',
           style: const TextStyle(
@@ -941,20 +1199,71 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage> {
               textAlign: TextAlign.center),
       const SizedBox(height: 22),
       Expanded(
-          child: GridView.count(
-              crossAxisCount: listening ? 1 : 2,
-              childAspectRatio: listening ? 4 : 1.6,
-              mainAxisSpacing: 9,
-              crossAxisSpacing: 9,
-              children: options
-                  .map((item) => OutlinedButton(
-                      onPressed: () => _answer(item.id == current.id,
-                          timePenalty: !listening),
-                      child: Text(listening ? item.meaning : item.word,
-                          style: const TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w700),
-                          textAlign: TextAlign.center)))
-                  .toList()))
+          child: listening
+              ? GridView.count(
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 1,
+                  childAspectRatio: 4.6,
+                  mainAxisSpacing: 9,
+                  children: options
+                      .map((item) => OutlinedButton(
+                            onPressed: () => _answer(item.id == current.id),
+                            child: Text(item.meaning,
+                                style: const TextStyle(
+                                    fontSize: 17, fontWeight: FontWeight.w700)),
+                          ))
+                      .toList())
+              : AnimatedBuilder(
+                  animation: _floatController,
+                  builder: (context, _) => LayoutBuilder(
+                      builder: (context, bounds) => Stack(
+                            clipBehavior: Clip.hardEdge,
+                            children: options.asMap().entries.map((entry) {
+                              final i = entry.key;
+                              final item = entry.value;
+                              final size = 76.0 + (i % 3) * 8;
+                              final columns = 3;
+                              final x = (i % columns) *
+                                  (bounds.maxWidth - size) /
+                                  (columns - 1);
+                              final row = i ~/ columns;
+                              final baseY =
+                                  row * max(78, (bounds.maxHeight - size) / 2);
+                              final drift = sin(
+                                      (_floatController.value * pi * 2) +
+                                          i * .9) *
+                                  16;
+                              return Positioned(
+                                left: (x + drift)
+                                    .clamp(0, max(0, bounds.maxWidth - size)),
+                                top: (baseY - drift)
+                                    .clamp(0, max(0, bounds.maxHeight - size)),
+                                width: size,
+                                height: size,
+                                child: FilledButton(
+                                  onPressed: () => _answer(
+                                      item.id == current.id,
+                                      timePenalty: true),
+                                  style: FilledButton.styleFrom(
+                                    padding: const EdgeInsets.all(6),
+                                    backgroundColor: [
+                                      const Color(0xFF3FA8DD),
+                                      const Color(0xFF42BE68),
+                                      const Color(0xFFD9468B)
+                                    ][i % 3],
+                                    shape: const CircleBorder(
+                                        side: BorderSide(
+                                            color: Colors.white, width: 3)),
+                                  ),
+                                  child: Text(item.word,
+                                      textAlign: TextAlign.center,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w900)),
+                                ),
+                              );
+                            }).toList(),
+                          )),
+                ))
     ]);
   }
 }

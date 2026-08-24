@@ -1,13 +1,18 @@
 /* ─── Page Layout ─────────────────────────────────────────────────── */
 .grammar-page {
-  min-height: 100vh;
+  height: calc(100dvh - 94px);
+  min-height: 560px;
   background:
     radial-gradient(circle at 92% 5%, rgba(216, 111, 55, 0.14), transparent 23rem),
     radial-gradient(circle at 5% 28%, rgba(225, 170, 93, 0.17), transparent 20rem),
     var(--paper-base, #fffaf0);
-  padding: 2rem 2rem 4rem;
+  padding: 1.35rem 2rem 1.5rem;
   max-width: 1100px;
   margin: 0 auto;
+  overflow: hidden;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ─── Header ──────────────────────────────────────────────────────── */
@@ -30,7 +35,7 @@
 .search-clear:hover { color: var(--ink-primary, #382419); background: var(--paper-deep, #f4e9d9); }
 
 /* ─── JLPT Filter ─────────────────────────────────────────────────── */
-.level-filter { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+.level-filter { display: flex; gap: 0.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
 .level-chip {
   --chip: var(--accent-deep, #a84722);
   padding: 0.45rem 1.1rem; border: 1.5px solid var(--line-delicate, #eadcc8); border-radius: 999px;
@@ -46,10 +51,12 @@
 }
 
 /* ─── Layout ──────────────────────────────────────────────────────── */
-.grammar-layout { display: grid; grid-template-columns: 340px 1fr; gap: 1.5rem; align-items: start; }
+.grammar-layout { display: grid; grid-template-columns: 340px 1fr; gap: 1.5rem; align-items: stretch; flex: 1 1 auto; min-height: 0; }
 
 /* ─── List ────────────────────────────────────────────────────────── */
-.grammar-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.grammar-list { display: flex; flex-direction: column; gap: 0.6rem; min-height: 0; overflow-y: auto; padding: 2px 8px 16px 2px; scrollbar-color: #d59a62 transparent; scrollbar-width: thin; }
+.grammar-list::-webkit-scrollbar { width: 8px; }
+.grammar-list::-webkit-scrollbar-thumb { background: #d59a62; border: 2px solid transparent; border-radius: 999px; background-clip: padding-box; }
 .results-count { font-size: 0.8rem; color: var(--ink-secondary, #765f50); margin: 0 0 0.35rem; }
 .results-count strong { color: var(--accent-deep, #a84722); }
 .list-state {
@@ -76,7 +83,7 @@
 /* ─── Detail ──────────────────────────────────────────────────────── */
 .grammar-detail {
   background: var(--panel-bg, #fffdf8); border: 1px solid rgba(232, 186, 132, 0.45); border-radius: 18px; padding: 1.75rem 2rem;
-  box-shadow: 0 12px 30px rgba(92, 58, 30, 0.1); min-height: 400px;
+  box-shadow: 0 12px 30px rgba(92, 58, 30, 0.1); min-height: 0; overflow-y: auto;
 }
 .detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; padding-bottom: 1.25rem; border-bottom: 1px solid var(--line-delicate, #eadcc8); margin-bottom: 1.5rem; }
 .detail-title { font-size: 1.9rem; font-weight: 800; color: var(--ink-primary, #382419); margin: 0 0 0.35rem; }
@@ -102,8 +109,9 @@
 
 /* ─── Responsive ──────────────────────────────────────────────────── */
 @media (max-width: 860px) {
-  .grammar-layout { grid-template-columns: 1fr; }
-  .grammar-page { padding: 1.25rem 1rem 3rem; }
+  .grammar-layout { grid-template-columns: 1fr; height: auto; }
+  .grammar-page { height: auto; min-height: 100%; padding: 1.25rem 1rem 3rem; overflow: visible; display: block; }
+  .grammar-list { max-height: 42dvh; }
   .page-title { font-size: 1.5rem; }
   .detail-title { font-size: 1.5rem; }
   .grammar-detail { padding: 1.25rem 1.25rem; }

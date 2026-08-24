@@ -11,6 +11,8 @@ import { SrsService, SrsStatsOverview } from '../../../../core/services/srs.serv
 import { UserStatsService } from '../../../../core/services/user-stats.service';
 import { ThemeService } from '../../../../core/services/theme.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LearningKnowledgeService } from '../../../../core/services/learning-knowledge.service';
+import { KnowledgeGraphComponent } from '../../../../shared/components/knowledge-graph/knowledge-graph.component';
 
 type Tab = 'info' | 'avatar' | 'folders' | 'srs' | 'settings';
 
@@ -23,7 +25,7 @@ interface ProfileStats {
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule, LoadingFoxComponent],
+  imports: [CommonModule, FormsModule, LoadingFoxComponent, KnowledgeGraphComponent],
   templateUrl: './profile.component.html',
   styleUrl: './profile.component.css',
 })
@@ -31,6 +33,7 @@ export class ProfileComponent implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
   private readonly srsService = inject(SrsService);
+  private readonly learningKnowledge = inject(LearningKnowledgeService);
   readonly userStatsService = inject(UserStatsService);
   readonly themeService = inject(ThemeService);
 
@@ -45,6 +48,7 @@ export class ProfileComponent implements OnInit {
 
   readonly srsStats = signal<SrsStatsOverview | null>(null);
   readonly isLoadingSrsStats = signal(false);
+  readonly knowledgeGraph = signal(this.learningKnowledge.getProfileGraph());
   readonly maxBoxCount = computed(() => {
     const stats = this.srsStats();
     if (!stats) return 1;
@@ -109,9 +113,15 @@ export class ProfileComponent implements OnInit {
 
   setTab(tab: Tab): void {
     this.activeTab.set(tab);
+    if (tab === 'srs') void this.loadKnowledgeGraph();
     if (tab === 'srs' && !this.srsStats() && !this.isLoadingSrsStats()) {
       this.loadSrsStats();
     }
+  }
+
+  private async loadKnowledgeGraph(): Promise<void> {
+    const graph = await this.learningKnowledge.loadProfileGraph();
+    this.knowledgeGraph.set(graph);
   }
 
   private loadSrsStats(): void {

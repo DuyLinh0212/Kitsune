@@ -6,6 +6,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AnswerInput, ExamDetailDto, ExamQuestionDto, ExamService } from '../../../../core/services/exam.service';
 import { EXAM_QUESTION_TYPE_LABELS, ExamQuestionType } from '../../../../core/services/exam.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LearningKnowledgeService } from '../../../../core/services/learning-knowledge.service';
 
 @Component({
   selector: 'app-exam-play',
@@ -18,6 +19,7 @@ export class ExamPlayComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly examService = inject(ExamService);
+  private readonly learningKnowledge = inject(LearningKnowledgeService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly typeLabels = EXAM_QUESTION_TYPE_LABELS;
@@ -197,6 +199,7 @@ export class ExamPlayComponent implements OnInit, OnDestroy {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (attemptId) => {
+          this.learningKnowledge.recordExam(e.questions, answers, attemptId);
           void this.router.navigate(['/exams', e.id, 'result', attemptId]);
         },
         error: (err) => {

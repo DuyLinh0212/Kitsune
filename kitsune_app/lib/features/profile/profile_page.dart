@@ -5,9 +5,11 @@ import 'package:kitsune_app/core/models/user.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/core/ui/knowledge_graph_panel.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/dashboard_provider.dart';
 import 'package:kitsune_app/providers/providers.dart';
+import 'package:kitsune_app/providers/knowledge_provider.dart';
 
 class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
@@ -71,6 +73,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     }
 
     final statsAsync = ref.watch(userStatsProvider(user.id));
+    final knowledgeAsync = ref.watch(knowledgeGraphProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -194,6 +197,34 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     message: 'Đang tải thống kê...', size: 72),
               ),
               error: (_, __) => const SizedBox.shrink(),
+            ),
+            const SizedBox(height: AppTheme.space20),
+            const KitsuneSectionHeader(
+              title: 'Bản đồ năng lực',
+              accent: KitsuneColors.success,
+            ),
+            const SizedBox(height: AppTheme.space12),
+            knowledgeAsync.when(
+              data: (graph) => KnowledgeGraphPanel(graph: graph),
+              loading: () => const KitsuneSurface(
+                child: KitsuneLoadingFox(
+                  message: 'Đang nối các bằng chứng học tập...',
+                  size: 68,
+                ),
+              ),
+              error: (_, __) => KitsuneSurface(
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text('Chưa tải được bản đồ năng lực.'),
+                    ),
+                    TextButton(
+                      onPressed: () => ref.invalidate(knowledgeGraphProvider),
+                      child: const Text('Thử lại'),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: AppTheme.space20),
             KitsuneSectionHeader(

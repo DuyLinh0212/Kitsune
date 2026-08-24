@@ -281,7 +281,7 @@ export class TopicService {
       .from('Vocabularies')
       .select('Id, Word, Pronunciation, Meaning')
       .not('Pronunciation', 'is', null)
-      .limit(Math.max(10, Math.min(80, limit * 3)));
+      .limit(Math.max(10, Math.min(500, limit * 3)));
     if (error) throw error;
     const shuffled = [...(data ?? [])].sort(() => Math.random() - 0.5).slice(0, limit);
     return shuffled.map((row) => ({

@@ -2,6 +2,7 @@
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { Component, DestroyRef, OnDestroy, PLATFORM_ID, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { GameVocabulary, MinigameType } from '../../../../core/models/topic.model';
 import { TopicService } from '../../../../core/services/topic.service';
@@ -34,10 +35,16 @@ interface BubbleOption {
   drift: number;
 }
 
+interface ShiritoriTurn {
+  speaker: 'Kitsune' | 'Bạn';
+  word: string;
+  reading: string;
+}
+
 @Component({
   selector: 'app-minigame-hub',
   standalone: true,
-  imports: [CommonModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink],
   templateUrl: './minigame-hub.component.html',
   styleUrl: './minigame-hub.component.css',
 })
@@ -52,6 +59,7 @@ export class MinigameHubComponent implements OnDestroy {
     { type: 'KANA_PATH', eyebrow: 'Nối âm', title: 'Kéo từ thành nghĩa', description: 'Ghép các ô kana thành cách đọc của từ Kanji.', duration: 60, accent: '#5e7b63' },
     { type: 'MEMORY_MATCH', eyebrow: '10 cặp · 90 giây', title: 'Siêu trí nhớ', description: 'Lật và ghép cặp Kanji với cách đọc Hiragana.', duration: 90, accent: '#3d3565' },
     { type: 'LISTENING', eyebrow: 'Nghe trước, nhìn sau', title: 'Nghe đoán từ', description: 'Nghe phát âm và chọn đúng nghĩa trong bốn đáp án.', duration: 60, accent: '#a96c35' },
+    { type: 'SHIRITORI', eyebrow: 'Đấu với Kitsune · 10 giây/lượt', title: 'Nối từ với máy', description: 'Nhập từ Kanji bắt đầu bằng hai âm cuối mà Kitsune đưa ra.', duration: 10, accent: '#287f88' },
   ];
 
   readonly screen = signal<'hub' | 'loading' | 'playing' | 'finished'>('hub');
@@ -66,6 +74,12 @@ export class MinigameHubComponent implements OnDestroy {
   readonly memoryCards = signal<MemoryCard[]>([]);
   readonly selectedMemoryKeys = signal<string[]>([]);
   readonly kanaSelection = signal<string[]>([]);
+  readonly selectedKanaIndexes = signal<number[]>([]);
+  readonly shiritoriHistory = signal<ShiritoriTurn[]>([]);
+  readonly shiritoriInput = signal('');
+  readonly shiritoriRequired = signal('');
+  readonly shiritoriTurn = signal<'user' | 'bot'>('user');
+  readonly shiritoriError = signal<string | null>(null);
   readonly currentWord = computed(() => this.vocabulary()[this.currentIndex() % Math.max(1, this.vocabulary().length)] ?? null);
   readonly bubbleOptions = computed<BubbleOption[]>(() => {
     const layouts = [
@@ -92,7 +106,8 @@ export class MinigameHubComponent implements OnDestroy {
   start(game: GameDefinition): void {
     this.activeGame.set(game);
     this.screen.set('loading');
-    this.topicService.getGameVocabulary(game.type === 'MEMORY_MATCH' ? 10 : 30)
+    const vocabularyLimit = game.type === 'MEMORY_MATCH' ? 10 : game.type === 'SHIRITORI' ? 120 : 30;
+    this.topicService.getGameVocabulary(vocabularyLimit)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (items) => {
@@ -124,11 +139,18 @@ export class MinigameHubComponent implements OnDestroy {
     if (target) this.tts.speakVocabulary(target.word, target.pronunciation);
   }
 
-  selectKana(char: string): void {
+  selectKana(char: string, index: number): void {
+    if (this.selectedKanaIndexes().includes(index)) return;
+    this.selectedKanaIndexes.update((indexes) => [...indexes, index]);
     this.kanaSelection.update((selection) => [...selection, char]);
   }
 
+  isKanaUsed(index: number): boolean {
+    return this.selectedKanaIndexes().includes(index);
+  }
+
   undoKana(): void {
+    this.selectedKanaIndexes.update((indexes) => indexes.slice(0, -1));
     this.kanaSelection.update((selection) => selection.slice(0, -1));
   }
 
@@ -137,6 +159,69 @@ export class MinigameHubComponent implements OnDestroy {
     if (!target) return;
     this.resolveAnswer(this.kanaSelection().join('') === target.pronunciation, false);
     this.kanaSelection.set([]);
+    this.selectedKanaIndexes.set([]);
+  }
+
+  onShiritoriInput(value: string): void {
+    this.shiritoriInput.set(value);
+    this.shiritoriError.set(null);
+  }
+
+  submitShiritori(): void {
+    if (this.shiritoriTurn() !== 'user' || this.screen() !== 'playing') return;
+    const input = this.shiritoriInput().trim();
+    if (!this.containsKanji(input)) {
+      this.shiritoriError.set('Hãy nhập một từ có Kanji.');
+      return;
+    }
+    const usedIds = new Set(this.shiritoriHistory().map((turn) => turn.word));
+    const match = this.vocabulary().find((item) => item.word === input && !usedIds.has(item.word));
+    if (!match) {
+      this.shiritoriError.set('Từ này chưa có trong kho từ vựng hoặc đã được dùng.');
+      return;
+    }
+    const reading = this.normalizeReading(match.pronunciation);
+    if (!reading.startsWith(this.shiritoriRequired())) {
+      this.shiritoriError.set(`Từ phải bắt đầu bằng “${this.shiritoriRequired()}”.`);
+      return;
+    }
+
+    this.shiritoriHistory.update((history) => [
+      ...history,
+      { speaker: 'Bạn', word: match.word, reading: match.pronunciation },
+    ]);
+    this.correctCount.update((count) => count + 1);
+    this.score.update((score) => score + 150 + this.secondsLeft() * 5);
+    this.shiritoriInput.set('');
+    this.shiritoriTurn.set('bot');
+
+    const required = this.readingTail(reading);
+    const nextUsed = new Set(this.shiritoriHistory().map((turn) => turn.word));
+    const botChoices = this.vocabulary().filter((item) =>
+      this.containsKanji(item.word)
+      && !nextUsed.has(item.word)
+      && this.normalizeReading(item.pronunciation).startsWith(required)
+      && !this.normalizeReading(item.pronunciation).endsWith('ん'),
+    );
+    const botWord = botChoices[Math.floor(Math.random() * botChoices.length)];
+    if (!botWord) {
+      this.score.update((score) => score + 500);
+      this.finishGame();
+      return;
+    }
+    if (isPlatformBrowser(this.platformId)) {
+      window.setTimeout(() => {
+        if (this.screen() !== 'playing') return;
+        this.shiritoriHistory.update((history) => [
+          ...history,
+          { speaker: 'Kitsune', word: botWord.word, reading: botWord.pronunciation },
+        ]);
+        this.shiritoriRequired.set(this.readingTail(botWord.pronunciation));
+        this.shiritoriTurn.set('user');
+        this.secondsLeft.set(10);
+        this.tts.speakVocabulary(botWord.word, botWord.pronunciation);
+      }, 450);
+    }
   }
 
   flipMemory(card: MemoryCard): void {
@@ -176,8 +261,10 @@ export class MinigameHubComponent implements OnDestroy {
     this.secondsLeft.set(game.duration);
     this.feedback.set(null);
     this.kanaSelection.set([]);
+    this.selectedKanaIndexes.set([]);
     this.selectedMemoryKeys.set([]);
     if (game.type === 'MEMORY_MATCH') this.buildMemoryCards();
+    if (game.type === 'SHIRITORI') this.startShiritori();
     this.screen.set('playing');
     if (game.type === 'LISTENING' && isPlatformBrowser(this.platformId)) window.setTimeout(() => this.playAudio(), 350);
     this.startTimer();
@@ -238,5 +325,42 @@ export class MinigameHubComponent implements OnDestroy {
       { key: `${item.id}-reading`, vocabularyId: item.id, value: item.pronunciation, side: 'reading', revealed: false, matched: false },
     ]);
     this.memoryCards.set(cards.sort(() => Math.random() - .5));
+  }
+
+  private startShiritori(): void {
+    const choices = this.vocabulary().filter((item) =>
+      this.containsKanji(item.word)
+      && this.normalizeReading(item.pronunciation).length >= 2
+      && !this.normalizeReading(item.pronunciation).endsWith('ん'),
+    );
+    const first = choices[Math.floor(Math.random() * choices.length)];
+    if (!first) {
+      this.shiritoriError.set('Kho từ vựng chưa đủ dữ liệu Kanji để bắt đầu.');
+      return;
+    }
+    this.shiritoriHistory.set([{ speaker: 'Kitsune', word: first.word, reading: first.pronunciation }]);
+    this.shiritoriRequired.set(this.readingTail(first.pronunciation));
+    this.shiritoriTurn.set('user');
+    this.shiritoriInput.set('');
+    this.shiritoriError.set(null);
+    this.tts.speakVocabulary(first.word, first.pronunciation);
+  }
+
+  private containsKanji(value: string): boolean {
+    return /[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]/u.test(value);
+  }
+
+  private normalizeReading(value: string): string {
+    return [...value.trim().replace(/[\s・.]/g, '')]
+      .map((char) => {
+        const code = char.charCodeAt(0);
+        return code >= 0x30a1 && code <= 0x30f6 ? String.fromCharCode(code - 0x60) : char;
+      })
+      .join('');
+  }
+
+  private readingTail(value: string): string {
+    const reading = this.normalizeReading(value).replace(/ー+$/u, '');
+    return [...reading].slice(-2).join('');
   }
 }

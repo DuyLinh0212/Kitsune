@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { forkJoin } from 'rxjs';
+import { forkJoin, from } from 'rxjs';
 
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 import {
@@ -13,6 +13,8 @@ import {
   ExamQuestionDto,
   ExamService
 } from '../../../../core/services/exam.service';
+import { LearningKnowledgeGraph, LearningKnowledgeService } from '../../../../core/services/learning-knowledge.service';
+import { KnowledgeGraphComponent } from '../../../../shared/components/knowledge-graph/knowledge-graph.component';
 
 interface ReviewItem {
   question: ExamQuestionDto;
@@ -23,13 +25,14 @@ interface ReviewItem {
 @Component({
   selector: 'app-exam-result',
   standalone: true,
-  imports: [CommonModule, RouterLink, LoadingFoxComponent],
+  imports: [CommonModule, RouterLink, LoadingFoxComponent, KnowledgeGraphComponent],
   templateUrl: './exam-result.component.html',
   styleUrl: './exam-result.component.css'
 })
 export class ExamResultComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly examService = inject(ExamService);
+  private readonly learningKnowledge = inject(LearningKnowledgeService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly typeLabels = EXAM_QUESTION_TYPE_LABELS;
@@ -40,6 +43,7 @@ export class ExamResultComponent implements OnInit {
   readonly isLoading = signal<boolean>(true);
   readonly errorMsg = signal<string | null>(null);
   readonly showOnlyWrong = signal<boolean>(false);
+  readonly knowledgeGraph = signal<LearningKnowledgeGraph | null>(null);
 
   readonly examId = signal<number>(0);
 
@@ -72,6 +76,15 @@ export class ExamResultComponent implements OnInit {
           this.attempt.set(attempt);
           this.exam.set(exam);
           this.reviewItems.set(this.buildReview(exam, answers));
+          const evidenceAnswers = answers.map((answer) => ({
+              questionId: answer.questionId,
+              selectedAnswer: answer.selectedAnswer ?? '',
+              isCorrect: answer.isCorrect,
+            }));
+          this.knowledgeGraph.set(this.learningKnowledge.buildExamGraph(exam.questions, evidenceAnswers));
+          from(this.learningKnowledge.loadExamGraph(attemptId, exam.questions, evidenceAnswers))
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((graph) => this.knowledgeGraph.set(graph));
           this.isLoading.set(false);
         },
         error: (err) => {

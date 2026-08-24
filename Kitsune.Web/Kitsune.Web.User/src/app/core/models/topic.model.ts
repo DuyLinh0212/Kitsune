@@ -43,7 +43,12 @@ export interface LessonDetail extends LessonSummary {
   items: LessonItem[];
 }
 
-export type MinigameType = 'BUBBLE_POP' | 'KANA_PATH' | 'MEMORY_MATCH' | 'LISTENING';
+export type MinigameType =
+  | 'BUBBLE_POP'
+  | 'KANA_PATH'
+  | 'MEMORY_MATCH'
+  | 'LISTENING'
+  | 'SHIRITORI';
 
 export interface GameVocabulary {
   id: number;

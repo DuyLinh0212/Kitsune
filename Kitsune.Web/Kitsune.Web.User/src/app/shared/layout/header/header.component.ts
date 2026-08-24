@@ -61,7 +61,10 @@ export class HeaderComponent implements OnInit {
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
       takeUntilDestroyed(this.destroyRef),
-    ).subscribe((event) => this.currentUrl.set(event.urlAfterRedirects));
+    ).subscribe((event) => {
+      this.currentUrl.set(event.urlAfterRedirects);
+      void this.loadDueSrsCount();
+    });
 
     this.authService.currentUser$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((user) => {
       this.currentUser.set(user);
@@ -185,6 +188,11 @@ export class HeaderComponent implements OnInit {
     }
   }
 
+  @HostListener('window:kitsune:srs-due-changed')
+  refreshDueSrsCount(): void {
+    void this.loadDueSrsCount();
+  }
+
   toggleUserMenu(): void {
     this.userMenuOpen.update((open) => !open);
   }
@@ -219,6 +227,7 @@ export class HeaderComponent implements OnInit {
       .from('SRSCards')
       .select('Id', { count: 'exact', head: true })
       .eq('UserId', (profile as { Id: number }).Id)
+      .gt('BoxLevel', 0)
       .lte('NextReviewDate', new Date().toISOString());
     if (!countError) this.dueSrsCount.set(count ?? 0);
   }

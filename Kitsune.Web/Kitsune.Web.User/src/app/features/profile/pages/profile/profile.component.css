@@ -761,6 +761,8 @@
 }
 
 /* Most wrong list */
+.knowledge-graph-wide { display: block; grid-column: 1 / -1; }
+
 .most-wrong-list {
   list-style: none;
   margin: 0;
