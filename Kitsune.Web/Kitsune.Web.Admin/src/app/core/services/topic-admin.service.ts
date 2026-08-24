@@ -102,8 +102,8 @@ export class TopicAdminService {
     return from(this.deleteDraftLesson(lessonId));
   }
 
-  generateAndSaveTopic(topicTitle: string, lessonCount: number): Observable<AiTopicCreation> {
-    return from(this.generateAndPersistAiPlan(topicTitle, lessonCount));
+  generateAndSaveTopic(topicTitle: string, lessonCount: number, vocabularyPerLesson: number): Observable<AiTopicCreation> {
+    return from(this.generateAndPersistAiPlan(topicTitle, lessonCount, vocabularyPerLesson));
   }
 
   private async loadTopics(): Promise<AdminTopic[]> {
@@ -303,8 +303,8 @@ export class TopicAdminService {
     if (!deleted?.length) throw new Error('Bài học đã được xuất bản hoặc không còn tồn tại.');
   }
 
-  private async invokeAi(topic: string, lessonCount: number): Promise<AiTopicPlan> {
-    const { data, error } = await supabase.functions.invoke<AiTopicPlan>('generate-topic-lessons', { body: { topic: topic.trim(), lessonCount } });
+  private async invokeAi(topic: string, lessonCount: number, vocabularyPerLesson: number): Promise<AiTopicPlan> {
+    const { data, error } = await supabase.functions.invoke<AiTopicPlan>('generate-topic-lessons', { body: { topic: topic.trim(), lessonCount, vocabularyPerLesson } });
     if (error) throw await this.readFunctionError(error);
     if (!data?.lessons?.length) throw new Error('AI không trả về bài học hợp lệ.');
     return data;
@@ -363,15 +363,15 @@ export class TopicAdminService {
     return error instanceof Error ? error : new Error('Edge Function không trả về nội dung lỗi hợp lệ.');
   }
 
-  private async generateAndPersistAiPlan(topicTitle: string, lessonCount: number): Promise<AiTopicCreation> {
-    const plan = await this.invokeAi(topicTitle, lessonCount);
-    const topic = await this.persistAiPlan(topicTitle, plan);
+  private async generateAndPersistAiPlan(topicTitle: string, lessonCount: number, vocabularyPerLesson: number): Promise<AiTopicCreation> {
+    const plan = await this.invokeAi(topicTitle, lessonCount, vocabularyPerLesson);
+    const topic = await this.persistAiPlan(topicTitle, plan, vocabularyPerLesson);
     return { topic, plan };
   }
 
-  private async persistAiPlan(topicTitle: string, plan: AiTopicPlan): Promise<AdminTopic> {
-    if (plan.lessons.some((lesson) => lesson.vocabularyIds.length < 20)) {
-      throw new Error('Mỗi bài học AI phải có ít nhất 20 từ vựng hợp lệ.');
+  private async persistAiPlan(topicTitle: string, plan: AiTopicPlan, vocabularyPerLesson: number): Promise<AdminTopic> {
+    if (plan.lessons.some((lesson) => lesson.vocabularyIds.length !== vocabularyPerLesson)) {
+      throw new Error(`Mỗi bài học AI phải có đúng ${vocabularyPerLesson} từ vựng hợp lệ.`);
     }
     const topic = await this.insertTopic(topicTitle, plan.topicDescription, null);
     try {

@@ -92,6 +92,7 @@ textarea { min-height: 76px; resize: vertical; }
 .ai-panel { align-self: start; position: sticky; top: 20px; }
 .ai-panel h2 { margin: 0 0 8px; }
 .ai-panel label { display: grid; gap: 6px; margin-top: 14px; color: #566682; font-size: .82rem; font-weight: 700; }
+.ai-panel label small { color: #7d8aa3; font-size: .74rem; font-weight: 500; line-height: 1.35; }
 .ai-button { width: 100%; margin-top: 14px; background: #503d8e; }
 .ai-preview { display: grid; gap: 7px; margin: 16px 0; padding-top: 14px; border-top: 1px solid #e3e8f1; }
 .ai-preview > p { color: #65748f; font-size: .85rem; line-height: 1.5; }

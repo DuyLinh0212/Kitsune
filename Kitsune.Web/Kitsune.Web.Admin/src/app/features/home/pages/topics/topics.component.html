@@ -145,9 +145,10 @@
     </section>
 
     <aside class="ai-panel">
-      <p>Gemini assistant</p><h2>Tạo trọn lộ trình</h2><span>AI tạo ngay Topic, gắn Lessons và chọn tối thiểu 20 từ mỗi bài. Kanji được suy ra tự động.</span>
+      <p>Gemini assistant</p><h2>Tạo trọn lộ trình</h2><span>AI tạo ngay Topic, gắn Lessons và chọn đúng số từ bạn đặt cho mỗi bài. Kanji liên quan được suy ra tự động.</span>
       <label>Chủ đề<input [(ngModel)]="aiTopic" placeholder="Ví dụ: Môn học" /></label>
       <label>Số lesson<input [(ngModel)]="aiLessonCount" type="number" min="1" max="20" /></label>
+      <label>Số từ vựng mỗi lesson<input [(ngModel)]="aiVocabularyPerLesson" type="number" min="1" max="50" /><small>Chọn từ 1 đến 50 từ; AI sẽ phân bổ không trùng giữa các bài.</small></label>
       <button type="button" class="ai-button" (click)="generateAi()" [disabled]="busy()">Tạo Topic + Lessons bằng AI</button>
       @if (aiPlan(); as plan) {
         <div class="ai-preview"><p><strong>Đã lưu bản nháp.</strong> {{ plan.topicDescription }}</p>@for (lesson of plan.lessons; track lesson.title; let index = $index) { <article><span>{{ index + 1 }}</span><div><strong>{{ lesson.title }}</strong><small>{{ lesson.vocabularyIds.length }} từ · {{ lesson.kanjiIds.length }} Kanji</small></div></article> }</div>

@@ -9,6 +9,7 @@ const corsHeaders = {
 interface GenerateRequest {
   topic: string;
   lessonCount: number;
+  vocabularyPerLesson?: number;
 }
 
 interface CatalogVocabulary {
@@ -50,8 +51,9 @@ class GeminiRequestError extends Error {
 const preferredGeminiModels = [
   'models/gemini-3.1-flash-lite',
 ];
-const minimumVocabularyPerLesson = 20;
-const maximumVocabularyPerLesson = 30;
+const defaultVocabularyPerLesson = 20;
+const minimumVocabularyPerLesson = 1;
+const maximumVocabularyPerLesson = 50;
 const maximumSearchTerms = 12;
 const maximumCandidatesPerTerm = 450;
 
@@ -213,6 +215,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
     const body = await request.json() as GenerateRequest;
     const topic = body.topic?.trim();
     const lessonCount = Math.min(20, Math.max(1, Math.floor(body.lessonCount ?? 1)));
+    const vocabularyPerLesson = Math.min(
+      maximumVocabularyPerLesson,
+      Math.max(minimumVocabularyPerLesson, Math.floor(body.vocabularyPerLesson ?? defaultVocabularyPerLesson)),
+    );
     if (!topic) throw new Error('Chủ đề không được để trống.');
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -231,23 +237,23 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (!adminRole) throw new Error('Chỉ quản trị viên mới có thể dùng trợ lý AI.');
 
     const geminiModel = await resolveGeminiModel(geminiApiKey);
-    const requiredVocabularyCount = lessonCount * minimumVocabularyPerLesson;
+    const requiredVocabularyCount = lessonCount * vocabularyPerLesson;
     const searchTerms = await buildTopicSearchTerms(geminiApiKey, geminiModel, topic);
     if (!searchTerms.length) throw new Error('Không tạo được từ khóa để tìm học liệu cho chủ đề này.');
     const vocabularyCatalog = await loadVocabularyCandidates(supabase, searchTerms, requiredVocabularyCount);
     if (vocabularyCatalog.length < requiredVocabularyCount) {
       const shortfall = requiredVocabularyCount - vocabularyCatalog.length;
-      const maximumLessonCount = Math.floor(vocabularyCatalog.length / minimumVocabularyPerLesson);
+      const maximumLessonCount = Math.floor(vocabularyCatalog.length / vocabularyPerLesson);
       throw new Error(
         `Đã tìm trên toàn bộ kho từ vựng theo “${searchTerms.join('”, “')}” nhưng chỉ có ${vocabularyCatalog.length} ứng viên cho chủ đề “${topic}”. `
-        + `Cần ít nhất ${requiredVocabularyCount} từ cho ${lessonCount} Lesson (20 từ × ${lessonCount}, không lặp); còn thiếu ${shortfall}. `
+        + `Cần ${requiredVocabularyCount} từ cho ${lessonCount} Lesson (${vocabularyPerLesson} từ × ${lessonCount}, không lặp); còn thiếu ${shortfall}. `
         + `Với kết quả hiện tại chỉ tạo được tối đa ${maximumLessonCount} Lesson.`,
       );
     }
     const retrievalPrompt = [
       `Bạn là bộ truy hồi học liệu cho lộ trình tiếng Nhật chủ đề "${topic}".`,
       `Đây là các ứng viên đã được database tìm từ toàn bộ kho theo các từ khóa liên quan. Ưu tiên các từ trực tiếp và thực tế nhất cho chủ đề.`,
-      `Chọn tối đa ${Math.min(vocabularyCatalog.length, lessonCount * maximumVocabularyPerLesson)} ID; không cần chọn đủ vì hệ thống sẽ bổ sung từ ứng viên hợp lệ còn lại.`,
+      `Chọn tối đa ${Math.min(vocabularyCatalog.length, requiredVocabularyCount)} ID; không cần chọn đủ vì hệ thống sẽ bổ sung từ ứng viên hợp lệ còn lại.`,
       'Chỉ trả JSON: {"vocabularyIds":[number]}.',
       `VOCABULARY_CATALOG=${JSON.stringify(vocabularyCatalog)}`,
     ].join('\n');
@@ -270,7 +276,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     }
     const prompt = [
       `Tạo lộ trình tiếng Nhật về chủ đề "${topic}" gồm đúng ${lessonCount} bài học.`,
-      `Mỗi bài bắt buộc chọn từ ${minimumVocabularyPerLesson} đến ${maximumVocabularyPerLesson} vocabularyIds khác nhau, phù hợp trực tiếp với chủ đề của bài.`,
+      `Mỗi bài bắt buộc chọn đúng ${vocabularyPerLesson} vocabularyIds khác nhau, phù hợp trực tiếp với chủ đề của bài.`,
       'Chỉ chọn ID có trong RETRIEVED_VOCABULARY_CATALOG. Không được bổ sung ID ngoài tập truy hồi này; phân bổ từ dễ đến khó và ưu tiên không lặp từ vựng giữa các bài.',
       'Hệ thống tự gắn Kanji từ các từ vựng đã chọn. Mỗi bài chỉ cần title, description, estimatedMinutes và vocabularyIds.',
       'Chỉ trả về JSON theo schema được cung cấp.',
@@ -290,12 +296,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
       lessons: generatedLessons.map((lesson, index) => {
         const safeVocabularyIds = [...new Set((lesson.vocabularyIds ?? []).filter((id) => Number.isInteger(id) && vocabularyIds.has(id)))]
           .filter((id) => !usedVocabularyIds.has(id))
-          .slice(0, maximumVocabularyPerLesson);
+          .slice(0, vocabularyPerLesson);
         for (const vocabularyId of orderedRetrievedIds) {
-          if (safeVocabularyIds.length >= minimumVocabularyPerLesson) break;
+          if (safeVocabularyIds.length >= vocabularyPerLesson) break;
           if (!usedVocabularyIds.has(vocabularyId) && !safeVocabularyIds.includes(vocabularyId)) safeVocabularyIds.push(vocabularyId);
         }
-        if (safeVocabularyIds.length < minimumVocabularyPerLesson) throw new Error('Kho ứng viên thay đổi trong lúc tạo lộ trình. Không có Topic hoặc Lesson nào được lưu.');
+        if (safeVocabularyIds.length !== vocabularyPerLesson) throw new Error('Kho ứng viên thay đổi trong lúc tạo lộ trình. Không có Topic hoặc Lesson nào được lưu.');
         for (const vocabularyId of safeVocabularyIds) usedVocabularyIds.add(vocabularyId);
         const safeKanjiIds = new Set<number>();
         for (const vocabularyId of safeVocabularyIds) {

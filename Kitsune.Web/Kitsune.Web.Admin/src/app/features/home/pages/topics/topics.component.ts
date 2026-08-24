@@ -52,6 +52,7 @@ export class TopicManagementComponent implements OnInit {
   editLessonMinutes = 10;
   aiTopic = '';
   aiLessonCount = 5;
+  aiVocabularyPerLesson = 20;
   catalogQuery = '';
 
   ngOnInit(): void { this.reload(); }
@@ -292,8 +293,10 @@ export class TopicManagementComponent implements OnInit {
 
   generateAi(): void {
     if (!this.aiTopic.trim() || this.busy()) return;
+    this.aiLessonCount = this.clampAiLessonCount(this.aiLessonCount);
+    this.aiVocabularyPerLesson = this.clampAiVocabularyPerLesson(this.aiVocabularyPerLesson);
     this.busy.set(true); this.aiPlan.set(null); this.aiError.set(''); this.message.set('Gemini đang tạo Topic, Lessons và đối chiếu Kanji…');
-    this.service.generateAndSaveTopic(this.aiTopic, this.aiLessonCount).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.service.generateAndSaveTopic(this.aiTopic, this.aiLessonCount, this.aiVocabularyPerLesson).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: ({ topic, plan }) => {
         this.aiPlan.set(plan);
         this.aiError.set('');
@@ -314,6 +317,14 @@ export class TopicManagementComponent implements OnInit {
   private resetCatalogPicker(): void {
     this.catalogItems.set([]);
     this.selectedCatalogKeys.set(new Set());
+  }
+
+  private clampAiLessonCount(value: number): number {
+    return Math.min(20, Math.max(1, Math.floor(Number(value) || 1)));
+  }
+
+  private clampAiVocabularyPerLesson(value: number): number {
+    return Math.min(50, Math.max(1, Math.floor(Number(value) || 20)));
   }
 
   private syncEditors(): void {
