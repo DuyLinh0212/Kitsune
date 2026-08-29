@@ -40,6 +40,7 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
   @Input() strokeCount: number | null = null;
   @Input() disabled = false;
   @Output() readonly checked = new EventEmitter<boolean>();
+  @Output() readonly strokeDataUnavailable = new EventEmitter<string>();
   @ViewChild('drawingCanvas') private canvasRef?: ElementRef<HTMLCanvasElement>;
 
   readonly isLoading = signal(true);
@@ -202,8 +203,15 @@ export class KanjiDrawingReviewComponent implements AfterViewInit, OnChanges {
       this.viewBox = parsed.viewBox;
       this.isLoading.set(false);
       this.redraw();
-    } catch {
+    } catch (error: unknown) {
+      if (token !== this.requestToken) return;
+      console.warn('Kanji stroke data is unavailable; requesting a question fallback.', {
+        character,
+        url,
+        error,
+      });
       this.finishWithError('Không tải được dữ liệu nét viết cho chữ này.', token);
+      this.strokeDataUnavailable.emit(character);
     }
   }
 

@@ -101,6 +101,7 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   readonly answerFeedback = signal<{ correct: boolean; message: string } | null>(null);
   readonly answerDialogOffset = signal({ x: 0, y: 0 });
   readonly isAnswerDialogDragging = signal(false);
+  private readonly unavailableDrawingCharacters = new Set<string>();
   private answerDialogDrag:
     | {
         pointerId: number;
@@ -360,6 +361,28 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     const question = this.currentQuestion();
     if (!question || question.kind !== 'drawing') return;
     this.recordQuizResult(isCorrect, question);
+  }
+
+  handleStrokeDataUnavailable(character: string): void {
+    const normalizedCharacter = character.trim();
+    if (!normalizedCharacter) return;
+
+    this.unavailableDrawingCharacters.add(normalizedCharacter);
+
+    const card = this.currentQuizCard();
+    const session = this.activeSession();
+    const question = this.currentQuestion();
+    if (
+      !card ||
+      !session ||
+      question?.kind !== 'drawing' ||
+      card.character?.trim() !== normalizedCharacter
+    ) {
+      return;
+    }
+
+    this.clearAnswerState();
+    this.currentQuestion.set(this.buildQuestion(card, session.cards));
   }
 
   private recordQuizResult(isCorrect: boolean, question: QuizQuestion): void {
@@ -1038,6 +1061,9 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   }
 
   private shouldUseDrawing(card: SRSCardDto): boolean {
+    const character = card.character?.trim();
+    if (!character || this.unavailableDrawingCharacters.has(character)) return false;
+
     const normalizedLevel = Math.min(7, Math.max(1, card.boxLevel || 1));
     const levelProbability = 0.08 + (normalizedLevel - 1) * 0.045;
     const wrongAnswerBonus = Math.min(0.12, Math.max(0, card.wrongReviewCount) * 0.02);

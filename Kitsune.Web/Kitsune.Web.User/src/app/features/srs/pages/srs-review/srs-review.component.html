@@ -535,6 +535,7 @@
                     [strokeCount]="card.strokeCount"
                     [disabled]="isSubmitting() || !!answerFeedback()"
                     (checked)="submitDrawingAnswer($event)"
+                    (strokeDataUnavailable)="handleStrokeDataUnavailable($event)"
                   />
                 }
 
