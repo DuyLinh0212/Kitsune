@@ -17,6 +17,7 @@ interface CatalogVocabulary {
   Word: string;
   Pronunciation: string | null;
   Meaning: string;
+  SpecificData: unknown;
   KanjiIds: number[];
 }
 
@@ -30,6 +31,7 @@ interface GeneratedLesson {
 
 interface GeneratedPlan {
   topicDescription?: string;
+  jlptLevel?: number | null;
   lessons?: GeneratedLesson[];
 }
 
@@ -149,6 +151,45 @@ function normalizeSearchTerm(term: string): string {
   return term.trim().replace(/[,%()."]/g, ' ').replace(/\s+/g, ' ').slice(0, 80);
 }
 
+function parseJlptLevel(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 5) return value;
+  if (typeof value !== 'string') return null;
+  const match = value.trim().match(/^(?:jlpt\s*)?n?\s*([1-5])$/i);
+  return match ? Number(match[1]) : null;
+}
+
+function getTopicJlptLevel(topic: string): number | null {
+  const match = topic.match(/\b(?:jlpt\s*)?n\s*([1-5])\b/i);
+  return match ? Number(match[1]) : null;
+}
+
+function getTopicSubject(topic: string): string {
+  return topic
+    .replace(/từ\s*vựng/giu, ' ')
+    .replace(/\b(?:jlpt\s*)?n\s*[1-5]\b/giu, ' ')
+    .replace(/[–—:|\-]+/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+function getVocabularyJlptLevel(vocabulary: CatalogVocabulary): number | null {
+  let specificData = vocabulary.SpecificData;
+  if (typeof specificData === 'string') {
+    try {
+      specificData = JSON.parse(specificData) as unknown;
+    } catch {
+      return null;
+    }
+  }
+  if (!specificData || typeof specificData !== 'object' || Array.isArray(specificData)) return null;
+  const metadata = specificData as Record<string, unknown>;
+  return parseJlptLevel(metadata['jlptLevel'])
+    ?? parseJlptLevel(metadata['jlpt_level'])
+    ?? parseJlptLevel(metadata['jlpt'])
+    ?? parseJlptLevel(metadata['JLPT'])
+    ?? parseJlptLevel(metadata['level']);
+}
+
 async function buildTopicSearchTerms(apiKey: string, model: string, topic: string): Promise<string[]> {
   const prompt = [
     `Tạo bộ từ khóa để tìm từ vựng tiếng Nhật trong kho dữ liệu cho chủ đề “${topic}”.`,
@@ -163,24 +204,46 @@ async function buildTopicSearchTerms(apiKey: string, model: string, topic: strin
   return [...new Set(terms)].slice(0, maximumSearchTerms);
 }
 
-function scoreVocabularyMatch(vocabulary: CatalogVocabulary, terms: string[]): number {
+function scoreVocabularyMatch(vocabulary: CatalogVocabulary, terms: string[], jlptLevel: number | null): number {
   const searchable = `${vocabulary.Word} ${vocabulary.Pronunciation ?? ''} ${vocabulary.Meaning}`.toLocaleLowerCase();
-  return terms.reduce((score, term, index) => searchable.includes(term.toLocaleLowerCase()) ? score + maximumSearchTerms - index : score, 0);
+  const termScore = terms.reduce((score, term, index) => searchable.includes(term.toLocaleLowerCase()) ? score + maximumSearchTerms - index : score, 0);
+  const levelScore = jlptLevel !== null && getVocabularyJlptLevel(vocabulary) === jlptLevel
+    ? maximumSearchTerms * 2
+    : 0;
+  return levelScore + termScore;
 }
 
 async function loadVocabularyCandidates(
   supabase: ReturnType<typeof createClient>,
   terms: string[],
   requiredVocabularyCount: number,
+  jlptLevel: number | null,
 ): Promise<CatalogVocabulary[]> {
-  const responses = await Promise.all(terms.map(async (term) => {
+  const termRequests = terms.map(async (term) => {
     const pattern = `%${term}%`;
     return supabase
       .from('Vocabularies')
-      .select('Id, Word, Pronunciation, Meaning')
+      .select('Id, Word, Pronunciation, Meaning, SpecificData')
       .or(`Word.ilike.${pattern},Pronunciation.ilike.${pattern},Meaning.ilike.${pattern}`)
       .limit(maximumCandidatesPerTerm);
-  }));
+  });
+  const jlptRequests = jlptLevel === null
+    ? []
+    : [
+      'jlptLevel',
+      'jlpt_level',
+      'jlpt',
+      'JLPT',
+      'level',
+    ].flatMap((key) => [`${key}.eq.${jlptLevel}`, `${key}.eq.N${jlptLevel}`]).map((filter) => {
+      const [key, , value] = filter.split('.');
+      return supabase
+        .from('Vocabularies')
+        .select('Id, Word, Pronunciation, Meaning, SpecificData')
+        .eq(`SpecificData->>${key}`, value)
+        .limit(maximumCandidatesPerTerm);
+    });
+  const responses = await Promise.all([...termRequests, ...jlptRequests]);
   const byId = new Map<number, CatalogVocabulary>();
   for (const response of responses) {
     if (response.error) throw response.error;
@@ -189,8 +252,12 @@ async function loadVocabularyCandidates(
     }
   }
   const candidateLimit = Math.max(requiredVocabularyCount * 4, 500);
-  return [...byId.values()]
-    .map((vocabulary) => ({ vocabulary, score: scoreVocabularyMatch(vocabulary, terms) }))
+  const matchingCatalog = [...byId.values()];
+  const jlptCatalog = jlptLevel === null
+    ? matchingCatalog
+    : matchingCatalog.filter((vocabulary) => getVocabularyJlptLevel(vocabulary) === jlptLevel);
+  return jlptCatalog
+    .map((vocabulary) => ({ vocabulary, score: scoreVocabularyMatch(vocabulary, terms, jlptLevel) }))
     .sort((left, right) => right.score - left.score || left.vocabulary.Id - right.vocabulary.Id)
     .slice(0, candidateLimit)
     .map(({ vocabulary }) => vocabulary);
@@ -236,16 +303,21 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (roleError) throw roleError;
     if (!adminRole) throw new Error('Chỉ quản trị viên mới có thể dùng trợ lý AI.');
 
-    const geminiModel = await resolveGeminiModel(geminiApiKey);
     const requiredVocabularyCount = lessonCount * vocabularyPerLesson;
-    const searchTerms = await buildTopicSearchTerms(geminiApiKey, geminiModel, topic);
-    if (!searchTerms.length) throw new Error('Không tạo được từ khóa để tìm học liệu cho chủ đề này.');
-    const vocabularyCatalog = await loadVocabularyCandidates(supabase, searchTerms, requiredVocabularyCount);
+    const topicJlptLevel = getTopicJlptLevel(topic);
+    const topicSubject = getTopicSubject(topic);
+    const geminiModel = await resolveGeminiModel(geminiApiKey);
+    const searchTerms = topicSubject ? await buildTopicSearchTerms(geminiApiKey, geminiModel, topicSubject) : [];
+    if (!searchTerms.length && topicJlptLevel === null) throw new Error('Không tạo được từ khóa để tìm học liệu cho chủ đề này.');
+    const vocabularyCatalog = await loadVocabularyCandidates(supabase, searchTerms, requiredVocabularyCount, topicJlptLevel);
     if (vocabularyCatalog.length < requiredVocabularyCount) {
       const shortfall = requiredVocabularyCount - vocabularyCatalog.length;
       const maximumLessonCount = Math.floor(vocabularyCatalog.length / vocabularyPerLesson);
+      const searchScope = topicJlptLevel !== null
+        ? `trong kho từ vựng được gắn JLPT N${topicJlptLevel}`
+        : `theo “${searchTerms.join('”, “')}”`;
       throw new Error(
-        `Đã tìm trên toàn bộ kho từ vựng theo “${searchTerms.join('”, “')}” nhưng chỉ có ${vocabularyCatalog.length} ứng viên cho chủ đề “${topic}”. `
+        `Đã tìm ${searchScope} nhưng chỉ có ${vocabularyCatalog.length} ứng viên cho chủ đề “${topic}”. `
         + `Cần ${requiredVocabularyCount} từ cho ${lessonCount} Lesson (${vocabularyPerLesson} từ × ${lessonCount}, không lặp); còn thiếu ${shortfall}. `
         + `Với kết quả hiện tại chỉ tạo được tối đa ${maximumLessonCount} Lesson.`,
       );
@@ -293,6 +365,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     const usedVocabularyIds = new Set<number>();
     const safePlan = {
       topicDescription: typeof generated.topicDescription === 'string' ? generated.topicDescription : '',
+      jlptLevel: topicJlptLevel,
       lessons: generatedLessons.map((lesson, index) => {
         const safeVocabularyIds = [...new Set((lesson.vocabularyIds ?? []).filter((id) => Number.isInteger(id) && vocabularyIds.has(id)))]
           .filter((id) => !usedVocabularyIds.has(id))

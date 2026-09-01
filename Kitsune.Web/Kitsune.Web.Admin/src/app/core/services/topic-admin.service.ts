@@ -43,7 +43,7 @@ export interface AiLessonPlan {
   kanjiIds: number[];
 }
 
-export interface AiTopicPlan { topicDescription: string; lessons: AiLessonPlan[]; }
+export interface AiTopicPlan { topicDescription: string; jlptLevel?: number | null; lessons: AiLessonPlan[]; }
 export interface AiTopicCreation { topic: AdminTopic; plan: AiTopicPlan; }
 
 interface LessonItemRow {
@@ -373,7 +373,7 @@ export class TopicAdminService {
     if (plan.lessons.some((lesson) => lesson.vocabularyIds.length !== vocabularyPerLesson)) {
       throw new Error(`Mỗi bài học AI phải có đúng ${vocabularyPerLesson} từ vựng hợp lệ.`);
     }
-    const topic = await this.insertTopic(topicTitle, plan.topicDescription, null);
+    const topic = await this.insertTopic(topicTitle, plan.topicDescription, plan.jlptLevel ?? null);
     try {
       for (let index = 0; index < plan.lessons.length; index += 1) {
         const entry = plan.lessons[index];
