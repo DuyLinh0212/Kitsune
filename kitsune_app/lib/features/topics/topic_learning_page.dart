@@ -29,7 +29,7 @@ class _TopicLearningPageState extends ConsumerState<TopicLearningPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF7ED),
+      backgroundColor: const Color(0xFFFFF7E8),
       body: SafeArea(
         child: FutureBuilder<List<TopicDto>>(
           future: _future,
@@ -50,11 +50,7 @@ class _TopicLearningPageState extends ConsumerState<TopicLearningPage> {
               onRefresh: () async => setState(() => _future =
                   ref.read(kitsuneApiProvider).getTopicsWithLessons()),
               child: CustomScrollView(slivers: [
-                SliverToBoxAdapter(
-                    child: _Hero(
-                        onGames: () => Navigator.of(context).push(
-                            MaterialPageRoute(
-                                builder: (_) => const MobileGameHubPage())))),
+                const SliverToBoxAdapter(child: _CourseHeader()),
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(18, 10, 18, 100),
                   sliver: SliverList.builder(
@@ -103,84 +99,58 @@ class _TopicCard extends StatelessWidget {
       0,
       (sum, lesson) => sum + lesson.estimatedMinutes,
     );
-    final accents = [
-      const Color(0xFFD85B3F),
-      const Color(0xFF3D3565),
-      const Color(0xFF5E7B63),
-    ];
-    final accent = accents[index % accents.length];
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      elevation: 0,
-      color: const Color(0xFFFFFDF7),
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: Color(0xFFD8CBB8)),
-        borderRadius: const BorderRadius.only(
-          topRight: Radius.circular(26),
-          bottomLeft: Radius.circular(6),
-          bottomRight: Radius.circular(6),
-          topLeft: Radius.circular(6),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Material(
+        color: const Color(0xFFFFFDF8),
+        shape: RoundedRectangleBorder(
+          side: const BorderSide(color: Color(0xFFEAD5B7)),
+          borderRadius: BorderRadius.circular(12),
         ),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(17),
-          child: Row(
-            children: [
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(children: [
               Container(
-                width: 54,
-                height: 54,
+                width: 38,
+                height: 38,
                 alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: .12),
-                  borderRadius: BorderRadius.circular(18),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFFF0DF),
+                  shape: BoxShape.circle,
                 ),
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
+                child: Text('${index + 1}',
+                    style: const TextStyle(
+                        color: Color(0xFFAA4A2B), fontWeight: FontWeight.w900)),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(width: 13),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      topic.title,
-                      style: const TextStyle(
-                        color: Color(0xFF272238),
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 5),
-                    Text(
-                      '${topic.lessons.length} bài học · $totalMinutes phút',
-                      style: const TextStyle(color: Color(0xFF756B78)),
-                    ),
-                    const SizedBox(height: 9),
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                    Text(topic.title,
+                        style: const TextStyle(
+                            color: Color(0xFF302A40),
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 4),
+                    Text('${topic.lessons.length} bài học · $totalMinutes phút',
+                        style: const TextStyle(color: Color(0xFF75665F))),
+                    const SizedBox(height: 11),
                     LinearProgressIndicator(
-                      value: topic.lessons.isEmpty
-                          ? 0
-                          : completed / topic.lessons.length,
-                      minHeight: 4,
-                      color: accent,
-                      backgroundColor: const Color(0xFFE8DDCB),
-                      borderRadius: BorderRadius.circular(3),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 10),
-              const Icon(Icons.arrow_forward_rounded, size: 20),
-            ],
+                        value: topic.lessons.isEmpty
+                            ? 0
+                            : completed / topic.lessons.length,
+                        minHeight: 4,
+                        color: const Color(0xFFE26331),
+                        backgroundColor: const Color(0xFFECD8BB)),
+                  ])),
+              const SizedBox(width: 8),
+              const Icon(Icons.arrow_forward_rounded,
+                  size: 19, color: Color(0xFF9F482A)),
+            ]),
           ),
         ),
       ),
@@ -196,19 +166,21 @@ class _TopicDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFBF7ED),
+      backgroundColor: const Color(0xFFFFF7E8),
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFBF7ED),
-        title: Text(topic.title),
+        backgroundColor: const Color(0xFFFFF7E8),
+        title: const Text('Lộ trình bài học'),
       ),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(18, 12, 18, 32),
           children: [
             Text(
-              'LỘ TRÌNH CHỦ ĐỀ',
+              topic.jlptLevel == null
+                  ? 'CHỦ ĐỀ HỌC'
+                  : 'JLPT N${topic.jlptLevel}',
               style: TextStyle(
-                color: const Color(0xFFD85B3F),
+                color: const Color(0xFFB6502C),
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.4,
@@ -218,18 +190,22 @@ class _TopicDetailPage extends StatelessWidget {
             Text(
               topic.title,
               style: TextStyle(
-                color: const Color(0xFF272238),
+                color: const Color(0xFF302A40),
                 fontFamily: AppTheme.displayFontFamily,
-                fontSize: 34,
+                fontSize: 32,
                 fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 6),
             Text(
-              '${topic.lessons.length} bài học · học lần lượt để giữ đúng mạch kiến thức.',
-              style: const TextStyle(color: Color(0xFF756B78), height: 1.45),
+              topic.description.isEmpty
+                  ? '${topic.lessons.length} bài học · học lần lượt để giữ đúng mạch kiến thức.'
+                  : topic.description,
+              style: const TextStyle(color: Color(0xFF75665F), height: 1.45),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: 20),
+            const Divider(color: Color(0xFFEAD5B7)),
+            const SizedBox(height: 2),
             for (var index = 0; index < topic.lessons.length; index++)
               _LessonTile(
                 lesson: topic.lessons[index],
@@ -248,58 +224,31 @@ class _TopicDetailPage extends StatelessWidget {
   }
 }
 
-class _Hero extends StatelessWidget {
-  const _Hero({required this.onGames});
-  final VoidCallback onGames;
+class _CourseHeader extends StatelessWidget {
+  const _CourseHeader();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(18),
-      height: 225,
-      clipBehavior: Clip.antiAlias,
-      decoration: BoxDecoration(
-          borderRadius: const BorderRadius.only(
-              topRight: Radius.circular(34),
-              bottomLeft: Radius.circular(4),
-              bottomRight: Radius.circular(4),
-              topLeft: Radius.circular(4)),
-          border: Border.all(color: const Color(0xFFD8CBB8))),
-      child: Stack(fit: StackFit.expand, children: [
-        Image.asset('assets/images/minigame-hub-v3.png', fit: BoxFit.cover),
-        Container(
-            decoration: const BoxDecoration(
-                gradient: LinearGradient(colors: [
-          Color(0xF2FBF7ED),
-          Color(0x99FBF7ED),
-          Color(0x00FBF7ED)
-        ]))),
-        Padding(
-            padding: const EdgeInsets.all(22),
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('LỘ TRÌNH V3.0',
-                  style: TextStyle(
-                      color: Color(0xFFD85B3F),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.6)),
-              const SizedBox(height: 8),
-              Text('Học theo\nchủ đề.',
-                  style: TextStyle(
-                      color: Color(0xFF272238),
-                      fontFamily: AppTheme.displayFontFamily,
-                      fontSize: 37,
-                      height: .95,
-                      fontWeight: FontWeight.w700)),
-              const Spacer(),
-              FilledButton.icon(
-                  onPressed: onGames,
-                  style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF3D3565)),
-                  icon: const Icon(Icons.sports_esports_rounded, size: 18),
-                  label: const Text('4 minigame')),
-            ])),
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(18, 24, 18, 16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text('HỌC TẬP',
+            style: TextStyle(
+                color: Color(0xFFB6502C),
+                fontSize: 11,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.4)),
+        SizedBox(height: 6),
+        Text('Lộ trình bài học',
+            style: TextStyle(
+                color: Color(0xFF302A40),
+                fontFamily: AppTheme.displayFontFamily,
+                fontSize: 32,
+                fontWeight: FontWeight.w800,
+                height: 1)),
+        SizedBox(height: 9),
+        Text('Chọn một chủ đề và học theo từng bài để giữ mạch kiến thức.',
+            style: TextStyle(color: Color(0xFF75665F), height: 1.45)),
       ]),
     );
   }
@@ -314,78 +263,74 @@ class _LessonTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IntrinsicHeight(
-        child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      SizedBox(
-          width: 46,
-          child: Column(children: [
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 17),
+          decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: Color(0xFFEAD5B7)))),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                    color: lesson.progress >= 1
-                        ? const Color(0xFF5E7B63)
-                        : const Color(0xFF3D3565),
-                    shape: BoxShape.circle,
-                    border:
-                        Border.all(color: const Color(0xFFFBF7ED), width: 4)),
-                child: Text('${index + 1}',
-                    style: const TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.w800))),
+              width: 30,
+              height: 30,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                  color: lesson.progress >= 1
+                      ? const Color(0xFFE26331)
+                      : const Color(0xFFFFFDF8),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFE0C3A1))),
+              child: Text('${index + 1}',
+                  style: TextStyle(
+                      color: lesson.progress >= 1
+                          ? Colors.white
+                          : const Color(0xFF8B705F),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900)),
+            ),
+            const SizedBox(width: 12),
             Expanded(
-                child: Container(width: 2, color: const Color(0xFFD8CBB8))),
-          ])),
-      Expanded(
-          child: Card(
-        margin: const EdgeInsets.only(left: 8, bottom: 14),
-        elevation: 0,
-        color: const Color(0xFFFFFDF7),
-        shape: RoundedRectangleBorder(
-            side: const BorderSide(color: Color(0xFFD8CBB8)),
-            borderRadius: const BorderRadius.only(
-                topRight: Radius.circular(22),
-                bottomLeft: Radius.circular(4),
-                bottomRight: Radius.circular(4),
-                topLeft: Radius.circular(4))),
-        child: InkWell(
-            onTap: onTap,
-            child: Padding(
-                padding: const EdgeInsets.all(17),
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                          '${lesson.estimatedMinutes} PHÚT · ${lesson.itemCount} MỤC',
-                          style: const TextStyle(
-                              color: Color(0xFFD85B3F),
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: 1)),
-                      const SizedBox(height: 7),
-                      Text(lesson.title,
-                          style: const TextStyle(
-                              fontSize: 19,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF272238))),
-                      if (lesson.description.isNotEmpty)
-                        Padding(
-                            padding: const EdgeInsets.only(top: 5),
-                            child: Text(lesson.description,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style:
-                                    const TextStyle(color: Color(0xFF756B78)))),
-                      const SizedBox(height: 13),
-                      LinearProgressIndicator(
-                          value: lesson.progress,
-                          minHeight: 4,
-                          color: const Color(0xFFD85B3F),
-                          backgroundColor: const Color(0xFFE8DDCB),
-                          borderRadius: BorderRadius.circular(3)),
-                    ]))),
-      )),
-    ]));
+                  Text(
+                      '${lesson.estimatedMinutes} PHÚT · ${lesson.itemCount} MỤC',
+                      style: const TextStyle(
+                          color: Color(0xFF966C59),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1)),
+                  const SizedBox(height: 7),
+                  Text(lesson.title,
+                      style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF302A40))),
+                  if (lesson.description.isNotEmpty)
+                    Padding(
+                        padding: const EdgeInsets.only(top: 5),
+                        child: Text(lesson.description,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(color: Color(0xFF75665F)))),
+                  const SizedBox(height: 12),
+                  LinearProgressIndicator(
+                      value: lesson.progress,
+                      minHeight: 3,
+                      color: const Color(0xFFE26331),
+                      backgroundColor: const Color(0xFFECD8BB)),
+                ])),
+            const SizedBox(width: 8),
+            const Padding(
+                padding: EdgeInsets.only(top: 23),
+                child: Icon(Icons.arrow_forward_rounded,
+                    size: 18, color: Color(0xFF9F482A))),
+          ]),
+        ),
+      ),
+    );
   }
 }
 
@@ -410,34 +355,64 @@ class _PendingLessonProgress {
   final int lastItemId;
 }
 
+enum _CompletionSyncState { idle, saving, saved, error }
+
 class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
   late Future<LessonDto> _future;
   int _index = 0;
   _PendingLessonProgress? _pendingProgress;
+  _PendingLessonProgress? _failedProgress;
   bool _progressSaveInFlight = false;
+  bool _isCompleted = false;
+  _CompletionSyncState _completionSyncState = _CompletionSyncState.idle;
   final TtsService _tts = TtsService();
   @override
   void initState() {
     super.initState();
-    _future = ref.read(kitsuneApiProvider).getLessonDetail(widget.lessonId);
+    _future = _loadLesson();
+  }
+
+  Future<LessonDto> _loadLesson() async {
+    final lesson =
+        await ref.read(kitsuneApiProvider).getLessonDetail(widget.lessonId);
+    _index = lesson.completedItemCount
+        .clamp(0, max(0, lesson.items.length - 1))
+        .toInt();
+    return lesson;
   }
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        backgroundColor: const Color(0xFFFBF7ED),
+        backgroundColor: const Color(0xFFFFF7E8),
         appBar: AppBar(
-            backgroundColor: const Color(0xFFFBF7ED),
+            backgroundColor: const Color(0xFFFFF7E8),
             title: const Text('Bài học'),
             elevation: 0),
         body: FutureBuilder<LessonDto>(
             future: _future,
             builder: (_, snapshot) {
-              if (!snapshot.hasData) {
+              if (snapshot.connectionState != ConnectionState.done) {
                 return const Center(child: CircularProgressIndicator());
+              }
+              if (snapshot.hasError) {
+                return _ErrorState(
+                    onRetry: () => setState(() => _future = _loadLesson()));
+              }
+              if (!snapshot.hasData) {
+                return const Center(child: Text('Không thể tải bài học.'));
               }
               final lesson = snapshot.data!;
               if (lesson.items.isEmpty) {
                 return const Center(child: Text('Bài học chưa có nội dung.'));
+              }
+              if (_isCompleted) {
+                return _LessonCompletion(
+                  lesson: lesson,
+                  syncState: _completionSyncState,
+                  onRetry: _retryCompletion,
+                  onReturn: () =>
+                      Navigator.of(context).popUntil((route) => route.isFirst),
+                );
               }
               final item = lesson.items[_index];
               return Padding(
@@ -453,8 +428,8 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                     const SizedBox(height: 12),
                     LinearProgressIndicator(
                         value: (_index + 1) / lesson.items.length,
-                        color: const Color(0xFFD85B3F),
-                        backgroundColor: const Color(0xFFE8DDCB)),
+                        color: const Color(0xFFE26331),
+                        backgroundColor: const Color(0xFFECD8BB)),
                     const SizedBox(height: 24),
                     Expanded(
                         child: Container(
@@ -463,12 +438,8 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                             decoration: BoxDecoration(
                                 color: const Color(0xFFFFFDF7),
                                 border:
-                                    Border.all(color: const Color(0xFFD8CBB8)),
-                                borderRadius: const BorderRadius.only(
-                                    topRight: Radius.circular(34),
-                                    bottomLeft: Radius.circular(4),
-                                    bottomRight: Radius.circular(4),
-                                    topLeft: Radius.circular(4))),
+                                    Border.all(color: const Color(0xFFEAD5B7)),
+                                borderRadius: BorderRadius.circular(12)),
                             child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
@@ -477,19 +448,19 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                                           ? '漢字 · KANJI'
                                           : '語彙 · TỪ VỰNG',
                                       style: const TextStyle(
-                                          color: Color(0xFFD85B3F),
+                                          color: Color(0xFFB6502C),
                                           letterSpacing: 1.2,
                                           fontWeight: FontWeight.w800)),
                                   const SizedBox(height: 22),
                                   Text(item.word,
                                       style: const TextStyle(
                                           fontSize: 68,
-                                          color: Color(0xFF272238))),
+                                          color: Color(0xFF302A40))),
                                   if (item.pronunciation.isNotEmpty)
                                     Text(item.pronunciation,
                                         style: const TextStyle(
                                             fontSize: 20,
-                                            color: Color(0xFFD85B3F))),
+                                            color: Color(0xFFC7532C))),
                                   if (item.kanjiId != null &&
                                       (item.amHanViet ?? '').isNotEmpty)
                                     Padding(
@@ -497,7 +468,7 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                                       child: Text(
                                         'Âm Hán Việt: ${item.amHanViet}',
                                         style: const TextStyle(
-                                          color: Color(0xFF3D3565),
+                                          color: Color(0xFF4C3A68),
                                           fontSize: 16,
                                           fontWeight: FontWeight.w800,
                                         ),
@@ -520,7 +491,7 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                                     Container(
                                         margin: const EdgeInsets.only(top: 18),
                                         padding: const EdgeInsets.all(14),
-                                        color: const Color(0xFFF1E9DC),
+                                        color: const Color(0xFFFFF5E8),
                                         child: Column(children: [
                                           Text(item.exampleSentence!,
                                               style: const TextStyle(
@@ -528,7 +499,7 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                                           if (item.exampleTranslation != null)
                                             Text(item.exampleTranslation!,
                                                 style: const TextStyle(
-                                                    color: Color(0xFF756B78)))
+                                                    color: Color(0xFF75665F)))
                                         ])),
                                 ]))),
                     const SizedBox(height: 18),
@@ -542,7 +513,7 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
                       FilledButton(
                           onPressed: () => _advanceLesson(lesson, item),
                           style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFFD85B3F)),
+                              backgroundColor: const Color(0xFFD85A2B)),
                           child: Text(_index == lesson.items.length - 1
                               ? 'Hoàn thành'
                               : 'Đã nhớ · Tiếp')),
@@ -557,16 +528,29 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
     if (!isCompleted) {
       setState(() => _index++);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Đã hoàn thành bài học!')),
-      );
+      setState(() {
+        _isCompleted = true;
+        _completionSyncState = _CompletionSyncState.saving;
+      });
     }
-    _pendingProgress = _PendingLessonProgress(
+    _queueProgressSave(_PendingLessonProgress(
       lessonId: lesson.id,
       completedItemCount: completed,
       totalItems: lesson.items.length,
       lastItemId: item.id,
-    );
+    ));
+  }
+
+  void _retryCompletion() {
+    final progress = _failedProgress;
+    if (progress == null) return;
+    setState(() => _completionSyncState = _CompletionSyncState.saving);
+    _queueProgressSave(progress);
+  }
+
+  void _queueProgressSave(_PendingLessonProgress progress) {
+    _failedProgress = null;
+    _pendingProgress = progress;
     _flushProgressSave();
   }
 
@@ -576,6 +560,7 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
     _pendingProgress = null;
     _progressSaveInFlight = true;
     unawaited(() async {
+      var wasSaved = false;
       try {
         await ref.read(kitsuneApiProvider).saveLessonProgress(
               progress.lessonId,
@@ -583,20 +568,166 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
               progress.totalItems,
               lastItemId: progress.lastItemId,
             );
+        wasSaved = true;
       } catch (_) {
+        _failedProgress = progress;
         if (mounted && _pendingProgress == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    'Chưa thể đồng bộ tiến độ. Lượt tiếp theo sẽ thử lại.')),
-          );
+          if (progress.completedItemCount == progress.totalItems) {
+            setState(() => _completionSyncState = _CompletionSyncState.error);
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content:
+                  Text('Chưa thể đồng bộ tiến độ. Lượt tiếp theo sẽ thử lại.'),
+            ));
+          }
         }
       } finally {
         _progressSaveInFlight = false;
+        if (mounted &&
+            wasSaved &&
+            progress.completedItemCount == progress.totalItems) {
+          setState(() => _completionSyncState = _CompletionSyncState.saved);
+        }
         _flushProgressSave();
       }
     }());
   }
+}
+
+class _LessonCompletion extends StatelessWidget {
+  const _LessonCompletion({
+    required this.lesson,
+    required this.syncState,
+    required this.onRetry,
+    required this.onReturn,
+  });
+
+  final LessonDto lesson;
+  final _CompletionSyncState syncState;
+  final VoidCallback onRetry;
+  final VoidCallback onReturn;
+
+  @override
+  Widget build(BuildContext context) {
+    final syncCopy = switch (syncState) {
+      _CompletionSyncState.saving => 'Đang lưu tiến độ của bạn…',
+      _CompletionSyncState.saved => 'Tiến độ đã được lưu.',
+      _CompletionSyncState.error =>
+        'Chưa thể đồng bộ lúc này. Bạn có thể thử lưu lại.',
+      _CompletionSyncState.idle => '',
+    };
+    return SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(28),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFDF8),
+              border: Border.all(color: const Color(0xFFEAD5B7)),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Container(
+                width: 58,
+                height: 58,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(
+                    color: Color(0xFFFFF0DF), shape: BoxShape.circle),
+                child: const Icon(Icons.check_rounded,
+                    color: Color(0xFFAA4A2B), size: 30),
+              ),
+              const SizedBox(height: 20),
+              const Text('BÀI HỌC ĐÃ HOÀN THÀNH',
+                  style: TextStyle(
+                      color: Color(0xFFB6502C),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.2)),
+              const SizedBox(height: 7),
+              Text(lesson.title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Color(0xFF302A40),
+                      fontFamily: AppTheme.displayFontFamily,
+                      fontSize: 30,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 12),
+              const Text(
+                  'Bạn đã đi qua toàn bộ mục học. Từ vựng sẽ sẵn sàng cho các lượt ôn tập tiếp theo.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Color(0xFF75665F), height: 1.5)),
+              const SizedBox(height: 22),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 13),
+                decoration: const BoxDecoration(
+                    border: Border.symmetric(
+                        horizontal: BorderSide(color: Color(0xFFEAD5B7)))),
+                child: Row(children: [
+                  Expanded(
+                      child: _CompletionStat(
+                          label: 'ĐÃ HỌC',
+                          value:
+                              '${lesson.items.length} / ${lesson.items.length}')),
+                  Container(
+                      width: 1, height: 34, color: const Color(0xFFEAD5B7)),
+                  Expanded(
+                      child: _CompletionStat(
+                          label: 'THỜI LƯỢNG',
+                          value: '${lesson.estimatedMinutes} phút')),
+                ]),
+              ),
+              const SizedBox(height: 16),
+              Text(syncCopy,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: syncState == _CompletionSyncState.error
+                          ? const Color(0xFFA6412A)
+                          : const Color(0xFF66715D),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 10),
+              if (syncState == _CompletionSyncState.error)
+                OutlinedButton(
+                    onPressed: onRetry, child: const Text('Thử lưu lại')),
+              const SizedBox(height: 8),
+              SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                      onPressed: onReturn,
+                      style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFD85A2B),
+                          minimumSize: const Size.fromHeight(46)),
+                      child: const Text('Quay về lộ trình'))),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CompletionStat extends StatelessWidget {
+  const _CompletionStat({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+        Text(label,
+            style: const TextStyle(
+                color: Color(0xFF8A7566),
+                fontSize: 10,
+                fontWeight: FontWeight.w800,
+                letterSpacing: .7)),
+        const SizedBox(height: 4),
+        Text(value,
+            style: const TextStyle(
+                color: Color(0xFF3A3044),
+                fontSize: 16,
+                fontWeight: FontWeight.w900)),
+      ]);
 }
 
 class _ErrorState extends StatelessWidget {

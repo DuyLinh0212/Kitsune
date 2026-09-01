@@ -2712,7 +2712,11 @@ class KitsuneApi {
             totalItems > 0 && completedItemCount >= totalItems ? now : null,
       },
     );
-    await getLessonSrsSession(lessonId: lessonId);
+    try {
+      await getLessonSrsSession(lessonId: lessonId);
+    } catch (_) {
+      // The lesson progress above is already durable. SRS initialization can retry later.
+    }
   }
 
   Future<List<GameVocabularyDto>> getGameVocabulary({int limit = 30}) async {
