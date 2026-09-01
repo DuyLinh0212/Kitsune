@@ -3,93 +3,72 @@
   @if (isLoading()) {
     <p class="status">Đang chuẩn bị bài học…</p>
   } @else if (lesson(); as lesson) {
-    <header>
-      <a routerLink="/topics">← Bản đồ chủ đề</a>
-      <p>{{ lesson.topicTitle }} · Bài {{ lesson.orderIndex + 1 }}</p>
-      <h1>{{ lesson.title }}</h1>
-      <div class="header-meta">
+    <header class="lesson-page__header">
+      <a routerLink="/topics" class="back-link">← Lộ trình học</a>
+      <div class="lesson-heading">
+        <p>{{ lesson.topicTitle }} · Bài {{ lesson.orderIndex + 1 }}</p>
+        <h1>{{ lesson.title }}</h1>
+      </div>
+      <div class="header-meta" aria-label="Thông tin bài học">
         <span>{{ lesson.estimatedMinutes }} phút</span>
         <span>{{ lesson.items.length }} mục học</span>
       </div>
-      <div class="page-progress"><i [style.width.%]="progressPercent()"></i></div>
+      <div class="page-progress" role="progressbar" aria-label="Tiến độ bài học" [attr.aria-valuenow]="progressPercent()" aria-valuemin="0" aria-valuemax="100">
+        <i [style.width.%]="progressPercent()"></i>
+      </div>
     </header>
 
-    @if (activeItem(); as item) {
-      <section
-        class="study-card"
-        [class.study-card--kanji]="item.kanjiId"
-        [class.study-card--vocabulary]="item.vocabularyId"
-      >
-        <aside>
-          <span>{{ activeIndex() + 1 }}</span>
-          <small>/ {{ lesson.items.length }}</small>
-          <p>{{ item.kanjiId ? 'KANJI' : 'TỪ VỰNG' }}</p>
-        </aside>
-        <article>
-          <div class="item-type" [class.item-type--kanji]="item.kanjiId">
-            <strong>{{ item.kanjiId ? '漢' : '語' }}</strong>
-            <span>{{ item.kanjiId ? 'Kanji' : 'Từ vựng' }}</span>
-          </div>
-          <button
-            type="button"
-            class="speak"
-            [class.speak--active]="tts.isSpeaking(item.word)"
-            (click)="speak()"
-            aria-label="Phát âm từ hiện tại"
-          >
-            {{ tts.isSpeaking(item.word) ? '■' : '♪' }}
-          </button>
-          <h2>{{ item.word }}</h2>
-          @if (item.pronunciation) {
-            <p class="reading">{{ item.pronunciation }}</p>
+    @if (isCompleted()) {
+      <section class="completion-panel" aria-labelledby="completion-title" aria-live="polite">
+        <div class="completion-panel__mark" aria-hidden="true">✓</div>
+        <p class="completion-panel__eyebrow">Bài học đã hoàn thành</p>
+        <h2 id="completion-title">{{ lesson.title }}</h2>
+        <p class="completion-panel__description">Bạn đã đi qua {{ lesson.items.length }} mục học. Từ vựng sẽ sẵn sàng cho các lượt ôn tập tiếp theo.</p>
+        <dl class="completion-panel__stats">
+          <div><dt>Đã học</dt><dd>{{ lesson.items.length }} / {{ lesson.items.length }}</dd></div>
+          <div><dt>Thời lượng</dt><dd>{{ lesson.estimatedMinutes }} phút</dd></div>
+        </dl>
+        <p class="completion-panel__sync" [class.completion-panel__sync--error]="completionSyncState() === 'error'">
+          @if (completionSyncState() === 'saving') { Đang lưu tiến độ của bạn… }
+          @else if (completionSyncState() === 'saved') { Tiến độ đã được lưu. }
+          @else if (completionSyncState() === 'error') { Chưa thể đồng bộ lúc này. Bạn có thể thử lưu lại. }
+        </p>
+        <div class="completion-panel__actions">
+          @if (completionSyncState() === 'error') {
+            <button type="button" class="secondary-action" (click)="retryCompletion()">Thử lưu lại</button>
           }
+          <a routerLink="/topics" class="primary-action">Quay về lộ trình</a>
+        </div>
+      </section>
+    } @else if (activeItem(); as item) {
+      <section class="study-sheet" [class.study-sheet--kanji]="item.kanjiId">
+        <div class="study-sheet__context"><span>Mục {{ activeIndex() + 1 }} / {{ lesson.items.length }}</span><span>{{ item.kanjiId ? 'Kanji' : 'Từ vựng' }}</span></div>
+        <article class="study-sheet__body">
+          <div class="item-type" [class.item-type--kanji]="item.kanjiId"><strong>{{ item.kanjiId ? '漢' : '語' }}</strong><span>{{ item.kanjiId ? 'Kanji' : 'Từ vựng' }}</span></div>
+          <button type="button" class="speak" [class.speak--active]="tts.isSpeaking(item.word)" (click)="speak()" aria-label="Phát âm từ hiện tại">{{ tts.isSpeaking(item.word) ? '■' : '♪' }}</button>
+          <h2>{{ item.word }}</h2>
+          @if (item.pronunciation) { <p class="reading">{{ item.pronunciation }}</p> }
           @if (item.kanjiId) {
             <dl class="kanji-readings">
-              <div>
-                <dt>Âm Hán Việt</dt>
-                <dd>{{ item.amHanViet || '—' }}</dd>
-              </div>
-              <div>
-                <dt>Âm On</dt>
-                <dd>{{ item.onyomi || '—' }}</dd>
-              </div>
-              <div>
-                <dt>Âm Kun</dt>
-                <dd>{{ item.kunyomi || '—' }}</dd>
-              </div>
+              <div><dt>Âm Hán Việt</dt><dd>{{ item.amHanViet || '—' }}</dd></div>
+              <div><dt>Âm On</dt><dd>{{ item.onyomi || '—' }}</dd></div>
+              <div><dt>Âm Kun</dt><dd>{{ item.kunyomi || '—' }}</dd></div>
             </dl>
           }
           <p class="meaning">{{ item.meaning }}</p>
           @if (item.exampleSentence) {
-            <blockquote>
-              <strong>{{ item.exampleSentence }}</strong>
-              @if (item.exampleTranslation) {
-                <span>{{ item.exampleTranslation }}</span>
-              }
-            </blockquote>
+            <blockquote><strong>{{ item.exampleSentence }}</strong>@if (item.exampleTranslation) { <span>{{ item.exampleTranslation }}</span> }</blockquote>
           }
         </article>
       </section>
-
       <nav class="lesson-actions" aria-label="Điều hướng bài học">
-        <button type="button" (click)="previous()" [disabled]="activeIndex() === 0">← Trước</button>
-        <div class="item-dots">
-          @for (entry of lesson.items; track entry.id; let index = $index) {
-            <i
-              [class.item-dot--active]="index === activeIndex()"
-              [class.item-dot--done]="index < activeIndex()"
-            ></i>
-          }
-        </div>
-        <button type="button" class="next" (click)="next()">
-          {{ activeIndex() === lesson.items.length - 1 ? 'Hoàn thành' : 'Đã nhớ · Tiếp' }} →
-        </button>
+        <button type="button" class="previous-action" (click)="previous()" [disabled]="activeIndex() === 0">← Trước</button>
+        <p>{{ activeIndex() + 1 }} / {{ lesson.items.length }} mục</p>
+        <button type="button" class="next-action" (click)="next()">{{ activeIndex() === lesson.items.length - 1 ? 'Hoàn thành bài học' : 'Tiếp tục' }} →</button>
       </nav>
     } @else {
       <p class="status">Bài học chưa có nội dung.</p>
     }
   }
-  @if (errorMessage()) {
-    <p class="status status--error">{{ errorMessage() }}</p>
-  }
+  @if (errorMessage()) { <p class="status status--error" aria-live="polite">{{ errorMessage() }}</p> }
 </main>

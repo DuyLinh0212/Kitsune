@@ -14,6 +14,8 @@ interface PendingLessonProgress {
   lastItemId: number;
 }
 
+type CompletionSyncState = 'idle' | 'saving' | 'saved' | 'error';
+
 @Component({
   selector: 'app-lesson-detail',
   standalone: true,
@@ -31,8 +33,11 @@ export class LessonDetailComponent implements OnInit {
   readonly activeIndex = signal(0);
   readonly isLoading = signal(true);
   readonly isSaving = signal(false);
+  readonly isCompleted = signal(false);
+  readonly completionSyncState = signal<CompletionSyncState>('idle');
   readonly errorMessage = signal('');
   private pendingProgress: PendingLessonProgress | null = null;
+  private failedProgress: PendingLessonProgress | null = null;
   private progressSaveInFlight = false;
   readonly activeItem = computed(() => this.lesson()?.items[this.activeIndex()] ?? null);
   readonly progressPercent = computed(() => {
@@ -71,9 +76,15 @@ export class LessonDetailComponent implements OnInit {
     const completedItem = this.activeItem();
     if (!completedItem) return;
 
-    if (this.activeIndex() < lesson.items.length - 1) {
+    const isLastItem = completed === lesson.items.length;
+
+    if (!isLastItem) {
       this.activeIndex.update((index) => index + 1);
+    } else {
+      this.isCompleted.set(true);
+      this.completionSyncState.set('saving');
     }
+
     this.queueProgressSave({
       lessonId: lesson.id,
       completedItemCount: completed,
@@ -82,7 +93,15 @@ export class LessonDetailComponent implements OnInit {
     });
   }
 
+  retryCompletion(): void {
+    if (!this.failedProgress) return;
+
+    this.completionSyncState.set('saving');
+    this.queueProgressSave(this.failedProgress);
+  }
+
   private queueProgressSave(progress: PendingLessonProgress): void {
+    this.failedProgress = null;
     this.pendingProgress = progress;
     this.isSaving.set(true);
     this.flushProgressSave();
@@ -104,14 +123,22 @@ export class LessonDetailComponent implements OnInit {
       .subscribe({
         next: () => {
           this.progressSaveInFlight = false;
+          if (progress.completedItemCount === progress.totalItems) {
+            this.completionSyncState.set('saved');
+          }
           if (this.pendingProgress) this.flushProgressSave();
           else this.isSaving.set(false);
         },
         error: () => {
           this.progressSaveInFlight = false;
+          this.failedProgress = progress;
           if (this.pendingProgress) this.flushProgressSave();
           else {
-            this.errorMessage.set('Chưa thể đồng bộ tiến độ. Lượt tiếp theo sẽ thử lại.');
+            if (progress.completedItemCount === progress.totalItems) {
+              this.completionSyncState.set('error');
+            } else {
+              this.errorMessage.set('Chưa thể đồng bộ tiến độ. Lượt tiếp theo sẽ thử lại.');
+            }
             this.isSaving.set(false);
           }
         },

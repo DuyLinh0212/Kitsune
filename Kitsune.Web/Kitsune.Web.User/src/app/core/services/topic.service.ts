@@ -273,7 +273,12 @@ export class TopicService {
       { onConflict: 'UserId,LessonId' },
     );
     if (error) throw error;
-    await firstValueFrom(this.srsService.getLessonSession(lessonId));
+    try {
+      await firstValueFrom(this.srsService.getLessonSession(lessonId));
+    } catch (error) {
+      // Progress is already persisted. The SRS session is rebuilt on the next review load.
+      console.warn('[TopicService] Could not refresh the lesson SRS session.', error);
+    }
   }
 
   private async loadGameVocabulary(limit: number): Promise<GameVocabulary[]> {

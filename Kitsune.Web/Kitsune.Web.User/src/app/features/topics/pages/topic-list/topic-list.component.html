@@ -1,24 +1,19 @@
 <!-- Kitsune.Web/Kitsune.Web.User/src/app/features/topics/pages/topic-list/topic-list.component.html -->
 <main class="topic-page">
-  <div class="learning-toolbar">
-    <div><p>HỌC TẬP</p><h1>Chọn bài học và bắt đầu.</h1></div>
-    <a routerLink="/minigames">Minigame <span>→</span></a>
-  </div>
+  <header class="learning-toolbar">
+    <div><p>Học tập</p><h1>Lộ trình bài học</h1></div>
+    <a routerLink="/minigames">Luyện nhanh <span>→</span></a>
+  </header>
 
-  @if (errorMessage()) {
-    <p class="status status--error">{{ errorMessage() }}</p>
-  }
+  @if (errorMessage()) { <p class="status status--error">{{ errorMessage() }}</p> }
 
   <section class="learning-layout">
     <aside class="topic-rail" aria-label="Danh sách chủ đề">
-      <p class="rail-label">Chủ đề</p>
+      <p class="rail-label">Chủ đề đang học</p>
       @for (topic of topics(); track topic.id) {
         <button type="button" class="topic-tab" [class.topic-tab--active]="topic.id === activeTopicId()" (click)="selectTopic(topic.id)">
           <span class="topic-seal">{{ topic.title.slice(0, 1) }}</span>
-          <span>
-            <strong>{{ topic.title }}</strong>
-            <small>{{ topic.lessonCount }} bài · {{ topic.progressPercent }}%</small>
-          </span>
+          <span><strong>{{ topic.title }}</strong><small>{{ topic.lessonCount }} bài · {{ topic.progressPercent }}%</small></span>
         </button>
       } @empty {
         @if (!isLoading()) { <p class="empty-copy">Chưa có chủ đề được xuất bản.</p> }
@@ -27,38 +22,31 @@
 
     <div class="lesson-board">
       @if (activeTopic(); as topic) {
-        <div class="board-heading">
+        <header class="board-heading">
           <div>
             <p class="eyebrow">{{ topic.jlptLevel ? 'JLPT N' + topic.jlptLevel : 'Mọi trình độ' }}</p>
             <h2>{{ topic.title }}</h2>
             <p>{{ topic.description }}</p>
           </div>
-          <div class="topic-progress" [style.--progress]="topic.progressPercent + '%'">
+          <div class="topic-progress" aria-label="Tiến độ chủ đề">
             <strong>{{ topic.progressPercent }}%</strong>
-            <span>hoàn thành</span>
+            <span>đã hoàn thành</span>
+            <i><b [style.width.%]="topic.progressPercent"></b></i>
           </div>
-        </div>
+        </header>
       }
 
       @if (isLoading()) {
-        <p class="status">Đang mở bản đồ bài học…</p>
+        <p class="status">Đang mở lộ trình bài học…</p>
       } @else {
         <div class="lesson-trail">
           @for (lesson of lessons(); track lesson.id; let index = $index) {
             <article class="lesson-stop" [class.lesson-stop--done]="lesson.progressPercent >= 100">
-              <div class="trail-marker"><span>{{ index + 1 }}</span></div>
+              <div class="trail-marker" aria-hidden="true">{{ index + 1 }}</div>
               <div class="lesson-card">
-                <div class="lesson-meta">
-                  <span>{{ lessonState(lesson) }}</span>
-                  <span>{{ lesson.estimatedMinutes }} phút</span>
-                  <span>{{ lesson.itemCount }} mục</span>
-                </div>
-                <h3>{{ lesson.title }}</h3>
-                <p>{{ lesson.description }}</p>
-                <div class="lesson-progress"><i [style.width.%]="lesson.progressPercent"></i></div>
-                <a [routerLink]="['/topics/lessons', lesson.id]">
-                  {{ lesson.progressPercent > 0 ? 'Học tiếp' : 'Bắt đầu bài' }} <span>→</span>
-                </a>
+                <div class="lesson-meta"><span>{{ lessonState(lesson) }}</span><span>{{ lesson.estimatedMinutes }} phút</span><span>{{ lesson.itemCount }} mục</span></div>
+                <div class="lesson-card__main"><div><h3>{{ lesson.title }}</h3><p>{{ lesson.description }}</p></div><a [routerLink]="['/topics/lessons', lesson.id]">{{ lesson.progressPercent > 0 ? 'Học tiếp' : 'Bắt đầu' }} <span>→</span></a></div>
+                <div class="lesson-progress" [attr.aria-label]="'Tiến độ ' + lesson.progressPercent + '%'" role="progressbar" [attr.aria-valuenow]="lesson.progressPercent" aria-valuemin="0" aria-valuemax="100"><i [style.width.%]="lesson.progressPercent"></i></div>
               </div>
             </article>
           } @empty {
