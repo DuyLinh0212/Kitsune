@@ -229,8 +229,8 @@ class _CourseHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.fromLTRB(18, 24, 18, 16),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(18, 24, 18, 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('HỌC TẬP',
             style: TextStyle(
@@ -648,7 +648,7 @@ class _LessonCompletion extends StatelessWidget {
               const SizedBox(height: 7),
               Text(lesson.title,
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: Color(0xFF302A40),
                       fontFamily: AppTheme.displayFontFamily,
                       fontSize: 30,
