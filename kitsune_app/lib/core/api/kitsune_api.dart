@@ -1282,8 +1282,9 @@ class KitsuneApi {
       if (vocabulary == null || _isKanjiOnlyVocabulary(vocabulary)) continue;
       final current = result.putIfAbsent(kanjiId, () => []);
       final word = vocabulary['Word'] as String? ?? '';
-      if (current.length >= 3 || current.any((item) => item.word == word))
+      if (current.length >= 3 || current.any((item) => item.word == word)) {
         continue;
+      }
       current.add(SrsVocabularyExample(
         word: word,
         pronunciation: vocabulary['Pronunciation'] as String?,
@@ -1882,8 +1883,9 @@ class KitsuneApi {
       'order': 'CreatedAt.desc',
     };
     if (jlptLevel != null) parameters['JlptLevel'] = 'eq.$jlptLevel';
-    if (query.trim().isNotEmpty)
+    if (query.trim().isNotEmpty) {
       parameters['Title'] = 'ilike.%${query.trim().replaceAll(',', ' ')}%';
+    }
     final response = await client.dio
         .get(client.table('Exams'), queryParameters: parameters);
     return (response.data as List<dynamic>)
@@ -2207,8 +2209,9 @@ class KitsuneApi {
       }
 
       var cursor = DateTime.now();
-      if (!dates.contains(_formatDate(cursor)))
+      if (!dates.contains(_formatDate(cursor))) {
         cursor = cursor.subtract(const Duration(days: 1));
+      }
       if (!dates.contains(_formatDate(cursor))) return 0;
 
       var streak = 0;
