@@ -1,6 +1,6 @@
 <div class="grammar-page">
   <app-lookup-frame activeMode="grammar" [query]="searchQuery()" [resultCount]="results().length || null"
-    placeholder="Nhập mẫu ngữ pháp hoặc nghĩa, ví dụ 〜ので..." (queryChange)="onSearchInput($event)" (search)="onSearchEnter()" />
+    [placeholder]="lang.t().grammar.searchPlaceholder" (queryChange)="onSearchInput($event)" (search)="onSearchEnter()" />
 
   <!-- ── JLPT filter ────────────────────────────────────────────────── -->
   <div class="level-filter">
@@ -10,7 +10,7 @@
       [class.level-chip--active]="jlptLevel() === null"
       (click)="onSelectLevel(null)"
     >
-      Tất cả
+      {{ lang.t().common.all }}
     </button>
     @for (lv of jlptLevels; track lv) {
       <button
@@ -34,14 +34,14 @@
     <!-- List -->
     <aside class="grammar-list">
       @if (isSearching()) {
-        <div class="list-state"><app-loading-fox message="Đang tải ngữ pháp..." [size]="96" /></div>
+        <div class="list-state"><app-loading-fox [message]="lang.t().grammar.loading" [size]="96" /></div>
       } @else if (results().length === 0) {
         <div class="list-state">
           <span class="empty-emoji">📭</span>
-          <p>Không tìm thấy ngữ pháp phù hợp.</p>
+          <p>{{ lang.t().grammar.noResults }}</p>
         </div>
       } @else {
-        <p class="results-count">Tìm thấy <strong>{{ results().length }}</strong> mẫu ngữ pháp</p>
+        <p class="results-count">{{ lang.t().grammar.foundCount.replace('{count}', results().length.toString()) }}</p>
         @for (g of results(); track g.id) {
           <button
             type="button"
@@ -70,22 +70,22 @@
 
         @if (g.structure) {
           <div class="detail-block">
-            <h3 class="detail-block__title">Cấu trúc</h3>
+            <h3 class="detail-block__title">{{ lang.t().grammar.structure }}</h3>
             <p class="detail-structure">{{ g.structure }}</p>
           </div>
         }
 
         @if (g.explanation) {
           <div class="detail-block">
-            <h3 class="detail-block__title">Giải thích</h3>
+            <h3 class="detail-block__title">{{ lang.t().grammar.explanation }}</h3>
             <p class="detail-explanation">{{ g.explanation }}</p>
           </div>
         }
 
         <div class="detail-block">
-          <h3 class="detail-block__title">Ví dụ ({{ g.examples.length }})</h3>
+          <h3 class="detail-block__title">{{ lang.t().grammar.examplesCount.replace('{count}', g.examples.length.toString()) }}</h3>
           @if (g.examples.length === 0) {
-            <p class="no-examples">Chưa có ví dụ cho mẫu ngữ pháp này.</p>
+            <p class="no-examples">{{ lang.t().grammar.noExamples }}</p>
           } @else {
             <ul class="example-list">
               @for (ex of g.examples; track ex.id) {
@@ -101,7 +101,7 @@
       } @else {
         <div class="detail-empty">
           <span class="empty-emoji">📖</span>
-          <p>Chọn một mẫu ngữ pháp để xem chi tiết.</p>
+          <p>{{ lang.t().grammar.selectToView }}</p>
         </div>
       }
     </section>

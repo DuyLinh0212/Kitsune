@@ -15,6 +15,7 @@ import {
 } from '../../../../core/services/exam.service';
 import { LearningKnowledgeGraph, LearningKnowledgeService } from '../../../../core/services/learning-knowledge.service';
 import { KnowledgeGraphComponent } from '../../../../shared/components/knowledge-graph/knowledge-graph.component';
+import { LanguageService } from '../../../../core/services/language.service';
 
 interface ReviewItem {
   question: ExamQuestionDto;
@@ -34,6 +35,7 @@ export class ExamResultComponent implements OnInit {
   private readonly examService = inject(ExamService);
   private readonly learningKnowledge = inject(LearningKnowledgeService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly lang = inject(LanguageService);
 
   readonly typeLabels = EXAM_QUESTION_TYPE_LABELS;
 
@@ -120,8 +122,19 @@ export class ExamResultComponent implements OnInit {
 
   scoreMessage(): string {
     const acc = this.attempt()?.accuracyPercentage ?? 0;
-    if (acc >= 80) return 'Xuất sắc! Bạn đã nắm rất chắc phần này.';
-    if (acc >= 50) return 'Khá tốt! Hãy ôn lại các câu sai để tiến bộ hơn.';
+    const l = this.lang.currentLang();
+    if (acc >= 80) {
+      if (l === 'en') return 'Excellent! You have mastered this content.';
+      if (l === 'ja') return '素晴らしい！この範囲をしっかり理解できています。';
+      return 'Xuất sắc! Bạn đã nắm rất chắc phần này.';
+    }
+    if (acc >= 50) {
+      if (l === 'en') return 'Good job! Review the mistakes below to improve further.';
+      if (l === 'ja') return '良くできました！間違えた問題を見直してさらに実力を伸ばしましょう。';
+      return 'Khá tốt! Hãy ôn lại các câu sai để tiến bộ hơn.';
+    }
+    if (l === 'en') return 'Keep practicing! Review the mistakes below.';
+    if (l === 'ja') return 'もう少し練習が必要です。下の解説を確認しましょう。';
     return 'Cần cố gắng thêm. Xem lại các câu sai bên dưới nhé.';
   }
 
@@ -132,7 +145,12 @@ export class ExamResultComponent implements OnInit {
   }
 
   displayAnswer(q: ExamQuestionDto, value: string | null): string {
-    if (!value) return '(bỏ trống)';
+    if (!value) {
+      const l = this.lang.currentLang();
+      if (l === 'en') return '(left blank)';
+      if (l === 'ja') return '(未回答)';
+      return '(bỏ trống)';
+    }
     return value;
   }
 }

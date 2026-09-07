@@ -6,6 +6,7 @@ import { switchMap } from 'rxjs/operators';
 import { VocabularyService, VocabularyDto } from '../../../../core/services/vocabulary.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { TtsService } from '../../../../core/services/tts.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { CommentSectionComponent } from '../../../../shared/components/comment-section/comment-section.component';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
@@ -17,6 +18,7 @@ import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/l
   styleUrl: './vocabulary-detail.component.css'
 })
 export class VocabularyDetailComponent implements OnInit {
+  readonly lang = inject(LanguageService);
   readonly route = inject(ActivatedRoute);
   readonly router = inject(Router);
   private readonly vocabularyService = inject(VocabularyService);

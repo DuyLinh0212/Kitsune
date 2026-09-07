@@ -6,6 +6,7 @@ import { RouterLink, Router } from '@angular/router';
 import { from } from 'rxjs';
 import { supabase } from '../../../../core/supabase/supabase.client';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LanguageService } from '../../../../core/services/language.service';
 
 interface PostDto {
   id: string;
@@ -34,6 +35,7 @@ interface QuizPickerItem {
 })
 export class PostListComponent implements OnInit {
   protected readonly router = inject(Router);
+  readonly lang = inject(LanguageService);
 
   readonly posts = signal<PostDto[]>([]);
   readonly isLoading = signal(true);

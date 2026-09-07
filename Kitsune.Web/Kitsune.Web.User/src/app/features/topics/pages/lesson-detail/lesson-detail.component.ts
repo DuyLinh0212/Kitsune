@@ -6,6 +6,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { LessonDetail } from '../../../../core/models/topic.model';
 import { TopicService } from '../../../../core/services/topic.service';
 import { TtsService } from '../../../../core/services/tts.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
 interface PendingLessonProgress {
   lessonId: number;
@@ -24,6 +25,7 @@ type CompletionSyncState = 'idle' | 'saving' | 'saved' | 'error';
   styleUrl: './lesson-detail.component.css',
 })
 export class LessonDetailComponent implements OnInit {
+  readonly lang = inject(LanguageService);
   private readonly route = inject(ActivatedRoute);
   private readonly topicService = inject(TopicService);
   private readonly destroyRef = inject(DestroyRef);

@@ -7,6 +7,7 @@ import { RouterLink } from '@angular/router';
 import { GameVocabulary, MinigameType } from '../../../../core/models/topic.model';
 import { TopicService } from '../../../../core/services/topic.service';
 import { TtsService } from '../../../../core/services/tts.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
 interface GameDefinition {
   type: MinigameType;
@@ -53,6 +54,7 @@ export class MinigameHubComponent implements OnDestroy {
   private readonly destroyRef = inject(DestroyRef);
   private readonly platformId = inject(PLATFORM_ID);
   readonly tts = inject(TtsService);
+  protected readonly lang = inject(LanguageService);
 
   readonly games: GameDefinition[] = [
     { type: 'BUBBLE_POP', eyebrow: '60 giây', title: 'Bong bóng từ vựng', description: 'Chạm đúng từ đang được gọi tên. Sai sẽ mất 2 giây.', duration: 60, accent: '#d85b3f' },

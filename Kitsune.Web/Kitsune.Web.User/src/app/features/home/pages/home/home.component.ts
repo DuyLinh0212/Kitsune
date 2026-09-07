@@ -1,5 +1,7 @@
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
@@ -7,6 +9,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { UserProfile } from '../../../../core/models/auth.model';
 import { UserStatsService } from '../../../../core/services/user-stats.service';
 import { UsageTrackingService } from '../../../../core/services/usage-tracking.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 @Component({
@@ -22,6 +25,7 @@ export class HomeComponent implements OnInit {
   private readonly usageTrackingService = inject(UsageTrackingService);
   private readonly destroyRef = inject(DestroyRef);
   protected readonly router = inject(Router);
+  protected readonly lang = inject(LanguageService);
 
   readonly currentUser = signal<UserProfile | null>(this.authService.getStoredUser());
   readonly isLoading = signal(true);
@@ -55,7 +59,9 @@ export class HomeComponent implements OnInit {
   }
 
   get nextActionLabel(): string {
-    return this.hasReviewReady ? 'Vào phiên ôn tập' : 'Khám phá bài học';
+    return this.hasReviewReady
+      ? this.lang.t().homePage.startReviewBtn
+      : this.lang.t().homePage.learnNewBtn;
   }
 
   get nextActionRoute(): string {
@@ -64,8 +70,10 @@ export class HomeComponent implements OnInit {
 
   formatWeekDuration(hours: number): string {
     const minutes = Math.max(0, Math.round(hours * 60));
-    if (minutes < 60) return `${minutes}p`;
-    return `${Number((minutes / 60).toFixed(1))}h`;
+    const mUnit = this.lang.t().common.minutes;
+    const hUnit = this.lang.t().common.hours;
+    if (minutes < 60) return `${minutes}${mUnit}`;
+    return `${Number((minutes / 60).toFixed(1))}${hUnit}`;
   }
 
   getBarHeight(hours: number): number {
@@ -73,9 +81,15 @@ export class HomeComponent implements OnInit {
   }
 
   getDayLabel(index: number): string {
-    const labels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const lang = this.lang.currentLang();
+    const viLabels = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    const enLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const jaLabels = ['日', '月', '火', '水', '木', '金', '土'];
     const date = new Date();
     date.setDate(date.getDate() - (6 - index));
-    return labels[date.getDay()];
+    const day = date.getDay();
+    if (lang === 'en') return enLabels[day];
+    if (lang === 'ja') return jaLabels[day];
+    return viLabels[day];
   }
 }

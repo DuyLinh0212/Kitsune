@@ -13,6 +13,7 @@ import { ThemeService } from '../../../../core/services/theme.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 import { LearningKnowledgeService } from '../../../../core/services/learning-knowledge.service';
 import { KnowledgeGraphComponent } from '../../../../shared/components/knowledge-graph/knowledge-graph.component';
+import { LanguageService } from '../../../../core/services/language.service';
 
 type Tab = 'info' | 'avatar' | 'folders' | 'srs' | 'settings';
 
@@ -36,6 +37,7 @@ export class ProfileComponent implements OnInit {
   private readonly learningKnowledge = inject(LearningKnowledgeService);
   readonly userStatsService = inject(UserStatsService);
   readonly themeService = inject(ThemeService);
+  readonly lang = inject(LanguageService);
 
   readonly userProfile = signal<UserProfile | null>(null);
   readonly stats = signal<ProfileStats>({ vocabCount: 0, kanjiCount: 0, quizCount: 0 });
@@ -91,13 +93,13 @@ export class ProfileComponent implements OnInit {
     return profile?.avatarUrl ?? null;
   });
 
-  readonly tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'info', label: 'Thông tin', icon: '👤' },
-    { id: 'avatar', label: 'Ảnh đại diện', icon: '🖼️' },
-    { id: 'folders', label: 'Thư mục', icon: '📁' },
-    { id: 'srs', label: 'Thống kê', icon: '📊' },
-    { id: 'settings', label: 'Cài đặt', icon: '⚙️' },
-  ];
+  readonly tabs = computed<{ id: Tab; label: string; icon: string }[]>(() => [
+    { id: 'info', label: this.lang.t().profilePage.tabInfo, icon: '👤' },
+    { id: 'avatar', label: this.lang.t().profilePage.tabAvatar, icon: '🖼️' },
+    { id: 'folders', label: this.lang.t().profilePage.tabFolders, icon: '📁' },
+    { id: 'srs', label: this.lang.t().profilePage.tabStats, icon: '📊' },
+    { id: 'settings', label: this.lang.t().profilePage.tabSettings, icon: '⚙️' },
+  ]);
 
   ngOnInit(): void {
     const user = this.authService.getStoredUser();

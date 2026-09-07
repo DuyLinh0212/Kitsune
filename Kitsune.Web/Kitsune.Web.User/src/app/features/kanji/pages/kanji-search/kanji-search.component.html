@@ -9,45 +9,27 @@
 
 
   <app-lookup-frame activeMode="kanji" [query]="searchQuery()" [resultCount]="kanjis().length || null"
-    placeholder="Nhập Kanji, âm Hán Việt, Onyomi hoặc bộ thủ..." (queryChange)="onSearchInput($event)" (search)="onSearchEnter()">
+    [placeholder]="lang.t().kanji.searchPlaceholder" (queryChange)="onSearchInput($event)" (search)="onSearchEnter()">
     <div lookup-frame-tools class="radical-filter-wrapper">
-    <!-- Legacy local search controls are replaced by LookupFrame. -->
-    <!--
-    <label class="search-box">
-      <span class="search-box__icon">Tìm</span>
-      <input type="text" [ngModel]="searchQuery()" (ngModelChange)="onSearchInput($event)"
-        (keyup.enter)="onSearchEnter()" placeholder="Nhập tiếng Việt, Onyomi, bộ thủ..." autocomplete="off"
-        autocorrect="off" spellcheck="false" />
-      @if (searchQuery()) {
-      <button type="button" class="search-bar__clear" (click)="onSearchInput('')" title="Xóa">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
-      }
-      <button type="button" class="search-bar__btn" (click)="onSearchEnter()">Tra</button>
-    </label>
-    -->
 
     <div class="radical-filter-wrapper legacy-radical-filter">
       <button type="button" class="folder-radical-bar" [class.folder-radical-bar--active]="selectedRadicalId()"
         (click)="toggleRadicalPopover()">
-        <span class="folder-radical-bar__label">Bộ thủ:</span>
+        <span class="folder-radical-bar__label">{{ lang.t().kanji.radical }}:</span>
         @if (selectedRadical) {
         <div class="radical-chip radical-chip--active">
           {{ selectedRadical.character }}
           <span class="radical-chip__clear" (click)="clearRadicalFilter($event)">×</span>
         </div>
         } @else {
-        <span class="folder-radical-bar__empty">Chưa chọn</span>
+        <span class="folder-radical-bar__empty">{{ lang.t().kanji.unselected }}</span>
         }
       </button>
 
       @if (showRadicalPopover()) {
       <div class="radical-popover">
         <div class="radical-popover__header">
-          <input type="text" class="radical-popover__search" placeholder="Tìm bộ thủ..."
+          <input type="text" class="radical-popover__search" [placeholder]="lang.t().kanji.searchRadical"
             [ngModel]="radicalSearchQuery()" (ngModelChange)="radicalSearchQuery.set($event)" />
         </div>
         <div class="radical-popover__grid">
@@ -73,14 +55,14 @@
   } @else if (!isSearching() && kanjis().length === 0 && (searchQuery() || selectedRadicalId())) {
   <div class="empty-state">
     <div class="empty-state__icon">漢</div>
-    <h3>Không tìm thấy Kanji phù hợp</h3>
-    <p>Thử nhập một chữ Kanji, âm Hán Việt hoặc nghĩa ngắn hơn.</p>
+    <h3>{{ lang.t().kanji.noResultTitle }}</h3>
+    <p>{{ lang.t().kanji.noResultSubtitle }}</p>
   </div>
   } @else if (kanjis().length > 0) {
   <div class="kanji-workspace">
     <aside class="list-panel">
       <div class="list-panel__header">
-        <span>{{ isRandomMode() ? 'Gợi ý hôm nay' : 'Kết quả tìm kiếm' }}</span>
+        <span>{{ isRandomMode() ? lang.t().kanji.todaySuggestions : lang.t().kanji.searchResults }}</span>
       </div>
 
       <div class="list-panel__body">
@@ -112,12 +94,12 @@
           </div>
 
           <div class="kanji-identity__meta">
-            <span class="kanji-identity__label">Âm Hán Việt</span>
+            <span class="kanji-identity__label">{{ lang.t().kanji.hanViet }}</span>
             <h2>{{ k.amHanViet }}</h2>
             <p>{{ k.meaning }}</p>
 
             <div class="kanji-identity__badges">
-              <span class="ink-badge">{{ k.strokeCount }} nét</span>
+              <span class="ink-badge">{{ k.strokeCount }} {{ lang.t().kanji.strokes }}</span>
               @if (k.jlptLevel) {
               <span class="ink-badge" [style.border-color]="getJlptColor(k.jlptLevel) + '66'"
                 [style.color]="getJlptColor(k.jlptLevel)">JLPT N{{ k.jlptLevel }}</span>
@@ -130,20 +112,20 @@
 
       <div class="detail-grid">
         <section class="detail-block readings-block">
-          <div class="section-label">Cách đọc</div>
+          <div class="section-label">{{ lang.t().vocab.readings }}</div>
           <div class="reading-row">
-            <span>Onyomi</span>
+            <span>{{ lang.t().kanji.onyomi }}</span>
             <strong>{{ k.onyomi || '—' }}</strong>
           </div>
           <div class="reading-row">
-            <span>Kunyomi</span>
+            <span>{{ lang.t().kanji.kunyomi }}</span>
             <strong>{{ k.kunyomi || '—' }}</strong>
           </div>
         </section>
 
         @if (k.radical) {
         <section class="detail-block radical-block">
-          <div class="section-label">Bộ thủ</div>
+          <div class="section-label">{{ lang.t().kanji.radical }}</div>
           <div class="radical-box">
             <span class="radical-box__char">{{ k.radical.radicalCharacter }}</span>
             <div class="radical-box__info">
@@ -161,20 +143,20 @@
 
         @if (k.mnemonic) {
         <section class="detail-block mnemonic-block">
-          <div class="section-label">Cách ghi nhớ</div>
+          <div class="section-label">{{ lang.t().vocab.mnemonic }}</div>
           <p class="mnemonic-box__text">{{ k.mnemonic }}</p>
         </section>
         }
 
         <section class="detail-block action-block">
-          <div class="section-label">Thao tác</div>
+          <div class="section-label">{{ lang.t().vocab.actions }}</div>
           <div class="action-group">
             <button type="button" class="action-btn action-btn--bookmark" (click)="toggleBookmark()">
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path
-                  d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z" />
+                  d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78a5.5 5.5 0 0 0 1.06-8.84z" />
               </svg>
-              Yêu thích
+              {{ lang.t().vocab.bookmark }}
             </button>
           </div>
         </section>
@@ -186,7 +168,7 @@
       } @else {
       <div class="detail-placeholder">
         <div class="detail-placeholder__icon">←</div>
-        <p>Chọn một Kanji để xem chi tiết</p>
+        <p>{{ lang.t().kanji.selectToView }}</p>
       </div>
       }
     </section>

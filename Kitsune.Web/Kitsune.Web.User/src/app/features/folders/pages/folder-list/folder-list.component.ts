@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { FolderService, FolderDto } from '../../../../core/services/folder.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 interface ToastMessage {
@@ -20,6 +21,7 @@ interface ToastMessage {
 })
 export class FolderListComponent implements OnInit, OnDestroy {
   private folderService = inject(FolderService);
+  protected readonly lang = inject(LanguageService);
   private vocabSub?: Subscription;
 
   folders = signal<FolderDto[]>([]);

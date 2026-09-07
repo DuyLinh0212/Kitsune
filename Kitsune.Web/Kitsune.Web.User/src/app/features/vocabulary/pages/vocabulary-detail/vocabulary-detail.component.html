@@ -3,14 +3,14 @@
 
   <!-- BREADCRUMB -->
   <div class="vocab-breadcrumb">
-    <a (click)="router.navigate(['/vocabulary'])">Từ vựng</a>
+    <a (click)="router.navigate(['/vocabulary'])">{{ lang.t().vocab.folderBadge }}</a>
     <span class="breadcrumb-sep">/</span>
     <span>{{ vocab()?.word }}</span>
   </div>
 
   <!-- LOADING -->
   @if (isLoading()) {
-  <app-loading-fox message="Đang tải..." />
+  <app-loading-fox [message]="lang.t().common.loading" />
   }
 
   <!-- MAIN DETAIL CARD -->
@@ -27,26 +27,26 @@
               class="btn-speak"
               [class.btn-speak--active]="ttsService.isSpeaking(v.word)"
               (click)="speakWord()"
-              aria-label="Phát âm"
-              title="Phát âm"
+              [attr.aria-label]="lang.t().vocab.pronounce"
+              [title]="lang.t().vocab.pronounce"
             >🔊</button>
           }
         </div>
         <p class="vocab-reading">{{ v.pronunciation || '' }}</p>
       </div>
-      <span class="vocab-folder-badge">Từ vựng</span>
+      <span class="vocab-folder-badge">{{ lang.t().vocab.folderBadge }}</span>
     </div>
 
     <!-- MEANING -->
     <div class="vocab-section">
-      <h3>Nghĩa</h3>
+      <h3>{{ lang.t().vocab.meaningLabel }}</h3>
       <p class="vocab-meaning-text">{{ v.meaning }}</p>
     </div>
 
     <!-- KANJI BREAKDOWN -->
     @if (v.kanjiComponents.length > 0) {
     <div class="vocab-section">
-      <h3>Thành phần Kanji</h3>
+      <h3>{{ lang.t().vocab.kanjiComponents }}</h3>
       <div class="kanji-breakdown">
         @for (k of v.kanjiComponents; track k.kanjiId) {
         <div class="kanji-chip">
@@ -62,10 +62,10 @@
     <!-- ACTIONS -->
     <div class="vocab-actions">
       <button class="btn-action btn-srs" (click)="addToSRS()">
-        {{ isInSRS() ? '✓ Đã thêm vào Ôn tập' : '📅 Thêm vào Ôn tập' }}
+        {{ isInSRS() ? ('✓ ' + lang.t().vocab.addedToSrs) : ('📅 ' + lang.t().vocab.addToSrs) }}
       </button>
       <button class="btn-action btn-fav" (click)="toggleBookmark()">
-        {{ isBookmarked() ? '★ Đã lưu' : '☆ Thêm vào Yêu thích' }}
+        {{ isBookmarked() ? ('★ ' + lang.t().vocab.bookmarked) : ('☆ ' + lang.t().vocab.bookmark) }}
       </button>
     </div>
 

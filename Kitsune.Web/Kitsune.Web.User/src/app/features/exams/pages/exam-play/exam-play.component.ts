@@ -7,6 +7,7 @@ import { AnswerInput, ExamDetailDto, ExamQuestionDto, ExamService } from '../../
 import { EXAM_QUESTION_TYPE_LABELS, ExamQuestionType } from '../../../../core/services/exam.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 import { LearningKnowledgeService } from '../../../../core/services/learning-knowledge.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
 @Component({
   selector: 'app-exam-play',
@@ -21,6 +22,7 @@ export class ExamPlayComponent implements OnInit, OnDestroy {
   private readonly examService = inject(ExamService);
   private readonly learningKnowledge = inject(LearningKnowledgeService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly lang = inject(LanguageService);
 
   readonly typeLabels = EXAM_QUESTION_TYPE_LABELS;
 

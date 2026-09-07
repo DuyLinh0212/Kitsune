@@ -28,50 +28,50 @@
               (click)="switchFolder(f.id)"
             >
               <span class="folder-switcher__item-name">{{ f.name }}</span>
-              <span class="folder-switcher__item-count">{{ f.vocabCount }} từ</span>
+              <span class="folder-switcher__item-count">{{ f.vocabCount }} {{ lang.t().foldersPage.vocabUnit }}</span>
             </button>
           } @empty {
-            <div class="folder-switcher__empty">Chưa có thư mục nào khác.</div>
+            <div class="folder-switcher__empty">{{ lang.t().foldersPage.emptyFolder }}</div>
           }
         </div>
         <div class="popover-backdrop" (click)="showFolderSwitcher.set(false)"></div>
       }
     </div>
 
-    <a [routerLink]="['/folders']" class="folder-topbar__back">← Tất cả thư mục</a>
+    <a [routerLink]="['/folders']" class="folder-topbar__back">{{ lang.t().foldersPage.allFolders }}</a>
   </nav>
 
   <section class="hero-compact">
     <div class="hero-compact__main">
-      <h1>{{ folder()?.name ?? 'Folder đang mở' }}</h1>
+      <h1>{{ folder()?.name ?? '' }}</h1>
       <p>
-        {{ folder()?.description || 'Bộ thẻ này được sắp xếp để đọc nhanh, tra cứu nhanh và chuyển ngay sang màn chi tiết khi cần.' }}
+        {{ folder()?.description || lang.t().foldersPage.noDesc }}
       </p>
     </div>
 
     <div class="hero-compact__side">
       <div class="hero-compact__stats">
-        <span><strong>{{ vocabCount }}</strong>Từ vựng</span>
+        <span><strong>{{ vocabCount }}</strong>{{ lang.t().foldersPage.vocabUnit }}</span>
         <span><strong>{{ kanjiCount }}</strong>Kanji</span>
-        <span><strong>{{ totalKanjiMentions }}</strong>Lượt dùng</span>
+        <span><strong>{{ totalKanjiMentions }}</strong>{{ lang.t().foldersPage.mentionsUnit }}</span>
       </div>
       <span class="hero-badge" [class.hero-badge--public]="folder()?.isPublic" [class.hero-badge--private]="!folder()?.isPublic">
-        {{ folder()?.isPublic ? 'Công khai' : 'Riêng tư' }}
+        {{ folder()?.isPublic ? lang.t().foldersPage.public : lang.t().foldersPage.private }}
       </span>
     </div>
   </section>
 
   <section class="workspace-toolbar">
     <label class="search-box">
-      <span class="search-box__icon">Tìm</span>
+      <span class="search-box__icon">🔍</span>
       <input
         type="text"
         [ngModel]="searchQuery()"
         (ngModelChange)="onSearchInput($event)"
-        placeholder="Lọc theo từ, nghĩa, âm Hán Việt hay kanji..."
+        [placeholder]="lang.t().foldersPage.searchFolder"
       />
       @if (searchQuery()) {
-        <button type="button" class="search-box__clear" (click)="onSearchInput('')">Xóa</button>
+        <button type="button" class="search-box__clear" (click)="onSearchInput('')">{{ lang.t().common.cancel }}</button>
       }
     </label>
 
@@ -83,14 +83,14 @@
           [class.folder-radical-bar--active]="selectedRadicalFilter()"
           (click)="toggleRadicalPopover()"
         >
-          <span class="folder-radical-bar__label">Bộ thủ:</span>
+          <span class="folder-radical-bar__label">{{ lang.t().foldersPage.radical }}</span>
           @if (selectedRadical()) {
             <div class="radical-chip radical-chip--active">
               {{ selectedRadical()!.character }}
               <span class="radical-chip__clear" (click)="clearRadicalFilter($event)">×</span>
             </div>
           } @else {
-            <span class="folder-radical-bar__empty">Chưa chọn</span>
+            <span class="folder-radical-bar__empty">{{ lang.t().foldersPage.unselected }}</span>
           }
         </button>
 
@@ -100,7 +100,7 @@
               <input 
                 type="text" 
                 class="radical-popover__search" 
-                placeholder="Tìm bộ thủ..."
+                [placeholder]="lang.t().foldersPage.searchRadical"
                 [ngModel]="radicalSearchQuery()"
                 (ngModelChange)="radicalSearchQuery.set($event)"
               />

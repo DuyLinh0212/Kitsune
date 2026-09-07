@@ -19,16 +19,16 @@
   <!-- HEADER -->
   <div class="page-header">
     <div>
-      <h1>Diễn Đàn Cộng Đồng</h1>
-      <p class="subtitle">Chia sẻ kinh nghiệm học tiếng Nhật cùng mọi người</p>
+      <h1>{{ lang.t().postsPage.title }}</h1>
+      <p class="subtitle">{{ lang.t().postsPage.subtitle }}</p>
     </div>
-    <button class="btn-primary" (click)="openCreateModal()">✏️ Viết bài</button>
+    <button class="btn-primary" (click)="openCreateModal()">{{ lang.t().postsPage.createPost }}</button>
   </div>
 
   <!-- LOADING -->
   @if (isLoading()) {
     <div class="loading-container">
-      <app-loading-fox message="Đang tải bài viết..." />
+      <app-loading-fox [message]="lang.t().postsPage.loading" />
     </div>
   }
 
@@ -37,9 +37,9 @@
     @if (posts().length === 0) {
       <div class="empty-state">
         <div class="empty-icon">📝</div>
-        <h3>Chưa có bài viết nào</h3>
-        <p>Hãy là người đầu tiên chia sẻ!</p>
-        <button class="btn-primary" (click)="openCreateModal()">Viết bài đầu tiên</button>
+        <h3>{{ lang.t().postsPage.emptyTitle }}</h3>
+        <p>{{ lang.t().postsPage.emptyDesc }}</p>
+        <button class="btn-primary" (click)="openCreateModal()">{{ lang.t().postsPage.createFirst }}</button>
       </div>
     }
 
@@ -78,7 +78,7 @@
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>
                 </svg>
-                <span>Quiz:</span>
+                <span>{{ lang.t().postsPage.attachedQuiz }}:</span>
                 <strong>{{ post.attachedQuizTitle }}</strong>
                 <svg class="quiz-badge__arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -92,7 +92,7 @@
               <span class="like-icon">❤️</span>
               <span class="like-count">{{ post.likesCount }}</span>
             </button>
-            <button class="btn-read-more" [routerLink]="['/posts', post.id]">Xem thêm</button>
+            <button class="btn-read-more" [routerLink]="['/posts', post.id]">{{ lang.t().postsPage.viewMore }}</button>
           </div>
         </div>
       }
@@ -104,25 +104,25 @@
     <div class="modal-overlay" (click)="closeCreateModal()">
       <div class="modal" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h2>Viết bài mới</h2>
+          <h2>{{ lang.t().postsPage.modalTitle }}</h2>
           <button class="modal-close" (click)="closeCreateModal()">✕</button>
         </div>
         <div class="modal-body">
           <div class="form-field">
-            <label>Tiêu đề</label>
+            <label>{{ lang.t().postsPage.postTitleLabel }}</label>
             <input
               type="text"
               class="form-input"
-              placeholder="Nhập tiêu đề bài viết..."
+              [placeholder]="lang.t().postsPage.postTitlePlaceholder"
               [ngModel]="newTitle()"
               (ngModelChange)="onNewTitle($event)"
             />
           </div>
           <div class="form-field">
-            <label>Nội dung</label>
+            <label>{{ lang.t().postsPage.postContentLabel }}</label>
             <textarea
               class="form-textarea"
-              placeholder="Chia sẻ nội dung của bạn..."
+              [placeholder]="lang.t().postsPage.postContentPlaceholder"
               rows="4"
               [ngModel]="newContent()"
               (ngModelChange)="onNewContent($event)"
@@ -131,14 +131,14 @@
 
           <!-- Image upload -->
           <div class="form-field">
-            <label>Hình ảnh (tuỳ chọn)</label>
+            <label>{{ lang.t().postsPage.imageLabel }}</label>
             @if (imagePreviewUrl()) {
               <div class="image-upload-preview">
                 <img [src]="imagePreviewUrl()!" alt="Xem trước" />
                 <button type="button" class="remove-image-btn" (click)="removeUploadedImage()" title="Xóa ảnh">✕</button>
                 @if (isUploadingImage()) {
                   <div class="upload-overlay">
-                    <app-loading-fox message="Đang tải ảnh..." [size]="48" />
+                    <app-loading-fox [message]="lang.t().common.loading" [size]="48" />
                   </div>
                 }
               </div>
@@ -149,9 +149,9 @@
                   <polyline points="21 15 16 10 5 21"/>
                 </svg>
                 @if (isUploadingImage()) {
-                  Đang tải ảnh...
+                  {{ lang.t().common.loading }}
                 } @else {
-                  Chọn ảnh để đính kèm
+                  📷 {{ lang.t().postsPage.imageLabel }}
                 }
                 <input
                   type="file"
@@ -166,11 +166,11 @@
 
           <!-- Quiz picker -->
           <div class="form-field">
-            <label>Quiz đính kèm (tuỳ chọn)</label>
+            <label>{{ lang.t().postsPage.attachedQuiz }}</label>
             @if (isLoadingQuizzes()) {
-              <p class="quiz-picker-hint">Đang tải quiz...</p>
+              <p class="quiz-picker-hint">{{ lang.t().common.loading }}</p>
             } @else if (userQuizzes().length === 0) {
-              <p class="quiz-picker-hint">Bạn chưa có quiz nào. <a routerLink="/quiz-create">Tạo quiz mới</a></p>
+              <p class="quiz-picker-hint">{{ lang.t().quizPage.noQuestions }} <a routerLink="/quiz-create">{{ lang.t().quizPage.createQuiz }}</a></p>
             } @else {
               <div class="quiz-picker">
                 @for (quiz of userQuizzes(); track quiz.id) {
@@ -194,16 +194,16 @@
               </div>
               @if (selectedQuizId()) {
                 <p class="quiz-picker-clear">
-                  <button type="button" class="quiz-clear-btn" (click)="selectQuiz(selectedQuizId()!)">✕ Bỏ chọn quiz</button>
+                  <button type="button" class="quiz-clear-btn" (click)="selectQuiz(selectedQuizId()!)">✕</button>
                 </p>
               }
             }
           </div>
         </div>
         <div class="modal-footer">
-          <button class="btn-outline" (click)="closeCreateModal()">Hủy</button>
+          <button class="btn-outline" (click)="closeCreateModal()">{{ lang.t().postsPage.cancelBtn }}</button>
           <button class="btn-primary" (click)="submitPost()" [disabled]="isCreating() || isUploadingImage()">
-            {{ isCreating() ? 'Đang đăng...' : 'Đăng bài' }}
+            {{ isCreating() ? lang.t().common.loading : lang.t().postsPage.publishBtn }}
           </button>
         </div>
       </div>

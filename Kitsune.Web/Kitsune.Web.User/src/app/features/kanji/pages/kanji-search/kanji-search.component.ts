@@ -6,6 +6,7 @@ import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { KanjiUserService, KanjiDetailDto } from '../../../../core/services/kanji-user.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { KanjiStrokeWriterComponent } from '../../components/kanji-stroke-writer/kanji-stroke-writer.component';
 import { CommentSectionComponent } from '../../../../shared/components/comment-section/comment-section.component';
 import { LookupFrameComponent } from '../../../../shared/components/lookup-frame/lookup-frame.component';
@@ -18,6 +19,7 @@ import { LookupFrameComponent } from '../../../../shared/components/lookup-frame
   styleUrl: './kanji-search.component.css',
 })
 export class KanjiSearchComponent implements OnInit {
+  readonly lang = inject(LanguageService);
   private readonly kanjiService = inject(KanjiUserService);
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);

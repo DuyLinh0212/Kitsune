@@ -8,6 +8,7 @@ import { supabase } from '../../../../core/supabase/supabase.client';
 import { NotificationService } from '../../../../core/services/notification.service';
 import { AuthService } from '../../../../core/services/auth.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LanguageService } from '../../../../core/services/language.service';
 
 interface PostDto {
   id: string;
@@ -48,6 +49,7 @@ export class PostDetailComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   private readonly notificationService = inject(NotificationService);
   private readonly authService = inject(AuthService);
+  readonly lang = inject(LanguageService);
 
   readonly post = signal<PostDto | null>(null);
   readonly comments = signal<CommentDto[]>([]);

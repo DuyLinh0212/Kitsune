@@ -1,26 +1,26 @@
 <div class="play-page">
   @if (isLoading()) {
     <div class="loading-container">
-      <app-loading-fox message="Đang tải đề..." />
+      <app-loading-fox [message]="lang.t().examPage.loading" />
     </div>
   } @else if (errorMsg() && !exam()) {
     <div class="error-box">
       <span class="error-emoji">⚠️</span>
       <p>{{ errorMsg() }}</p>
-      <a routerLink="/exams" class="btn-primary">Về danh sách đề</a>
+      <a routerLink="/exams" class="btn-primary">{{ lang.t().examPage.backToList }}</a>
     </div>
   } @else if (exam(); as e) {
     <!-- ── Header ─────────────────────────────────────────────────────── -->
     <header class="play-header">
       <div class="play-header__info">
-        <a routerLink="/exams" class="exit-link">✕ Thoát</a>
+        <a routerLink="/exams" class="exit-link">✕ {{ lang.t().examPage.exit }}</a>
         <h1 class="play-title">{{ e.title }}</h1>
       </div>
       <div class="play-header__meta">
         @if (remainingSeconds() !== null) {
           <span class="timer" [class.timer--danger]="(remainingSeconds() ?? 0) <= 30">⏱ {{ formatTime(remainingSeconds()) }}</span>
         }
-        <span class="progress-count">{{ answeredCount() }}/{{ e.questions.length }} đã trả lời</span>
+        <span class="progress-count">{{ answeredCount() }}/{{ e.questions.length }} {{ lang.t().examPage.answered }}</span>
       </div>
     </header>
 
@@ -47,7 +47,7 @@
     @if (currentQuestion(); as q) {
       <section class="q-panel">
         <div class="q-panel__head">
-          <span class="q-index">Câu {{ currentIndex() + 1 }} / {{ e.questions.length }}</span>
+          <span class="q-index">{{ lang.t().examPage.questionNum }} {{ currentIndex() + 1 }} / {{ e.questions.length }}</span>
           <span class="q-type-badge">{{ typeLabels[q.questionType] }}</span>
         </div>
 
@@ -61,7 +61,7 @@
 
         @if (q.questionType === 'SENTENCE_ORDER') {
           <!-- Sắp xếp câu -->
-          <p class="order-hint">Nhấn vào các thành phần theo thứ tự đúng:</p>
+          <p class="order-hint">{{ lang.t().examPage.orderHint }}</p>
           <div class="order-tokens">
             @for (opt of q.options; track $index) {
               <button
@@ -77,7 +77,7 @@
               </button>
             }
           </div>
-          <button type="button" class="btn-clear-order" (click)="clearOrder(q.id)">Xóa lựa chọn</button>
+          <button type="button" class="btn-clear-order" (click)="clearOrder(q.id)">{{ lang.t().examPage.clearOrder }}</button>
         } @else {
           <!-- Trắc nghiệm -->
           <div class="options">
@@ -98,12 +98,12 @@
 
       <!-- ── Footer nav ───────────────────────────────────────────────── -->
       <footer class="q-footer">
-        <button type="button" class="btn-ghost" (click)="prev()" [disabled]="currentIndex() === 0">← Câu trước</button>
+        <button type="button" class="btn-ghost" (click)="prev()" [disabled]="currentIndex() === 0">{{ lang.t().examPage.prevQuestion }}</button>
         @if (currentIndex() < e.questions.length - 1) {
-          <button type="button" class="btn-primary" (click)="next()">Câu tiếp →</button>
+          <button type="button" class="btn-primary" (click)="next()">{{ lang.t().examPage.nextQuestion }}</button>
         } @else {
           <button type="button" class="btn-submit" (click)="submit()" [disabled]="submitting()">
-            {{ submitting() ? 'Đang nộp...' : 'Nộp bài' }}
+            {{ submitting() ? lang.t().examPage.submitting : lang.t().examPage.submitExam }}
           </button>
         }
       </footer>

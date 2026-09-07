@@ -12,30 +12,30 @@
       </div>
 
       <div class="hero-copy">
-        <h1>Học ngôn ngữ thông minh<br />Cùng <span>Kitsune</span> mỗi ngày</h1>
-        <p>Học từ vựng, Kanji và ngữ pháp với phương pháp khoa học giúp bạn tiến bộ vượt bậc.</p>
+        <h1>{{ lang.t().authPage.heroTitle }}</h1>
+        <p>{{ lang.t().authPage.heroSubtitle }}</p>
       </div>
 
       <div class="feature-grid">
         <article class="feature-card">
           <div class="feature-icon purple">📘</div>
           <div>
-            <h3>Học hiệu quả</h3>
-            <p>Phương pháp SRS tối ưu trí nhớ</p>
+            <h3>{{ lang.t().authPage.featureEffective }}</h3>
+            <p>{{ lang.t().authPage.featureEffectiveDesc }}</p>
           </div>
         </article>
         <article class="feature-card">
           <div class="feature-icon blue">📈</div>
           <div>
-            <h3>Theo dõi tiến độ</h3>
-            <p>Thống kê chi tiết, đánh giá hiệu suất</p>
+            <h3>{{ lang.t().authPage.featureProgress }}</h3>
+            <p>{{ lang.t().authPage.featureProgressDesc }}</p>
           </div>
         </article>
       </div>
 
       <blockquote>
         <span class="quote-mark">"</span>継続は力なり。"
-        <span class="quote-translation">Kiên trì là sức mạnh.</span>
+        <span class="quote-translation">{{ lang.t().authPage.quoteTranslation }}</span>
       </blockquote>
     </section>
 
@@ -43,12 +43,12 @@
       <div class="auth-card">
         <div class="auth-header">
           <div>
-            <h2>Đăng nhập</h2>
-            <p>Chào mừng bạn quay trở lại!</p>
+            <h2>{{ lang.t().authPage.loginTitle }}</h2>
+            <p>{{ lang.t().authPage.loginSubtitle }}</p>
           </div>
-          <button class="lang-btn" type="button">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-            Tiếng Việt
+          <button class="lang-btn" type="button" (click)="toggleLanguage()" [title]="lang.t().displayLanguage">
+            <span>{{ lang.currentOption().flag }}</span>
+            <span>{{ lang.currentOption().displayName }}</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </div>
@@ -56,38 +56,38 @@
         <div class="tabs">
           <button class="tab active" type="button" routerLink="/login">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-            Đăng nhập
+            {{ lang.t().authPage.tabLogin }}
           </button>
           <button class="tab" type="button" routerLink="/register">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-            Đăng ký
+            {{ lang.t().authPage.tabRegister }}
           </button>
         </div>
 
         <form class="login-form" [formGroup]="loginForm" (ngSubmit)="submit()">
           <div class="form-field">
-            <label for="login">Email hoặc tên đăng nhập</label>
+            <label for="login">{{ lang.t().authPage.loginFieldLabel }}</label>
             <div class="input-wrapper">
               <span class="input-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
               </span>
-              <input id="login" type="text" formControlName="login" placeholder="Nhập email hoặc tên đăng nhập" />
+              <input id="login" type="text" formControlName="login" [placeholder]="lang.t().authPage.loginFieldPlaceholder" />
             </div>
             @if (hasError('login')) {
-              <small class="form-error">Vui lòng nhập email hoặc tên đăng nhập.</small>
+              <small class="form-error">{{ lang.t().authPage.loginFieldError }}</small>
             }
           </div>
 
           <div class="form-field">
             <div class="label-row">
-              <label for="password">Mật khẩu</label>
-              <a routerLink="/forgot-password" class="forgot-link">Quên mật khẩu?</a>
+              <label for="password">{{ lang.t().authPage.passwordLabel }}</label>
+              <a routerLink="/forgot-password" class="forgot-link">{{ lang.t().authPage.forgotPasswordLink }}</a>
             </div>
             <div class="input-wrapper">
               <span class="input-icon">
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
               </span>
-              <input id="password" [type]="showPassword() ? 'text' : 'password'" formControlName="password" placeholder="Nhập mật khẩu" />
+              <input id="password" [type]="showPassword() ? 'text' : 'password'" formControlName="password" [placeholder]="lang.t().authPage.passwordPlaceholder" />
               <button type="button" class="toggle-password" (click)="togglePassword()" aria-label="Ẩn hiện mật khẩu">
                 @if (!showPassword()) {
                   <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -97,13 +97,13 @@
               </button>
             </div>
             @if (hasError('password')) {
-              <small class="form-error">Mật khẩu phải có ít nhất 6 ký tự.</small>
+              <small class="form-error">{{ lang.t().authPage.passwordError }}</small>
             }
           </div>
 
           <label class="remember-row">
             <input formControlName="rememberMe" type="checkbox" />
-            <span>Ghi nhớ đăng nhập</span>
+            <span>{{ lang.t().authPage.rememberMe }}</span>
           </label>
 
           @if (errorMessage()) {
@@ -114,11 +114,11 @@
           }
 
           <button class="submit-btn" type="submit" [disabled]="isSubmitting()">
-            {{ isSubmitting() ? 'Đang đăng nhập...' : 'Đăng nhập →' }}
+            {{ isSubmitting() ? lang.t().authPage.submittingLogin : lang.t().authPage.submitLogin }}
           </button>
         </form>
 
-        <div class="separator"><span>Hoặc đăng nhập với</span></div>
+        <div class="separator"><span>{{ lang.t().authPage.orContinueWith }}</span></div>
 
         <div class="social-stack">
           <button class="social-btn" type="button">
@@ -129,20 +129,20 @@
               <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.31-8.16 2.31-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
               <path fill="none" d="M0 0h48v48H0z"/>
             </svg>
-            Tiếp tục với Google
+            {{ lang.t().authPage.continueGoogle }}
           </button>
           <button class="social-btn" type="button">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 48 48">
               <path fill="#1877F2" d="M48 24C48 10.745 37.255 0 24 0S0 10.745 0 24c0 11.979 8.776 21.908 20.25 23.708V30.938h-6.094V24h6.094v-5.288c0-6.014 3.583-9.337 9.065-9.337 2.625 0 5.372.469 5.372.469v5.906h-3.026c-2.981 0-3.911 1.85-3.911 3.75V24h6.656l-1.063 6.938H27.75v16.77C39.224 45.908 48 35.979 48 24z"/>
               <path fill="#fff" d="M33.343 30.938L34.406 24H27.75v-4.5c0-1.9.93-3.75 3.911-3.75h3.026V9.844s-2.747-.469-5.372-.469c-5.482 0-9.065 3.323-9.065 9.337V24h-6.094v6.938h6.094V47.708a24.21 24.21 0 0 0 7.5 0V30.938h5.593z"/>
             </svg>
-            Tiếp tục với Facebook
+            {{ lang.t().authPage.continueFacebook }}
           </button>
         </div>
 
         <div class="security-note">
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          Thông tin của bạn được bảo mật tuyệt đối
+          {{ lang.t().authPage.securityNote }}
         </div>
       </div>
     </section>

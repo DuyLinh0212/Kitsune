@@ -8,6 +8,7 @@ import { ActivatedRoute } from '@angular/router';
 import { VocabularyService, VocabularyDto } from '../../../../core/services/vocabulary.service';
 import { KanjiUserService, KanjiDetailDto } from '../../../../core/services/kanji-user.service';
 import { TtsService } from '../../../../core/services/tts.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 import { LookupFrameComponent } from '../../../../shared/components/lookup-frame/lookup-frame.component';
 
@@ -19,6 +20,7 @@ import { LookupFrameComponent } from '../../../../shared/components/lookup-frame
   styleUrl: './vocabulary-search.component.css',
 })
 export class VocabularySearchComponent implements OnInit {
+  readonly lang = inject(LanguageService);
   private readonly vocabularyService = inject(VocabularyService);
   private readonly kanjiService = inject(KanjiUserService);
   readonly ttsService = inject(TtsService);

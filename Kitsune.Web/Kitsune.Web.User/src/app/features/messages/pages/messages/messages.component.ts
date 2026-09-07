@@ -1,6 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { LanguageService } from '../../../../core/services/language.service';
 
 @Component({
   selector: 'app-messages',
@@ -9,4 +10,6 @@ import { FormsModule } from '@angular/forms';
   templateUrl: './messages.component.html',
   styleUrl: './messages.component.css'
 })
-export class MessagesComponent {}
+export class MessagesComponent {
+  protected readonly lang = inject(LanguageService);
+}

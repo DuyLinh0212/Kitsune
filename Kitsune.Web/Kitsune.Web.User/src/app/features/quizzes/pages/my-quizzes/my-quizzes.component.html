@@ -18,12 +18,12 @@
   <!-- Header -->
   <div class="page-header">
     <div class="header-left">
-      <h1 class="page-title">Quiz Của Tôi</h1>
-      <p class="page-subtitle">Quản lý tất cả các bài kiểm tra bạn đã tạo</p>
+      <h1 class="page-title">{{ lang.t().myQuizzesPage.title }}</h1>
+      <p class="page-subtitle">{{ lang.t().myQuizzesPage.subtitle }}</p>
     </div>
     <button class="btn-primary" (click)="onCreateQuiz()">
       <span class="btn-icon">＋</span>
-      Tạo quiz
+      {{ lang.t().myQuizzesPage.createQuiz }}
     </button>
   </div>
 
@@ -33,7 +33,7 @@
     <input
       class="search-input"
       type="text"
-      placeholder="Tìm kiếm trong quiz của bạn..."
+      [placeholder]="lang.t().myQuizzesPage.searchPlaceholder"
       [ngModel]="searchQuery()"
       (ngModelChange)="searchQuery.set($event)"
     />
@@ -45,14 +45,14 @@
   <!-- Loading -->
   @if (isLoading()) {
   <div class="loading-container">
-    <app-loading-fox message="Đang tải quiz của bạn..." />
+    <app-loading-fox [message]="lang.t().myQuizzesPage.loading" />
   </div>
   }
 
   <!-- Results count -->
   @if (!isLoading() && quizzes().length > 0) {
   <p class="results-count">
-    Hiển thị <strong>{{ filteredQuizzes().length }}</strong> / {{ quizzes().length }} quiz
+    {{ lang.t().myQuizzesPage.showing }} <strong>{{ filteredQuizzes().length }}</strong> / {{ quizzes().length }} {{ lang.t().myQuizzesPage.of }}
   </p>
   }
 
@@ -60,11 +60,11 @@
   @if (!isLoading() && quizzes().length === 0) {
   <div class="empty-state">
     <div class="empty-illustration">📝</div>
-    <h2 class="empty-title">Bạn chưa tạo quiz nào</h2>
-    <p class="empty-desc">Hãy tạo bài kiểm tra đầu tiên để chia sẻ với cộng đồng học tiếng Nhật!</p>
+    <h2 class="empty-title">{{ lang.t().myQuizzesPage.emptyTitle }}</h2>
+    <p class="empty-desc">{{ lang.t().myQuizzesPage.emptyDesc }}</p>
     <button class="btn-primary" (click)="onCreateQuiz()">
       <span class="btn-icon">＋</span>
-      Tạo quiz ngay
+      {{ lang.t().myQuizzesPage.createFirst }}
     </button>
   </div>
   }
@@ -73,9 +73,9 @@
   @if (!isLoading() && quizzes().length > 0 && filteredQuizzes().length === 0) {
   <div class="empty-state">
     <div class="empty-illustration">🔎</div>
-    <h2 class="empty-title">Không tìm thấy kết quả</h2>
-    <p class="empty-desc">Không có quiz nào khớp với "<strong>{{ searchQuery() }}</strong>".</p>
-    <button class="btn-outline" (click)="searchQuery.set('')">Xóa tìm kiếm</button>
+    <h2 class="empty-title">{{ lang.t().myQuizzesPage.noResultsTitle }}</h2>
+    <p class="empty-desc">{{ lang.t().myQuizzesPage.noResultsDesc }} "<strong>{{ searchQuery() }}</strong>".</p>
+    <button class="btn-outline" (click)="searchQuery.set('')">{{ lang.t().myQuizzesPage.clearSearch }}</button>
   </div>
   }
 
@@ -110,7 +110,7 @@
         @if (quiz.userDescription) {
         <p class="quiz-desc">{{ quiz.userDescription }}</p>
         } @else {
-        <p class="quiz-desc quiz-desc-empty">Không có mô tả</p>
+        <p class="quiz-desc quiz-desc-empty">{{ lang.t().quizPage.noDescription }}</p>
         }
       </div>
 
@@ -119,7 +119,7 @@
         <div class="stat-item">
           <span class="stat-icon">👥</span>
           <span class="stat-value">{{ quiz.attemptCount }}</span>
-          <span class="stat-label">lượt làm</span>
+          <span class="stat-label">{{ lang.t().myQuizzesPage.attempts }}</span>
         </div>
         <div class="stat-item">
           <span class="stat-icon">📅</span>
@@ -135,24 +135,24 @@
           [class.visibility-private]="!quiz.isPublic"
           (click)="togglePublic(quiz)"
           [disabled]="isTogglingId() === quiz.id"
-          [title]="quiz.isPublic ? 'Nhấn để đặt riêng tư' : 'Nhấn để công khai'"
+          [title]="quiz.isPublic ? lang.t().myQuizzesPage.private : lang.t().myQuizzesPage.public"
         >
           @if (isTogglingId() === quiz.id) {
           <app-loading-fox [size]="24" />
           } @else {
-          {{ quiz.isPublic ? '🌐 Công khai' : '🔒 Riêng tư' }}
+          {{ quiz.isPublic ? lang.t().myQuizzesPage.public : lang.t().myQuizzesPage.private }}
           }
         </button>
         <div class="footer-actions">
           <button
             class="btn-delete"
             (click)="requestDelete(quiz)"
-            title="Xóa quiz"
+            [title]="lang.t().common.delete"
           >
             🗑
           </button>
           <a [routerLink]="['/quizzes', quiz.id]" class="btn-start">
-            Làm bài →
+            {{ lang.t().myQuizzesPage.startQuiz }}
           </a>
         </div>
       </div>
@@ -166,20 +166,19 @@
 @if (deleteTarget()) {
 <div class="dialog-overlay" (click)="cancelDelete()">
   <div class="dialog-box" (click)="$event.stopPropagation()">
-    <h3 class="dialog-title">Xóa quiz?</h3>
+    <h3 class="dialog-title">{{ lang.t().myQuizzesPage.dialogTitle }}</h3>
     <p class="dialog-text">
-      Bạn sắp xóa <strong>"{{ deleteTarget()!.title }}"</strong>.
-      Hành động này không thể hoàn tác.
+      {{ lang.t().myQuizzesPage.dialogDesc }}
     </p>
     <div class="dialog-actions">
-      <button class="btn-dialog-cancel" (click)="cancelDelete()">Hủy</button>
+      <button class="btn-dialog-cancel" (click)="cancelDelete()">{{ lang.t().myQuizzesPage.dialogCancel }}</button>
       <button
         class="btn-dialog-danger"
         (click)="confirmDelete()"
         [disabled]="isDeleting()"
       >
-        @if (isDeleting()) { <app-loading-fox [size]="24" /> Đang xóa... }
-        @else { Xóa vĩnh viễn }
+        @if (isDeleting()) { <app-loading-fox [size]="24" /> {{ lang.t().myQuizzesPage.deleting }} }
+        @else { {{ lang.t().myQuizzesPage.dialogDanger }} }
       </button>
     </div>
   </div>

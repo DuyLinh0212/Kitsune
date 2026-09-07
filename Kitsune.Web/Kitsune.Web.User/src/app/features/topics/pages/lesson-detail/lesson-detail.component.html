@@ -1,19 +1,19 @@
 <!-- Kitsune.Web/Kitsune.Web.User/src/app/features/topics/pages/lesson-detail/lesson-detail.component.html -->
 <main class="lesson-page">
   @if (isLoading()) {
-    <p class="status">Đang chuẩn bị bài học…</p>
+    <p class="status">{{ lang.t().topicsPage.preparingLesson }}</p>
   } @else if (lesson(); as lesson) {
     <header class="lesson-page__header">
-      <a routerLink="/topics" class="back-link">← Lộ trình học</a>
+      <a routerLink="/topics" class="back-link">← {{ lang.t().topicsPage.roadmapTitle }}</a>
       <div class="lesson-heading">
-        <p>{{ lesson.topicTitle }} · Bài {{ lesson.orderIndex + 1 }}</p>
+        <p>{{ lesson.topicTitle }} · {{ lang.t().topicsPage.lessonWord }} {{ lesson.orderIndex + 1 }}</p>
         <h1>{{ lesson.title }}</h1>
       </div>
-      <div class="header-meta" aria-label="Thông tin bài học">
-        <span>{{ lesson.estimatedMinutes }} phút</span>
-        <span>{{ lesson.items.length }} mục học</span>
+      <div class="header-meta" [attr.aria-label]="lang.t().common.detail">
+        <span>{{ lesson.estimatedMinutes }} {{ lang.t().common.minutes }}</span>
+        <span>{{ lesson.items.length }} {{ lang.t().topicsPage.items }}</span>
       </div>
-      <div class="page-progress" role="progressbar" aria-label="Tiến độ bài học" [attr.aria-valuenow]="progressPercent()" aria-valuemin="0" aria-valuemax="100">
+      <div class="page-progress" role="progressbar" [attr.aria-label]="lang.t().topicsPage.progress" [attr.aria-valuenow]="progressPercent()" aria-valuemin="0" aria-valuemax="100">
         <i [style.width.%]="progressPercent()"></i>
       </div>
     </header>
@@ -21,38 +21,38 @@
     @if (isCompleted()) {
       <section class="completion-panel" aria-labelledby="completion-title" aria-live="polite">
         <div class="completion-panel__mark" aria-hidden="true">✓</div>
-        <p class="completion-panel__eyebrow">Bài học đã hoàn thành</p>
+        <p class="completion-panel__eyebrow">{{ lang.t().topicsPage.lessonCompleted }}</p>
         <h2 id="completion-title">{{ lesson.title }}</h2>
-        <p class="completion-panel__description">Bạn đã đi qua {{ lesson.items.length }} mục học. Từ vựng sẽ sẵn sàng cho các lượt ôn tập tiếp theo.</p>
+        <p class="completion-panel__description">{{ lang.t().topicsPage.completedSummary }}</p>
         <dl class="completion-panel__stats">
-          <div><dt>Đã học</dt><dd>{{ lesson.items.length }} / {{ lesson.items.length }}</dd></div>
-          <div><dt>Thời lượng</dt><dd>{{ lesson.estimatedMinutes }} phút</dd></div>
+          <div><dt>{{ lang.t().topicsPage.learned }}</dt><dd>{{ lesson.items.length }} / {{ lesson.items.length }}</dd></div>
+          <div><dt>{{ lang.t().topicsPage.duration }}</dt><dd>{{ lesson.estimatedMinutes }} {{ lang.t().common.minutes }}</dd></div>
         </dl>
         <p class="completion-panel__sync" [class.completion-panel__sync--error]="completionSyncState() === 'error'">
-          @if (completionSyncState() === 'saving') { Đang lưu tiến độ của bạn… }
-          @else if (completionSyncState() === 'saved') { Tiến độ đã được lưu. }
-          @else if (completionSyncState() === 'error') { Chưa thể đồng bộ lúc này. Bạn có thể thử lưu lại. }
+          @if (completionSyncState() === 'saving') { {{ lang.t().topicsPage.savingProgress }} }
+          @else if (completionSyncState() === 'saved') { {{ lang.t().topicsPage.progressSaved }} }
+          @else if (completionSyncState() === 'error') { {{ lang.t().topicsPage.syncError }} }
         </p>
         <div class="completion-panel__actions">
           @if (completionSyncState() === 'error') {
-            <button type="button" class="secondary-action" (click)="retryCompletion()">Thử lưu lại</button>
+            <button type="button" class="secondary-action" (click)="retryCompletion()">{{ lang.t().topicsPage.retrySave }}</button>
           }
-          <a routerLink="/topics" class="primary-action">Quay về lộ trình</a>
+          <a routerLink="/topics" class="primary-action">{{ lang.t().topicsPage.backToRoadmap }}</a>
         </div>
       </section>
     } @else if (activeItem(); as item) {
       <section class="study-sheet" [class.study-sheet--kanji]="item.kanjiId">
-        <div class="study-sheet__context"><span>Mục {{ activeIndex() + 1 }} / {{ lesson.items.length }}</span><span>{{ item.kanjiId ? 'Kanji' : 'Từ vựng' }}</span></div>
+        <div class="study-sheet__context"><span>{{ lang.t().topicsPage.items }} {{ activeIndex() + 1 }} / {{ lesson.items.length }}</span><span>{{ item.kanjiId ? 'Kanji' : lang.t().vocab.folderBadge }}</span></div>
         <article class="study-sheet__body">
-          <div class="item-type" [class.item-type--kanji]="item.kanjiId"><strong>{{ item.kanjiId ? '漢' : '語' }}</strong><span>{{ item.kanjiId ? 'Kanji' : 'Từ vựng' }}</span></div>
-          <button type="button" class="speak" [class.speak--active]="tts.isSpeaking(item.word)" (click)="speak()" aria-label="Phát âm từ hiện tại">{{ tts.isSpeaking(item.word) ? '■' : '♪' }}</button>
+          <div class="item-type" [class.item-type--kanji]="item.kanjiId"><strong>{{ item.kanjiId ? '漢' : '語' }}</strong><span>{{ item.kanjiId ? 'Kanji' : lang.t().vocab.folderBadge }}</span></div>
+          <button type="button" class="speak" [class.speak--active]="tts.isSpeaking(item.word)" (click)="speak()" [attr.aria-label]="lang.t().vocab.pronounce">{{ tts.isSpeaking(item.word) ? '■' : '♪' }}</button>
           <h2>{{ item.word }}</h2>
           @if (item.pronunciation) { <p class="reading">{{ item.pronunciation }}</p> }
           @if (item.kanjiId) {
             <dl class="kanji-readings">
-              <div><dt>Âm Hán Việt</dt><dd>{{ item.amHanViet || '—' }}</dd></div>
-              <div><dt>Âm On</dt><dd>{{ item.onyomi || '—' }}</dd></div>
-              <div><dt>Âm Kun</dt><dd>{{ item.kunyomi || '—' }}</dd></div>
+              <div><dt>{{ lang.t().kanji.hanViet }}</dt><dd>{{ item.amHanViet || '—' }}</dd></div>
+              <div><dt>{{ lang.t().kanji.onyomi }}</dt><dd>{{ item.onyomi || '—' }}</dd></div>
+              <div><dt>{{ lang.t().kanji.kunyomi }}</dt><dd>{{ item.kunyomi || '—' }}</dd></div>
             </dl>
           }
           <p class="meaning">{{ item.meaning }}</p>
@@ -61,13 +61,13 @@
           }
         </article>
       </section>
-      <nav class="lesson-actions" aria-label="Điều hướng bài học">
-        <button type="button" class="previous-action" (click)="previous()" [disabled]="activeIndex() === 0">← Trước</button>
-        <p>{{ activeIndex() + 1 }} / {{ lesson.items.length }} mục</p>
-        <button type="button" class="next-action" (click)="next()">{{ activeIndex() === lesson.items.length - 1 ? 'Hoàn thành bài học' : 'Tiếp tục' }} →</button>
+      <nav class="lesson-actions" [attr.aria-label]="lang.t().topicsPage.roadmapTitle">
+        <button type="button" class="previous-action" (click)="previous()" [disabled]="activeIndex() === 0">← {{ lang.t().common.back }}</button>
+        <p>{{ activeIndex() + 1 }} / {{ lesson.items.length }} {{ lang.t().topicsPage.items }}</p>
+        <button type="button" class="next-action" (click)="next()">{{ activeIndex() === lesson.items.length - 1 ? lang.t().topicsPage.completeLesson : lang.t().topicsPage.continueText }} →</button>
       </nav>
     } @else {
-      <p class="status">Bài học chưa có nội dung.</p>
+      <p class="status">{{ lang.t().topicsPage.noLessonContent }}</p>
     }
   }
   @if (errorMessage()) { <p class="status status--error" aria-live="polite">{{ errorMessage() }}</p> }

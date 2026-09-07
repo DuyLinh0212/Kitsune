@@ -15,6 +15,7 @@
 .history/
 *.code-workspace
 *.swp
+.codex-remote-attachments/
 
 # =========================
 # Node / Angular

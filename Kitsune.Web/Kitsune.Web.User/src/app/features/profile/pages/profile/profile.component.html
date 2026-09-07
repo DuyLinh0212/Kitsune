@@ -29,7 +29,7 @@
         <div class="hero-name-row">
           <h1 class="hero-name">{{ displayName }}</h1>
           @if (userProfile()?.isVerified) {
-            <span class="verified-chip">✓ Đã xác thực</span>
+            <span class="verified-chip">✓ {{ lang.t().profilePage.verified }}</span>
           }
         </div>
         <p class="hero-username">@{{ username }}</p>
@@ -41,7 +41,7 @@
         </div>
       </div>
 
-      <button class="btn-logout" (click)="logout()">Đăng xuất</button>
+      <button class="btn-logout" (click)="logout()">{{ lang.t().profilePage.logout }}</button>
     </div>
   </div>
 
@@ -55,7 +55,7 @@
         } @else {
           <div class="stat-value">{{ stats().vocabCount }}</div>
         }
-        <span class="stat-label">Từ vựng đã học</span>
+        <span class="stat-label">{{ lang.t().profilePage.vocabLearned }}</span>
       </div>
     </div>
     <div class="stat-card">
@@ -66,7 +66,7 @@
         } @else {
           <div class="stat-value">{{ stats().kanjiCount }}</div>
         }
-        <span class="stat-label">Kanji đã học</span>
+        <span class="stat-label">{{ lang.t().profilePage.kanjiLearned }}</span>
       </div>
     </div>
     <div class="stat-card">
@@ -77,14 +77,14 @@
         } @else {
           <div class="stat-value">{{ stats().quizCount }}</div>
         }
-        <span class="stat-label">Quiz đã làm</span>
+        <span class="stat-label">{{ lang.t().profilePage.quizzesTaken }}</span>
       </div>
     </div>
   </div>
 
   <!-- Tabs -->
   <div class="tabs-bar">
-    @for (tab of tabs; track tab.id) {
+    @for (tab of tabs(); track tab.id) {
       <button
         class="tab-btn"
         [class.active]="activeTab() === tab.id"
@@ -99,10 +99,10 @@
   @if (activeTab() === 'info') {
     <div class="tab-panel">
       <div class="info-card">
-        <h2 class="panel-title">Thông tin cá nhân</h2>
+        <h2 class="panel-title">{{ lang.t().profilePage.accountInfo }}</h2>
         <div class="info-grid">
           <div class="info-row">
-            <span class="info-label">Họ và tên</span>
+            <span class="info-label">{{ lang.t().profilePage.fullName }}</span>
             <div class="info-value">
               <input
                 class="form-input"
@@ -114,15 +114,15 @@
             </div>
           </div>
           <div class="info-row">
-            <span class="info-label">Tên đăng nhập</span>
+            <span class="info-label">{{ lang.t().profilePage.username }}</span>
             <span class="info-value">{{ username }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Email</span>
+            <span class="info-label">{{ lang.t().profilePage.email }}</span>
             <span class="info-value">{{ userProfile()?.email }}</span>
           </div>
           <div class="info-row">
-            <span class="info-label">Vai trò</span>
+            <span class="info-label">{{ lang.t().profilePage.role }}</span>
             <div class="info-value">
               @for (role of userProfile()?.roles ?? []; track role) {
                 <span class="role-badge">{{ role }}</span>
@@ -130,19 +130,19 @@
             </div>
           </div>
           <div class="info-row">
-            <span class="info-label">Trạng thái</span>
+            <span class="info-label">{{ lang.t().profilePage.status }}</span>
             <span class="info-value">
               @if (userProfile()?.isVerified) {
-                <span class="verified-chip">Đã xác thực</span>
+                <span class="verified-chip">{{ lang.t().profilePage.verified }}</span>
               } @else {
-                <span class="unverified-chip">Chưa xác thực</span>
+                <span class="unverified-chip">{{ lang.t().profilePage.unverified }}</span>
               }
             </span>
           </div>
         </div>
         <div class="form-actions" style="margin-top: 20px;">
           <button class="btn-save" (click)="saveFullName()" [disabled]="isSaving()">
-            {{ isSaving() ? 'Đang lưu...' : 'Lưu thay đổi' }}
+            {{ isSaving() ? lang.t().profilePage.saving : lang.t().profilePage.saveChanges }}
           </button>
         </div>
       </div>
@@ -153,7 +153,7 @@
   @if (activeTab() === 'avatar') {
     <div class="tab-panel">
       <div class="info-card">
-        <h2 class="panel-title">Ảnh đại diện</h2>
+        <h2 class="panel-title">{{ lang.t().profilePage.tabAvatar }}</h2>
         <div class="avatar-upload-area">
           <div class="avatar-upload-preview" (click)="onAvatarClick()">
             @if (avatarPreview()) {
@@ -161,21 +161,21 @@
             } @else {
               <div class="avatar-upload-placeholder">
                 <span class="avatar-upload-icon">📷</span>
-                <span class="avatar-upload-text">Nhấn để chọn ảnh</span>
+                <span class="avatar-upload-text">{{ lang.t().profilePage.avatarHint1 }}</span>
               </div>
             }
             @if (isUploadingAvatar()) {
               <div class="avatar-upload-overlay">
-                <app-loading-fox message="Đang tải ảnh..." [size]="56" />
+                <app-loading-fox [message]="lang.t().common.loading" [size]="56" />
               </div>
             }
           </div>
           <div class="avatar-upload-info">
-            <p class="avatar-upload-hint">Nhấn vào ảnh để chọn ảnh mới</p>
-            <p class="avatar-upload-hint">Định dạng: JPG, PNG, GIF. Kích thước tối đa: 5MB</p>
+            <p class="avatar-upload-hint">{{ lang.t().profilePage.avatarHint1 }}</p>
+            <p class="avatar-upload-hint">{{ lang.t().profilePage.avatarHint2 }}</p>
             @if (avatarPreview()) {
               <button class="btn-remove-avatar" (click)="removeAvatar()" [disabled]="isUploadingAvatar()">
-                Xóa ảnh đại diện
+                {{ lang.t().profilePage.removeAvatar }}
               </button>
             }
           </div>
@@ -189,9 +189,9 @@
     <div class="tab-panel">
       <div class="placeholder-card">
         <div class="placeholder-icon">📁</div>
-        <h3>Thư mục của bạn</h3>
-        <p>Quản lý các thư mục từ vựng của bạn</p>
-        <button class="btn-save" (click)="goToFolders()">Xem tất cả thư mục</button>
+        <h3>{{ lang.t().profilePage.myFolders }}</h3>
+        <p>{{ lang.t().profilePage.foldersDesc }}</p>
+        <button class="btn-save" (click)="goToFolders()">{{ lang.t().profilePage.viewAllFolders }}</button>
       </div>
     </div>
   }
@@ -208,28 +208,28 @@
           <app-knowledge-graph class="knowledge-graph-wide" [graph]="knowledgeGraph()" />
           <!-- Overview numbers -->
           <div class="info-card srs-overview-card">
-            <h2 class="panel-title">Tổng quan</h2>
+            <h2 class="panel-title">{{ lang.t().profilePage.overview }}</h2>
             <div class="srs-overview-row">
               <div class="srs-overview-item">
                 <span class="srs-overview-value">{{ userStatsService.stats().streak }}</span>
-                <span class="srs-overview-label">🔥 Ngày liên tiếp</span>
+                <span class="srs-overview-label">🔥 {{ lang.t().profilePage.consecutiveDays }}</span>
               </div>
               <div class="srs-overview-item">
                 <span class="srs-overview-value">{{ s.totalReviews }}</span>
-                <span class="srs-overview-label">Lượt ôn tập</span>
+                <span class="srs-overview-label">{{ lang.t().profilePage.totalReviews }}</span>
               </div>
               <div class="srs-overview-item">
                 <span class="srs-overview-value">{{ s.accuracyRate }}%</span>
-                <span class="srs-overview-label">Tỷ lệ đúng</span>
+                <span class="srs-overview-label">{{ lang.t().profilePage.accuracyRate }}</span>
               </div>
             </div>
           </div>
 
           <!-- Box level distribution -->
           <div class="info-card">
-            <h2 class="panel-title">Phân bố mức độ (Box Level)</h2>
+            <h2 class="panel-title">{{ lang.t().profilePage.boxDistribution }}</h2>
             @if (totalSrsCards() === 0) {
-              <p class="srs-empty-hint">Chưa có thẻ SRS nào. Hãy thêm từ vựng/kanji vào thư mục và bắt đầu ôn tập.</p>
+              <p class="srs-empty-hint">{{ lang.t().profilePage.noCardsHint }}</p>
             }
             <div class="box-level-chart">
               @for (box of s.boxLevels; track box.boxLevel) {
@@ -247,16 +247,16 @@
 
           <!-- Most wrong -->
           <div class="info-card">
-            <h2 class="panel-title">Hay sai nhất</h2>
+            <h2 class="panel-title">{{ lang.t().profilePage.mostWrong }}</h2>
             @if (s.mostWrong.length === 0) {
-              <p class="srs-empty-hint">Chưa có dữ liệu — bạn chưa trả lời sai lần nào gần đây. Tuyệt vời!</p>
+              <p class="srs-empty-hint">{{ lang.t().profilePage.noWrongHint }}</p>
             } @else {
               <ul class="most-wrong-list">
                 @for (item of s.mostWrong; track item.cardId) {
                   <li class="most-wrong-item">
                     <span class="most-wrong-word">{{ item.word }}</span>
                     <span class="most-wrong-meaning">{{ item.meaning }}</span>
-                    <span class="most-wrong-count">{{ item.wrongCount }} lần sai</span>
+                    <span class="most-wrong-count">{{ item.wrongCount }} {{ lang.t().profilePage.wrongCountUnit }}</span>
                   </li>
                 }
               </ul>
@@ -265,13 +265,13 @@
 
           <!-- Accuracy trend -->
           <div class="info-card">
-            <h2 class="panel-title">Xu hướng độ chính xác (14 ngày gần nhất)</h2>
+            <h2 class="panel-title">{{ lang.t().profilePage.accuracyTrend }}</h2>
             @if (s.accuracyTrend.length === 0) {
-              <p class="srs-empty-hint">Chưa có dữ liệu ôn tập gần đây.</p>
+              <p class="srs-empty-hint">{{ lang.t().profilePage.noTrendHint }}</p>
             } @else {
               <div class="trend-chart">
                 @for (point of s.accuracyTrend; track point.date) {
-                  <div class="trend-col" [title]="point.correct + '/' + point.total + ' đúng — ' + formatShortDate(point.date)">
+                  <div class="trend-col" [title]="point.correct + '/' + point.total + ' — ' + formatShortDate(point.date)">
                     <div class="trend-bar-wrap">
                       <div class="trend-bar" [style.height.%]="barHeight(point.total, maxTrendTotal())"></div>
                     </div>
@@ -290,38 +290,57 @@
   @if (activeTab() === 'settings') {
     <div class="tab-panel">
       <div class="settings-card">
-        <h2 class="panel-title">Cài đặt tài khoản</h2>
+        <h2 class="panel-title">{{ lang.t().profilePage.appSettings }}</h2>
         <div class="info-grid">
           <div class="info-row">
-            <span class="info-label">Giao diện</span>
+            <span class="info-label">{{ lang.t().profilePage.interfaceTheme }}</span>
             <div class="info-value">
               <button class="btn-theme-toggle" (click)="themeService.toggleTheme()">
-                {{ themeService.currentTheme() === 'dark' ? '☀️ Sáng' : '🌙 Tối' }}
+                {{ themeService.currentTheme() === 'dark' ? lang.t().profilePage.lightTheme : lang.t().profilePage.darkTheme }}
               </button>
             </div>
           </div>
           <div class="info-row">
-            <span class="info-label">Điều khoản dịch vụ</span>
+            <span class="info-label">{{ lang.t().profilePage.displayLanguage }}</span>
             <div class="info-value">
-              <a href="javascript:void(0)" class="link-terms" (click)="showTermsModal.set(true)">Xem điều khoản dịch vụ</a>
+              <div style="display: flex; gap: 8px;">
+                @for (opt of lang.options; track opt.code) {
+                  <button
+                    type="button"
+                    class="btn-theme-toggle"
+                    [style.background]="lang.currentLang() === opt.code ? 'var(--primary, #e05638)' : 'transparent'"
+                    [style.color]="lang.currentLang() === opt.code ? '#fff' : 'inherit'"
+                    [style.border]="'1px solid var(--border-color, #e5e7eb)'"
+                    (click)="lang.setLanguage(opt.code)"
+                  >
+                    {{ opt.flag }} {{ opt.displayName }}
+                  </button>
+                }
+              </div>
             </div>
           </div>
           <div class="info-row">
-            <span class="info-label">Xác thực email</span>
+            <span class="info-label">{{ lang.t().profilePage.termsOfService }}</span>
+            <div class="info-value">
+              <a href="javascript:void(0)" class="link-terms" (click)="showTermsModal.set(true)">{{ lang.t().profilePage.viewTerms }}</a>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">{{ lang.t().profilePage.emailVerification }}</span>
             <span class="info-value">
               @if (userProfile()?.isVerified) {
-                <span class="verified-chip">Đã xác thực</span>
+                <span class="verified-chip">{{ lang.t().profilePage.verified }}</span>
               } @else {
-                <span class="unverified-chip">Chưa xác thực</span>
+                <span class="unverified-chip">{{ lang.t().profilePage.unverified }}</span>
               }
             </span>
           </div>
         </div>
       </div>
       <div class="danger-zone-card">
-        <h3 class="danger-title">Khu vực nguy hiểm</h3>
-        <p class="danger-desc">Các hành động dưới đây không thể hoàn tác. Hãy cân nhắc kỹ trước khi thực hiện.</p>
-        <button class="btn-danger" (click)="logout()">Đăng xuất khỏi tất cả thiết bị</button>
+        <h3 class="danger-title">{{ lang.t().profilePage.dangerZone }}</h3>
+        <p class="danger-desc">{{ lang.t().profilePage.dangerDesc }}</p>
+        <button class="btn-danger" (click)="logout()">{{ lang.t().profilePage.logoutAllDevices }}</button>
       </div>
     </div>
   }
@@ -331,7 +350,7 @@
     <div class="modal-overlay" (click)="showTermsModal.set(false)">
       <div class="modal-content" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h3>Điều khoản dịch vụ</h3>
+          <h3>{{ lang.t().profilePage.termsOfService }}</h3>
           <button class="btn-close" (click)="showTermsModal.set(false)">✕</button>
         </div>
         <div class="modal-body terms-content">
@@ -348,7 +367,7 @@
           <p>Dữ liệu từ vựng và ngữ pháp do cộng đồng đóng góp thuộc quyền sở hữu chung. Mã nguồn và thiết kế của Kitsune thuộc quyền sở hữu của tác giả Nguyễn Duy Linh.</p>
         </div>
         <div class="modal-footer">
-          <button class="btn-save" (click)="showTermsModal.set(false)">Đóng</button>
+          <button class="btn-save" (click)="showTermsModal.set(false)">{{ lang.t().profilePage.close }}</button>
         </div>
       </div>
     </div>

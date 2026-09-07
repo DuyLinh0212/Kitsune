@@ -1,8 +1,9 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LanguageService } from '../../../../core/services/language.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 const MODE_LABELS: Record<string, string> = {
@@ -40,6 +41,7 @@ interface ToastMessage {
   styleUrls: ['./my-quizzes.component.css'],
 })
 export class MyQuizzesComponent implements OnInit {
+  protected readonly lang = inject(LanguageService);
   constructor(private router: Router) {}
   quizzes = signal<MyQuizDto[]>([]);
   searchQuery = signal('');

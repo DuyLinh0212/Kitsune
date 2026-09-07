@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 
 import { ExamService, ExamSummaryDto } from '../../../../core/services/exam.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 @Component({
@@ -16,6 +17,7 @@ import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/l
 export class MyExamsComponent implements OnInit {
   private readonly examService = inject(ExamService);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly lang = inject(LanguageService);
 
   readonly exams = signal<ExamSummaryDto[]>([]);
   readonly isLoading = signal<boolean>(true);

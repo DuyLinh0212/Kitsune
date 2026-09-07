@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
 @Component({
   selector: 'app-forgot-password-page',
@@ -15,6 +16,13 @@ import { AuthService } from '../../../../core/services/auth.service';
 export class ForgotPasswordComponent {
   private readonly formBuilder = inject(FormBuilder);
   private readonly authService = inject(AuthService);
+  protected readonly lang = inject(LanguageService);
+
+  protected toggleLanguage(): void {
+    const current = this.lang.currentLang();
+    const next = current === 'vi' ? 'en' : current === 'en' ? 'ja' : 'vi';
+    this.lang.setLanguage(next);
+  }
 
   protected readonly isSubmitting = signal(false);
   protected readonly errorMessage = signal('');

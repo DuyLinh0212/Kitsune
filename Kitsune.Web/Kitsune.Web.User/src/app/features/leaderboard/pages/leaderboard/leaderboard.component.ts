@@ -1,10 +1,11 @@
 // frontend/Kitsune.Web.User/src/app/features/leaderboard/pages/leaderboard/leaderboard.component.ts
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { from } from 'rxjs';
 import { supabase } from '../../../../core/supabase/supabase.client';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LanguageService } from '../../../../core/services/language.service';
 
 interface LeaderboardEntry {
   userId: number;
@@ -26,6 +27,7 @@ interface LeaderboardEntry {
   styleUrl: './leaderboard.component.css'
 })
 export class LeaderboardComponent implements OnInit {
+  readonly lang = inject(LanguageService);
   readonly entries = signal<LeaderboardEntry[]>([]);
   readonly isLoading = signal(true);
   readonly toast = signal<{ message: string; type: 'success' | 'error' } | null>(null);

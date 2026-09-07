@@ -10,10 +10,10 @@
   }
 
   <app-lookup-frame activeMode="vocabulary" [query]="searchQuery()" [resultCount]="searchResults().length || null"
-    placeholder="Ví dụ: 食べる, taberu, ăn uống..." (queryChange)="onSearchInput($event)" (search)="onSearchEnter()">
+    [placeholder]="lang.t().vocab.searchPlaceholder" (queryChange)="onSearchInput($event)" (search)="onSearchEnter()">
     <div lookup-frame-tools class="lookup-frame-tools">
       <button type="button" class="lookup-tool" (click)="selectedVocab() && speakWord(selectedVocab()!)"
-        [disabled]="!selectedVocab() || !ttsService.isSupported" title="Nghe cách đọc" aria-label="Nghe cách đọc">🔊</button>
+        [disabled]="!selectedVocab() || !ttsService.isSupported" [title]="lang.t().vocab.audioTitle" [attr.aria-label]="lang.t().vocab.audioTitle">🔊</button>
     </div>
   </app-lookup-frame>
 
@@ -21,8 +21,8 @@
   @if (!isSearching() && searchResults().length === 0 && !searchQuery()) {
   <div class="empty-state">
     <div class="empty-state__icon">辞</div>
-    <h3>Tra cứu từ vựng</h3>
-    <p>Nhập từ khóa để tìm kiếm trong kho từ vựng tiếng Nhật</p>
+    <h3>{{ lang.t().vocab.emptyTitle }}</h3>
+    <p>{{ lang.t().vocab.emptySubtitle }}</p>
     <div class="empty-state__hints">
       <span class="hint-chip">食べる</span>
       <span class="hint-chip">Ăn uống</span>
@@ -36,8 +36,8 @@
   @if (!isSearching() && searchResults().length === 0 && searchQuery()) {
   <div class="empty-state">
     <div class="empty-state__icon">🔍</div>
-    <h3>Không tìm thấy kết quả</h3>
-    <p>Thử tìm kiếm với từ khóa khác hoặc kiểm tra lại chính tả</p>
+    <h3>{{ lang.t().vocab.noResultTitle }}</h3>
+    <p>{{ lang.t().vocab.noResultSubtitle }}</p>
   </div>
   }
 
@@ -48,7 +48,7 @@
     <!-- LEFT: RESULTS LIST -->
     <div class="list-panel">
       <div class="list-panel__header">
-        <span>Kết quả ({{ searchResults().length }})</span>
+        <span>{{ lang.t().vocab.resultsCount.replace('{count}', searchResults().length.toString()) }}</span>
       </div>
       <div class="list-panel__body">
         @for (vocab of searchResults(); track vocab.id) {
@@ -83,8 +83,8 @@
                   class="btn-speak"
                   [class.btn-speak--active]="ttsService.isSpeaking(v.word)"
                   (click)="speakWord(v)"
-                  aria-label="Phát âm"
-                  title="Phát âm"
+                  [attr.aria-label]="lang.t().vocab.pronounce"
+                  [title]="lang.t().vocab.pronounce"
                 >🔊</button>
               }
             </div>
@@ -102,14 +102,14 @@
 
       <!-- MEANING -->
       <div class="detail-section">
-        <div class="section-label">Nghĩa</div>
+        <div class="section-label">{{ lang.t().vocab.meaningLabel }}</div>
         <p class="detail-meaning">{{ v.meaning }}</p>
       </div>
 
       <!-- SPECIFIC DATA -->
       @if (getSpecificDataEntries(v).length > 0) {
       <div class="detail-section">
-        <div class="section-label">Thông tin thêm</div>
+        <div class="section-label">{{ lang.t().vocab.additionalInfo }}</div>
         <div class="specific-data">
           @for (entry of getSpecificDataEntries(v); track entry.label) {
           <div class="specific-data__row">
@@ -123,7 +123,7 @@
 
       <!-- ACTION BUTTONS -->
       <div class="detail-section">
-        <div class="section-label">Hành động</div>
+        <div class="section-label">{{ lang.t().vocab.actions }}</div>
         <div class="action-group">
 
           <!-- BOOKMARK -->
@@ -138,7 +138,7 @@
                 d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
             </svg>
             }
-            {{ isTogglingBookmark() ? '...' : isBookmarked() ? 'Đã yêu thích' : 'Yêu thích' }}
+            {{ isTogglingBookmark() ? '...' : isBookmarked() ? lang.t().vocab.bookmarked : lang.t().vocab.bookmark }}
           </button>
 
         </div>
@@ -147,27 +147,27 @@
       } @else {
       <div class="detail-placeholder">
         <div class="detail-placeholder__icon">←</div>
-        <p>Chọn một từ vựng để xem chi tiết</p>
+        <p>{{ lang.t().vocab.selectToView }}</p>
       </div>
       }
     </div>
 
     <!-- RIGHT: KANJI READING RAIL -->
-    <aside class="insight-panel" aria-label="Gợi ý Kanji">
+    <aside class="insight-panel" [attr.aria-label]="lang.t().vocab.kanjiSplit">
       @if (selectedVocab(); as v) {
         <div class="insight-panel__heading">
-          <span class="insight-panel__eyebrow">TÁCH KANJI</span>
-          <h2>Chạm từng nét nghĩa</h2>
-          <p>Những ký tự tạo nên <strong>{{ v.word }}</strong></p>
+          <span class="insight-panel__eyebrow">{{ lang.t().vocab.kanjiSplit }}</span>
+          <h2>{{ lang.t().vocab.touchEachStroke }}</h2>
+          <p>{{ lang.t().vocab.charactersForming }} <strong>{{ v.word }}</strong></p>
         </div>
 
         @if (v.kanjiComponents.length > 0) {
           <div class="kanji-reading-list">
             @for (k of v.kanjiComponents; track k.kanjiId; let index = $index) {
-              <button type="button" class="kanji-reading-card" (click)="openKanjiDetail(k.kanjiId)" title="Mở chi tiết {{ k.character }}">
+              <button type="button" class="kanji-reading-card" (click)="openKanjiDetail(k.kanjiId)" [title]="lang.t().vocab.viewDetails + ' ' + k.character">
                 <span class="kanji-reading-card__index">0{{ index + 1 }}</span>
                 <span class="kanji-reading-card__character">{{ k.character }}</span>
-                <span class="kanji-reading-card__copy"><strong>{{ k.amHanViet || 'Kanji' }}</strong><small>Xem âm đọc và bộ thủ</small></span>
+                <span class="kanji-reading-card__copy"><strong>{{ k.amHanViet || 'Kanji' }}</strong><small>{{ lang.t().vocab.viewReadingsRadical }}</small></span>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m9 18 6-6-6-6" /></svg>
               </button>
             }
@@ -175,18 +175,18 @@
         } @else {
           <div class="insight-empty">
             <span>かな</span>
-            <p>Từ này được viết bằng kana, không có Kanji cần tách.</p>
+            <p>{{ lang.t().vocab.kanaOnlyNote }}</p>
           </div>
         }
 
         <div class="insight-panel__tip">
           <span aria-hidden="true">狐</span>
-          <p>Bài học của bạn quyết định nội dung được đưa vào phiên ôn tập.</p>
+          <p>{{ lang.t().vocab.railTip }}</p>
         </div>
       } @else {
         <div class="insight-empty insight-empty--placeholder">
           <span>辞</span>
-          <p>Kết quả bạn chọn sẽ mở thành phần Kanji tại đây.</p>
+          <p>{{ lang.t().vocab.railPlaceholder }}</p>
         </div>
       }
     </aside>
@@ -211,7 +211,7 @@
     </button>
 
     @if (isLoadingKanji()) {
-    <app-loading-fox message="Đang tải thông tin Kanji..." [size]="80" />
+    <app-loading-fox [message]="lang.t().vocab.kanjiModalLoading" [size]="80" />
     }
 
     @if (!isLoadingKanji() && selectedKanji(); as k) {
@@ -230,24 +230,24 @@
     <!-- INFO GRID -->
     <div class="kanji-info-grid">
       <div class="kanji-info-card">
-        <div class="kanji-info-card__label">Âm On (音読み)</div>
+        <div class="kanji-info-card__label">{{ lang.t().vocab.onYomi }}</div>
         <div class="kanji-info-card__value kanji-info-card__value--jp">
           {{ k.onyomi || '—' }}
         </div>
       </div>
       <div class="kanji-info-card">
-        <div class="kanji-info-card__label">Âm Kun (訓読み)</div>
+        <div class="kanji-info-card__label">{{ lang.t().vocab.kunYomi }}</div>
         <div class="kanji-info-card__value kanji-info-card__value--jp">
           {{ k.kunyomi || '—' }}
         </div>
       </div>
       <div class="kanji-info-card">
-        <div class="kanji-info-card__label">Nghĩa</div>
+        <div class="kanji-info-card__label">{{ lang.t().vocab.meaningLabel }}</div>
         <div class="kanji-info-card__value">{{ k.meaning }}</div>
       </div>
       <div class="kanji-info-card">
-        <div class="kanji-info-card__label">Số nét</div>
-        <div class="kanji-info-card__value">{{ k.strokeCount }} nét</div>
+        <div class="kanji-info-card__label">{{ lang.t().vocab.strokeCount }}</div>
+        <div class="kanji-info-card__value">{{ k.strokeCount }} {{ lang.t().vocab.strokesUnit }}</div>
       </div>
     </div>
 
@@ -260,7 +260,7 @@
           <line x1="2" y1="12" x2="22" y2="12" />
           <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
         </svg>
-        Bộ thủ (部首)
+        {{ lang.t().vocab.radical }}
       </div>
       <div class="kanji-radical__body">
         <span class="kanji-radical__char">{{ k.radical.radicalCharacter }}</span>
@@ -285,7 +285,7 @@
           <path
             d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z" />
         </svg>
-        Cách ghi nhớ
+        {{ lang.t().vocab.mnemonic }}
       </div>
       <p class="kanji-mnemonic__text">{{ k.mnemonic }}</p>
     </div>

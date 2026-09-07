@@ -5,6 +5,7 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { supabase } from '../../../../core/supabase/supabase.client';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LanguageService } from '../../../../core/services/language.service';
 
 // ─── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -77,6 +78,7 @@ function pickRandom<T>(arr: T[], count: number): T[] {
 export class QuizPlayComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
+  readonly lang = inject(LanguageService);
 
   // ── State signals ────────────────────────────────────────────────────────────
   readonly quizState = signal<QuizState>('loading');

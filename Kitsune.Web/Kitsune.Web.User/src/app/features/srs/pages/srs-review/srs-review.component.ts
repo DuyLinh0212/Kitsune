@@ -13,6 +13,7 @@ import {
 } from '../../../../core/services/srs.service';
 import { TtsService } from '../../../../core/services/tts.service';
 import { LearningKnowledgeService } from '../../../../core/services/learning-knowledge.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { KanjiDrawingReviewComponent } from '../../components/kanji-drawing-review/kanji-drawing-review.component';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
@@ -68,6 +69,7 @@ interface LevelBucket {
   styleUrl: './srs-review.component.css',
 })
 export class SrsReviewComponent implements OnInit, OnDestroy {
+  readonly lang = inject(LanguageService);
   private readonly srsService = inject(SrsService);
   private readonly learningKnowledge = inject(LearningKnowledgeService);
   readonly ttsService = inject(TtsService);

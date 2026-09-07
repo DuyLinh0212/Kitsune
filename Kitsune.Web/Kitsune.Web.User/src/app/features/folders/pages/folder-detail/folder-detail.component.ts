@@ -15,6 +15,7 @@ import { forkJoin } from 'rxjs';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 import { FolderDto, FolderService } from '../../../../core/services/folder.service';
 import { KanjiDetailDto, KanjiUserService } from '../../../../core/services/kanji-user.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { PagedResult, VocabularyDto, VocabularyService } from '../../../../core/services/vocabulary.service';
 import { KanjiStrokeWriterComponent } from '../../../kanji/components/kanji-stroke-writer/kanji-stroke-writer.component';
 
@@ -54,6 +55,7 @@ export class FolderDetailComponent implements OnInit, OnDestroy {
   private readonly vocabularyService = inject(VocabularyService);
   private readonly kanjiService = inject(KanjiUserService);
   private readonly destroyRef = inject(DestroyRef);
+  protected readonly lang = inject(LanguageService);
 
   readonly folder = signal<FolderDto | null>(null);
   readonly vocabularies = signal<VocabularyDto[]>([]);

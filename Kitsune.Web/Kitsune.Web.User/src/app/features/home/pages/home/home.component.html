@@ -1,15 +1,15 @@
 <section class="dashboard-shell">
   @if (isLoading()) {
-    <div class="dashboard-loading"><app-loading-fox message="Đang mở hành trình hôm nay..." /></div>
+    <div class="dashboard-loading"><app-loading-fox [message]="lang.t().common.loading" /></div>
   } @else {
     <header class="dashboard-greeting">
       <div>
-        <p class="eyebrow">Nghi thức học tập hôm nay</p>
-        <h1>Chào {{ displayName }} <span>✦</span></h1>
-        <p>Chỉ cần một phiên ngắn để viết tiếp hành trình tiếng Nhật của bạn.</p>
+        <p class="eyebrow">{{ lang.t().homePage.greetingEyebrow }}</p>
+        <h1>{{ lang.t().homePage.greetingPrefix }} {{ displayName }} <span>✦</span></h1>
+        <p>{{ lang.t().homePage.greetingSub }}</p>
       </div>
       <div class="streak-seal" [class.streak-seal--quiet]="streak() === 0">
-        <span>🔥</span><strong>{{ streak() }}</strong><small>ngày liên tiếp</small>
+        <span>🔥</span><strong>{{ streak() }}</strong><small>{{ lang.t().homePage.consecutiveDays }}</small>
       </div>
     </header>
 
@@ -18,16 +18,16 @@
         <div class="ritual-ink ritual-ink--left">学</div>
         <div class="ritual-ink ritual-ink--right">続</div>
         <div class="ritual-intro">
-          <span class="ritual-kicker">Hành trình hôm nay</span>
-          <h2>{{ hasReviewReady ? 'Một bước để giữ nhịp học' : 'Bạn đã sẵn sàng cho điều mới' }}</h2>
-          <p>{{ hasReviewReady ? srsCardsDue() + ' thẻ đang chờ bạn quay lại.' : 'Không còn thẻ đến hạn — hãy mở một bài học mới.' }}</p>
+          <span class="ritual-kicker">{{ lang.t().homePage.todayRitualKicker }}</span>
+          <h2>{{ hasReviewReady ? lang.t().homePage.reviewReadyTitle : lang.t().homePage.newReadyTitle }}</h2>
+          <p>{{ hasReviewReady ? (srsCardsDue() + ' ' + lang.t().homePage.reviewReadySub) : lang.t().homePage.newReadySub }}</p>
         </div>
 
         <div class="sun-progress" [style.--progress]="dailyProgress() + '%'">
           <div class="sun-progress__inner">
-            <small>Tiến độ hôm nay</small>
+            <small>{{ lang.t().homePage.todayProgress }}</small>
             <strong>{{ completedToday() }}<span>/{{ dailyTarget }}</span></strong>
-            <em>thẻ đã chạm</em>
+            <em>{{ lang.t().homePage.cardsTouched }}</em>
           </div>
         </div>
 
@@ -43,8 +43,8 @@
       </article>
 
       <aside class="weekly-card">
-        <div class="section-title"><div><span>Nhịp học</span><h2>7 ngày vừa qua</h2></div><strong>{{ formatWeekDuration(totalWeekHours()) }}</strong></div>
-        <div class="week-chart" aria-label="Thời gian học trong bảy ngày gần nhất">
+        <div class="section-title"><div><span>{{ lang.t().homePage.weekRhythm }}</span><h2>{{ lang.t().homePage.past7Days }}</h2></div><strong>{{ formatWeekDuration(totalWeekHours()) }}</strong></div>
+        <div class="week-chart" [attr.aria-label]="lang.t().homePage.past7Days">
           @for (hour of weeklyHours(); track $index) {
             <div class="week-day">
               <span>{{ formatWeekDuration(hour) }}</span>
@@ -53,39 +53,39 @@
             </div>
           }
         </div>
-        <p>Chỉ tính thời gian bạn đang học trên Kitsune.</p>
+        <p>{{ lang.t().homePage.onlyKitsuneTime }}</p>
       </aside>
     </div>
 
     <div class="next-actions">
       <button type="button" class="action-card" (click)="router.navigate(['/srs'])">
-        <span class="action-icon">↻</span><span><small>Ưu tiên ngay</small><strong>Ôn {{ srsCardsDue() }} thẻ</strong><em>SRS đang chờ bạn</em></span><b>→</b>
+        <span class="action-icon">↻</span><span><small>{{ lang.t().homePage.priorityNow }}</small><strong>{{ srsCardsDue() }} {{ lang.t().homePage.reviewDueAction }}</strong><em>{{ lang.t().homePage.srsWaiting }}</em></span><b>→</b>
       </button>
       <button type="button" class="action-card" (click)="router.navigate(['/topics'])">
-        <span class="action-icon">本</span><span><small>Tiếp nối</small><strong>Học một bài</strong><em>Đi theo lộ trình của bạn</em></span><b>→</b>
+        <span class="action-icon">本</span><span><small>{{ lang.t().homePage.continuePath }}</small><strong>{{ lang.t().homePage.learnLesson }}</strong><em>{{ lang.t().homePage.followRoadmap }}</em></span><b>→</b>
       </button>
       <button type="button" class="action-card" (click)="router.navigate(['/quizzes'])">
-        <span class="action-icon">?</span><span><small>Khởi động nhanh</small><strong>Quiz 5 phút</strong><em>Kiểm tra điều vừa nhớ</em></span><b>→</b>
+        <span class="action-icon">?</span><span><small>{{ lang.t().homePage.quickWarmup }}</small><strong>{{ lang.t().homePage.quiz5Min }}</strong><em>{{ lang.t().homePage.checkRecall }}</em></span><b>→</b>
       </button>
     </div>
 
     <div class="insight-grid">
       <article class="achievement-card">
-        <div class="section-title"><div><span>Thành quả</span><h2>Nhịp của bạn</h2></div><span class="sun-icon">☀</span></div>
+        <div class="section-title"><div><span>{{ lang.t().homePage.achievements }}</span><h2>{{ lang.t().homePage.yourRhythm }}</h2></div><span class="sun-icon">☀</span></div>
         <div class="achievement-stats">
-          <div><strong>{{ totalXP() | number }}</strong><span>Tổng XP</span></div>
-          <div><strong>{{ streak() }}</strong><span>Ngày liên tiếp</span></div>
-          <div><strong>{{ dailyProgress() }}%</strong><span>Mục tiêu hôm nay</span></div>
+          <div><strong>{{ totalXP() | number }}</strong><span>{{ lang.t().homePage.totalXp }}</span></div>
+          <div><strong>{{ streak() }}</strong><span>{{ lang.t().homePage.consecutiveDays }}</span></div>
+          <div><strong>{{ dailyProgress() }}%</strong><span>{{ lang.t().homePage.todayGoal }}</span></div>
         </div>
-        <p>Mỗi phiên học ngắn đều tích luỹ thành phản xạ lâu dài.</p>
+        <p>{{ lang.t().homePage.habitQuote }}</p>
       </article>
 
       <article class="challenge-card">
         <div class="challenge-copy">
-          <span>Thử thách cộng đồng</span>
-          <h2>Học đều — tiến xa</h2>
-          <p>Hoàn thành một quiz hôm nay để tham gia bảng xếp hạng tuần.</p>
-          <button type="button" (click)="router.navigate(['/quizzes'])">Tham gia thử thách <b>→</b></button>
+          <span>{{ lang.t().homePage.communityChallenge }}</span>
+          <h2>{{ lang.t().homePage.steadyProgress }}</h2>
+          <p>{{ lang.t().homePage.challengeDesc }}</p>
+          <button type="button" (click)="router.navigate(['/quizzes'])">{{ lang.t().homePage.joinChallenge }} <b>→</b></button>
         </div>
         <div class="challenge-art" aria-hidden="true"><span>狐</span><i>✦</i><i>✦</i></div>
       </article>

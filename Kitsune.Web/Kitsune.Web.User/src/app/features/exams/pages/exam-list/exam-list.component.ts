@@ -8,6 +8,7 @@ import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { ExamService, ExamSummaryDto } from '../../../../core/services/exam.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LanguageService } from '../../../../core/services/language.service';
 
 @Component({
   selector: 'app-exam-list',
@@ -19,6 +20,7 @@ import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/l
 export class ExamListComponent implements OnInit {
   private readonly examService = inject(ExamService);
   private readonly destroyRef = inject(DestroyRef);
+  readonly lang = inject(LanguageService);
   private readonly searchSubject = new Subject<string>();
 
   readonly searchQuery = signal<string>('');
@@ -69,7 +71,7 @@ export class ExamListComponent implements OnInit {
   }
 
   timeLabel(seconds: number | null): string {
-    if (!seconds || seconds <= 0) return 'Không giới hạn';
-    return `${Math.round(seconds / 60)} phút`;
+    if (!seconds || seconds <= 0) return this.lang.t().quizPage.unlimitedTime;
+    return `${Math.round(seconds / 60)} ${this.lang.t().common.minutes}`;
   }
 }

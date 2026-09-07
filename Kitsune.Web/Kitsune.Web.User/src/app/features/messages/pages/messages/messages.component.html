@@ -23,37 +23,37 @@
     <!-- Status badge -->
     <div class="status-badge">
       <span class="status-dot"></span>
-      Đang phát triển
+      {{ lang.t().messagesPage.inDevelopment }}
     </div>
 
     <!-- Heading -->
-    <h1 class="heading">Tính năng đang phát triển</h1>
-    <p class="subheading">Nhắn tin với cộng đồng sẽ sớm ra mắt</p>
+    <h1 class="heading">{{ lang.t().messagesPage.heading }}</h1>
+    <p class="subheading">{{ lang.t().messagesPage.subheading }}</p>
 
     <!-- Description -->
     <p class="description">
-      Chúng tôi đang xây dựng một hệ thống nhắn tin thời gian thực để bạn có thể kết nối và giao tiếp với cộng đồng học tiếng Nhật. Hãy đón chờ nhé!
+      {{ lang.t().messagesPage.description }}
     </p>
 
     <!-- Features preview -->
     <div class="features-grid">
       <div class="feature-item">
         <span class="feature-icon">🔒</span>
-        <span class="feature-label">Tin nhắn riêng tư</span>
+        <span class="feature-label">{{ lang.t().messagesPage.featPrivate }}</span>
       </div>
       <div class="feature-item">
         <span class="feature-icon">👥</span>
-        <span class="feature-label">Nhóm học tập</span>
+        <span class="feature-label">{{ lang.t().messagesPage.featGroup }}</span>
       </div>
       <div class="feature-item">
         <span class="feature-icon">⚡</span>
-        <span class="feature-label">Thời gian thực</span>
+        <span class="feature-label">{{ lang.t().messagesPage.featRealtime }}</span>
       </div>
     </div>
 
     <!-- Release badge -->
     <div class="release-badge">
-      <span class="release-label">Dự kiến ra mắt</span>
+      <span class="release-label">{{ lang.t().messagesPage.releaseLabel }}</span>
       <span class="release-quarter">Q3 2026</span>
     </div>
   </div>

@@ -4,6 +4,7 @@ import { AbstractControl, FormBuilder, ReactiveFormsModule, ValidationErrors, Va
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
 @Component({
   selector: 'app-register-page',
@@ -16,6 +17,13 @@ export class RegisterComponent {
   private readonly formBuilder = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  protected readonly lang = inject(LanguageService);
+
+  protected toggleLanguage(): void {
+    const current = this.lang.currentLang();
+    const next = current === 'vi' ? 'en' : current === 'en' ? 'ja' : 'vi';
+    this.lang.setLanguage(next);
+  }
 
   private readonly passwordMatchValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
     const password = control.get('password')?.value as string | null;

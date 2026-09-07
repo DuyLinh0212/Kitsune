@@ -14,6 +14,7 @@ import {
 } from '@angular/core';
 import { CommonModule, isPlatformBrowser } from '@angular/common';
 import { supabase } from '../../../../core/supabase/supabase.client';
+import { LanguageService } from '../../../../core/services/language.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 
 @Component({
@@ -25,6 +26,7 @@ import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/l
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class KanjiStrokeWriterComponent implements AfterViewInit, OnChanges, OnDestroy {
+  readonly lang = inject(LanguageService);
   @Input() character: string | null = null;
   @Input() width = 260;
   @Input() height = 260;

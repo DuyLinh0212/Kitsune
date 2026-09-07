@@ -5,6 +5,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { LessonSummary, TopicSummary } from '../../../../core/models/topic.model';
 import { TopicService } from '../../../../core/services/topic.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
 @Component({
   selector: 'app-topic-list',
@@ -14,6 +15,7 @@ import { TopicService } from '../../../../core/services/topic.service';
   styleUrl: './topic-list.component.css',
 })
 export class TopicListComponent implements OnInit {
+  readonly lang = inject(LanguageService);
   private readonly topicService = inject(TopicService);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -47,9 +49,9 @@ export class TopicListComponent implements OnInit {
   }
 
   lessonState(lesson: LessonSummary): string {
-    if (lesson.progressPercent >= 100) return 'Đã hoàn thành';
-    if (lesson.progressPercent > 0) return 'Đang học';
-    return 'Sẵn sàng';
+    if (lesson.progressPercent >= 100) return this.lang.t().topicsPage.completed;
+    if (lesson.progressPercent > 0) return this.lang.t().topicsPage.continueText;
+    return this.lang.t().topicsPage.start;
   }
 
   private loadLessons(topicId: number): void {

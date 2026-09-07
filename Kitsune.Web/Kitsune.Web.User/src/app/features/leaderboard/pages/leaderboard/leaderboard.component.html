@@ -11,15 +11,15 @@
   <!-- HEADER -->
   <div class="page-header">
     <div>
-      <h1>Bảng Xếp Hạng</h1>
-      <p class="subtitle">Top người học xuất sắc nhất trên KitsunePlatform</p>
+      <h1>{{ lang.t().leaderboardPage.title }}</h1>
+      <p class="subtitle">{{ lang.t().leaderboardPage.subtitle }}</p>
     </div>
   </div>
 
   <!-- LOADING -->
   @if (isLoading()) {
     <div class="loading-container">
-      <app-loading-fox message="Đang tải bảng xếp hạng..." />
+      <app-loading-fox [message]="lang.t().leaderboardPage.loading" />
     </div>
   }
 
@@ -27,8 +27,8 @@
     @if (entries().length === 0) {
       <div class="empty-state">
         <div class="empty-icon">🏆</div>
-        <h3>Chưa có dữ liệu</h3>
-        <p>Hãy hoàn thành quiz đầu tiên để lên bảng xếp hạng!</p>
+        <h3>{{ lang.t().leaderboardPage.emptyTitle }}</h3>
+        <p>{{ lang.t().leaderboardPage.emptyDesc }}</p>
       </div>
     }
 
@@ -43,7 +43,7 @@
               <div class="podium-avatar silver-av">{{ getInitials(topThree()[1].fullName) }}</div>
               <div class="podium-name">{{ topThree()[1].fullName }}</div>
               <div class="podium-score">{{ topThree()[1].avgAccuracy }}%</div>
-              <div class="podium-quiz">{{ topThree()[1].quizCount }} lần làm</div>
+              <div class="podium-quiz">{{ topThree()[1].quizCount }} {{ lang.t().leaderboardPage.attempts }}</div>
               <div class="podium-bar silver-bar">2nd</div>
             </div>
           }
@@ -56,7 +56,7 @@
               <div class="podium-avatar gold-av">{{ getInitials(topThree()[0].fullName) }}</div>
               <div class="podium-name">{{ topThree()[0].fullName }}</div>
               <div class="podium-score">{{ topThree()[0].avgAccuracy }}%</div>
-              <div class="podium-quiz">{{ topThree()[0].quizCount }} lần làm</div>
+              <div class="podium-quiz">{{ topThree()[0].quizCount }} {{ lang.t().leaderboardPage.attempts }}</div>
               <div class="podium-bar gold-bar">1st</div>
             </div>
           }
@@ -68,7 +68,7 @@
               <div class="podium-avatar bronze-av">{{ getInitials(topThree()[2].fullName) }}</div>
               <div class="podium-name">{{ topThree()[2].fullName }}</div>
               <div class="podium-score">{{ topThree()[2].avgAccuracy }}%</div>
-              <div class="podium-quiz">{{ topThree()[2].quizCount }} lần làm</div>
+              <div class="podium-quiz">{{ topThree()[2].quizCount }} {{ lang.t().leaderboardPage.attempts }}</div>
               <div class="podium-bar bronze-bar">3rd</div>
             </div>
           }
@@ -79,17 +79,17 @@
       @if (restEntries().length > 0) {
         <div class="table-card">
           <div class="table-header-row">
-            <h3>Bảng xếp hạng đầy đủ</h3>
+            <h3>{{ lang.t().leaderboardPage.fullTable }}</h3>
           </div>
           <div class="table-wrapper">
             <table class="leaderboard-table">
               <thead>
                 <tr>
-                  <th>Hạng</th>
-                  <th>Người dùng</th>
-                  <th>Số quiz</th>
-                  <th>Độ chính xác TB</th>
-                  <th>Lần cuối</th>
+                  <th>{{ lang.t().leaderboardPage.rank }}</th>
+                  <th>{{ lang.t().leaderboardPage.learner }}</th>
+                  <th>{{ lang.t().leaderboardPage.quizzesDone }}</th>
+                  <th>{{ lang.t().leaderboardPage.avgAccuracy }}</th>
+                  <th>{{ lang.t().leaderboardPage.lastAttempt }}</th>
                 </tr>
               </thead>
               <tbody>

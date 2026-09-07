@@ -4,10 +4,10 @@
     <header class="game-hero">
       <img src="/images/minigame-hub-v3.png" alt="Cáo Kitsune khám phá các trò chơi từ vựng" />
       <div>
-        <a routerLink="/topics">← Trở lại lộ trình</a>
+        <a routerLink="/topics">{{ lang.t().minigamesPage.backToRoadmap }}</a>
         <p class="eyebrow">Kitsune playground</p>
-        <h1>Chơi nhanh.<br /><em>Nhớ thật lâu.</em></h1>
-        <p>Năm thử thách ngắn, dùng chính kho từ vựng đang học.</p>
+        <h1>{{ lang.t().minigamesPage.heroTitle }}</h1>
+        <p>{{ lang.t().minigamesPage.heroSub }}</p>
       </div>
     </header>
     <section class="game-grid">
@@ -18,37 +18,37 @@
           <h2>{{ game.title }}</h2>
           <small>{{ game.description }}</small>
           <button type="button" (click)="start(game)" [disabled]="screen() === 'loading'">
-            {{ screen() === 'loading' && activeGame()?.type === game.type ? 'Đang chuẩn bị…' : 'Chơi ngay →' }}
+            {{ screen() === 'loading' && activeGame()?.type === game.type ? lang.t().minigamesPage.preparing : lang.t().minigamesPage.playNow }}
           </button>
         </article>
       }
     </section>
   } @else if (screen() === 'playing' && activeGame(); as game) {
     <header class="play-header">
-      <button type="button" (click)="leaveGame()">× Thoát</button>
-      <div><span>{{ game.title }}</span><strong>{{ score() }} điểm</strong></div>
+      <button type="button" (click)="leaveGame()">{{ lang.t().minigamesPage.exit }}</button>
+      <div><span>{{ game.title }}</span><strong>{{ score() }} {{ lang.t().minigamesPage.score }}</strong></div>
       <time [class.time--urgent]="secondsLeft() <= 10">{{ secondsLeft() }}s</time>
     </header>
 
     <section class="play-stage" [class.feedback-correct]="feedback() === 'correct'" [class.feedback-wrong]="feedback() === 'wrong'">
       @if (game.type === 'BUBBLE_POP' && currentWord(); as target) {
-        <div class="prompt"><span>Tìm từ có nghĩa</span><h2>{{ target.meaning }}</h2></div>
+        <div class="prompt"><span>{{ lang.t().minigamesPage.findMeaning }}</span><h2>{{ target.meaning }}</h2></div>
         <div class="bubble-field">
           @for (bubble of bubbleOptions(); track bubble.item.id) {
             <button type="button" class="bubble" [style.--left]="bubble.left + '%'" [style.--size]="bubble.size + 'px'" [style.--duration]="bubble.durationSeconds + 's'" [style.--delay]="bubble.delaySeconds + 's'" [style.--drift]="bubble.drift + 'px'" (click)="chooseBubble(bubble.item)">{{ bubble.item.word }}</button>
           }
         </div>
       } @else if (game.type === 'KANA_PATH' && currentWord(); as target) {
-        <div class="prompt"><span>Ghép cách đọc cho</span><h2>{{ target.word }}</h2><p>{{ target.meaning }}</p></div>
+        <div class="prompt"><span>{{ lang.t().minigamesPage.matchReading }}</span><h2>{{ target.word }}</h2><p>{{ target.meaning }}</p></div>
         <div class="kana-answer">{{ kanaSelection().join('') || '＿ ＿ ＿' }}</div>
         <div class="kana-grid">
           @for (kana of kanaOptions(); track $index; let index = $index) {
             <button type="button" [class.kana-used]="isKanaUsed(index)" [disabled]="isKanaUsed(index)" (click)="selectKana(kana, index)">{{ kana }}</button>
           }
         </div>
-        <div class="stage-actions"><button type="button" (click)="undoKana()">Xóa một ô</button><button type="button" class="primary" (click)="submitKana()">Kiểm tra</button></div>
+        <div class="stage-actions"><button type="button" (click)="undoKana()">{{ lang.t().minigamesPage.undo }}</button><button type="button" class="primary" (click)="submitKana()">{{ lang.t().minigamesPage.check }}</button></div>
       } @else if (game.type === 'MEMORY_MATCH') {
-        <div class="prompt prompt--compact"><span>Ghép Kanji và Hiragana</span><h2>{{ correctCount() }}/10 cặp</h2></div>
+        <div class="prompt prompt--compact"><span>{{ lang.t().minigamesPage.matchKanjiHira }}</span><h2>{{ correctCount() }}/10 {{ lang.t().minigamesPage.pairs }}</h2></div>
         <div class="memory-grid">
           @for (card of memoryCards(); track card.key) {
             <button type="button" [class.memory-card--open]="card.revealed || card.matched" [class.memory-card--matched]="card.matched" (click)="flipMemory(card)">
@@ -58,7 +58,7 @@
         </div>
       } @else if (game.type === 'LISTENING' && currentWord(); as target) {
         <div class="listening-scene" aria-hidden="true"><span>音</span><i></i><i></i><i></i></div>
-        <div class="prompt listening-prompt"><span>Nghe và chọn nghĩa đúng</span><button class="listen-button" type="button" (click)="playAudio()" aria-label="Phát lại âm thanh">♪</button><small>Chạm để nghe lại</small></div>
+        <div class="prompt listening-prompt"><span>{{ lang.t().minigamesPage.listenPrompt }}</span><button class="listen-button" type="button" (click)="playAudio()" aria-label="Phát lại âm thanh">♪</button><small>{{ lang.t().minigamesPage.listenHint }}</small></div>
         <div class="listening-options">
           @for (option of listeningOptions(); track option; let index = $index) {
             <button type="button" (click)="chooseListening(option)"><span>{{ 'ABCD'[index] }}</span>{{ option }}</button>
@@ -67,8 +67,8 @@
       } @else if (game.type === 'SHIRITORI') {
         <div class="shiritori-board">
           <div class="shiritori-heading">
-            <div><span>しりとり</span><h2>Nối từ với Kitsune</h2></div>
-            <p>Từ của bạn phải bắt đầu bằng <strong>{{ shiritoriRequired() }}</strong></p>
+            <div><span>しりとり</span><h2>{{ lang.t().minigamesPage.shiritoriTitle }}</h2></div>
+            <p>{{ lang.t().minigamesPage.shiritoriReq }} <strong>{{ shiritoriRequired() }}</strong></p>
           </div>
           <div class="shiritori-chain" aria-live="polite">
             @for (turn of shiritoriHistory(); track $index) {
@@ -79,21 +79,21 @@
             }
           </div>
           <form class="shiritori-form" (ngSubmit)="submitShiritori()">
-            <label for="shiritori-word">Đến lượt bạn · còn {{ secondsLeft() }} giây</label>
-            <div><input id="shiritori-word" type="text" lang="ja" autocomplete="off" [ngModel]="shiritoriInput()" (ngModelChange)="onShiritoriInput($event)" name="shiritoriWord" [disabled]="shiritoriTurn() === 'bot'" placeholder="Nhập từ bằng Kanji…" /><button type="submit" [disabled]="shiritoriTurn() === 'bot'">Nối từ</button></div>
+            <label for="shiritori-word">{{ lang.t().minigamesPage.shiritoriTurn }} {{ secondsLeft() }} {{ lang.t().minigamesPage.seconds }}</label>
+            <div><input id="shiritori-word" type="text" lang="ja" autocomplete="off" [ngModel]="shiritoriInput()" (ngModelChange)="onShiritoriInput($event)" name="shiritoriWord" [disabled]="shiritoriTurn() === 'bot'" [placeholder]="lang.t().minigamesPage.shiritoriInputPh" /><button type="submit" [disabled]="shiritoriTurn() === 'bot'">{{ lang.t().minigamesPage.shiritoriBtn }}</button></div>
             @if (shiritoriError()) { <p>{{ shiritoriError() }}</p> }
           </form>
         </div>
       }
-      @if (feedback() === 'correct') { <div class="feedback">Chính xác!</div> }
-      @if (feedback() === 'wrong') { <div class="feedback feedback--wrong">Chưa đúng — tiếp tục nào.</div> }
+      @if (feedback() === 'correct') { <div class="feedback">{{ lang.t().minigamesPage.correct }}</div> }
+      @if (feedback() === 'wrong') { <div class="feedback feedback--wrong">{{ lang.t().minigamesPage.wrong }}</div> }
     </section>
   } @else if (screen() === 'finished' && activeGame(); as game) {
     <section class="result-card">
-      <span>遊</span><p>{{ game.title }}</p><h1>{{ score() }}</h1><small>điểm</small>
-      <div><strong>{{ correctCount() }}</strong><span>đúng</span><strong>{{ wrongCount() }}</strong><span>sai</span></div>
-      <button type="button" (click)="start(game)">Chơi lại</button>
-      <button type="button" class="secondary" (click)="leaveGame()">Chọn trò khác</button>
+      <span>遊</span><p>{{ game.title }}</p><h1>{{ score() }}</h1><small>{{ lang.t().minigamesPage.score }}</small>
+      <div><strong>{{ correctCount() }}</strong><span>{{ lang.t().minigamesPage.correctUnit }}</span><strong>{{ wrongCount() }}</strong><span>{{ lang.t().minigamesPage.wrongUnit }}</span></div>
+      <button type="button" (click)="start(game)">{{ lang.t().minigamesPage.playAgain }}</button>
+      <button type="button" class="secondary" (click)="leaveGame()">{{ lang.t().minigamesPage.chooseOther }}</button>
     </section>
   }
 </main>

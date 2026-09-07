@@ -4,6 +4,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
+import { LanguageService } from '../../../../core/services/language.service';
 
 @Component({
   selector: 'app-login-page',
@@ -16,11 +17,18 @@ export class LoginComponent {
   private readonly formBuilder = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly router = inject(Router);
+  protected readonly lang = inject(LanguageService);
 
   protected readonly isSubmitting = signal(false);
   protected readonly errorMessage = signal('');
   protected readonly successMessage = signal('');
   protected readonly showPassword = signal(false);
+
+  protected toggleLanguage(): void {
+    const current = this.lang.currentLang();
+    const next = current === 'vi' ? 'en' : current === 'en' ? 'ja' : 'vi';
+    this.lang.setLanguage(next);
+  }
 
   protected readonly loginForm = this.formBuilder.nonNullable.group({
     login: ['', [Validators.required]],

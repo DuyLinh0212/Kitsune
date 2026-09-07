@@ -1,10 +1,11 @@
 // frontend/Kitsune.Web.User/src/app/features/quizzes/pages/quiz-list/quiz-list.component.ts
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, signal, computed, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterModule } from '@angular/router';
 import { supabase } from '../../../../core/supabase/supabase.client';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
+import { LanguageService } from '../../../../core/services/language.service';
 
 export interface QuizDto {
   id: number;
@@ -29,6 +30,7 @@ interface ToastMessage {
   styleUrls: ['./quiz-list.component.css'],
 })
 export class QuizListComponent implements OnInit {
+  readonly lang = inject(LanguageService);
   quizzes = signal<QuizDto[]>([]);
   searchQuery = signal('');
   isLoading = signal(true);
@@ -101,9 +103,9 @@ export class QuizListComponent implements OnInit {
   }
 
   formatTimeLimit(seconds: number): string {
-    if (!seconds || seconds <= 0) return 'Không giới hạn';
+    if (!seconds || seconds <= 0) return this.lang.t().quizPage.unlimitedTime;
     const minutes = Math.round(seconds / 60);
-    return `${minutes} phút`;
+    return `${minutes} ${this.lang.t().common.minutes}`;
   }
 
   getModeClass(modeName: string): string {

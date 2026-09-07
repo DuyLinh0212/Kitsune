@@ -6,6 +6,7 @@ import { Subject } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 import { GrammarPointDto, GrammarService } from '../../../../core/services/grammar.service';
+import { LanguageService } from '../../../../core/services/language.service';
 import { LoadingFoxComponent } from '../../../../shared/components/loading-fox/loading-fox.component';
 import { LookupFrameComponent } from '../../../../shared/components/lookup-frame/lookup-frame.component';
 
@@ -17,6 +18,7 @@ import { LookupFrameComponent } from '../../../../shared/components/lookup-frame
   styleUrl: './grammar-search.component.css'
 })
 export class GrammarSearchComponent implements OnInit {
+  readonly lang = inject(LanguageService);
   private readonly grammarService = inject(GrammarService);
   private readonly destroyRef = inject(DestroyRef);
   private readonly searchSubject = new Subject<string>();

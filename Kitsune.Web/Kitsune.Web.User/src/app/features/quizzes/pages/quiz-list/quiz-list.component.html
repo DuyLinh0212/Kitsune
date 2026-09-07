@@ -11,8 +11,8 @@
   <!-- Header -->
   <div class="page-header">
     <div class="header-left">
-      <h1 class="page-title">Khám Phá Quiz</h1>
-      <p class="page-subtitle">Luyện tập tiếng Nhật với các bài kiểm tra công khai</p>
+      <h1 class="page-title">{{ lang.t().quizPage.title }}</h1>
+      <p class="page-subtitle">{{ lang.t().quizPage.subtitle }}</p>
     </div>
   </div>
 
@@ -22,7 +22,7 @@
     <input
       class="search-input"
       type="text"
-      placeholder="Tìm kiếm quiz theo tên, mô tả, người tạo..."
+      [placeholder]="lang.t().quizPage.searchPlaceholder"
       [ngModel]="searchQuery()"
       (ngModelChange)="searchQuery.set($event)"
     />
@@ -34,14 +34,14 @@
   <!-- Loading -->
   @if (isLoading()) {
     <div class="loading-container">
-      <app-loading-fox message="Đang tải quiz..." />
+      <app-loading-fox [message]="lang.t().common.loading" />
     </div>
   }
 
   <!-- Results count -->
   @if (!isLoading() && quizzes().length > 0) {
     <p class="results-count">
-      Hiển thị <strong>{{ filteredQuizzes().length }}</strong> / {{ quizzes().length }} quiz
+      {{ lang.t().quizPage.resultsCount }} <strong>{{ filteredQuizzes().length }}</strong> / {{ quizzes().length }} {{ lang.t().quizPage.ofQuizzes }}
     </p>
   }
 
@@ -49,8 +49,8 @@
   @if (!isLoading() && quizzes().length === 0) {
     <div class="empty-state">
       <div class="empty-illustration">📋</div>
-      <h2 class="empty-title">Chưa có quiz nào</h2>
-      <p class="empty-desc">Hiện tại chưa có quiz công khai nào. Hãy quay lại sau nhé!</p>
+      <h2 class="empty-title">{{ lang.t().quizPage.emptyTitle }}</h2>
+      <p class="empty-desc">{{ lang.t().quizPage.emptyDesc }}</p>
     </div>
   }
 
@@ -58,9 +58,9 @@
   @if (!isLoading() && quizzes().length > 0 && filteredQuizzes().length === 0) {
     <div class="empty-state">
       <div class="empty-illustration">🔎</div>
-      <h2 class="empty-title">Không tìm thấy quiz</h2>
-      <p class="empty-desc">Không có quiz nào khớp với "<strong>{{ searchQuery() }}</strong>".</p>
-      <button class="btn-outline" (click)="searchQuery.set('')">Xóa tìm kiếm</button>
+      <h2 class="empty-title">{{ lang.t().quizPage.noResultTitle }}</h2>
+      <p class="empty-desc">{{ lang.t().quizPage.noResultDesc }} "<strong>{{ searchQuery() }}</strong>".</p>
+      <button class="btn-outline" (click)="searchQuery.set('')">{{ lang.t().quizPage.clearSearch }}</button>
     </div>
   }
 
@@ -84,7 +84,7 @@
             @if (quiz.description) {
               <p class="quiz-desc">{{ quiz.description }}</p>
             } @else {
-              <p class="quiz-desc quiz-desc-empty">Không có mô tả</p>
+              <p class="quiz-desc quiz-desc-empty">{{ lang.t().quizPage.noDescription }}</p>
             }
           </div>
 
@@ -99,7 +99,7 @@
               <span class="quiz-date">{{ quiz.createdAt | date: 'dd/MM/yyyy' }}</span>
             </div>
             <a [routerLink]="['/quizzes', quiz.id]" class="btn-start">
-              Làm bài →
+              {{ lang.t().quizPage.startQuiz }}
             </a>
           </div>
         </div>

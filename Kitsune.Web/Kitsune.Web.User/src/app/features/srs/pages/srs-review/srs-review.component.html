@@ -20,72 +20,9 @@
       <!-- ── TOP BAR: Global SRS queue ──────────────────── -->
       <div class="dash-topbar">
         <div class="dash-topbar__title">
-          <p class="dash-eyebrow">SRS chung</p>
-          <h1 class="dash-title">Thẻ cần ôn hôm nay</h1>
+          <p class="dash-eyebrow">{{ lang.t().srsPage.globalSrs }}</p>
+          <h1 class="dash-title">{{ lang.t().srsPage.cardsDueToday }}</h1>
         </div>
-
-        @if (false) {
-        <div class="folder-picker" [class.folder-picker--open]="showFolderDropdown()">
-          <button
-            type="button"
-            class="folder-picker__trigger"
-            (click)="toggleFolderDropdown()"
-            [class.folder-picker__trigger--active]="showFolderDropdown()"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-            </svg>
-            @if (activeFolder(); as folder) {
-              <span>{{ folder?.folderName }}</span>
-            } @else {
-              <span>Chọn bài học</span>
-            }
-            <svg class="folder-picker__chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
-          </button>
-
-          <!-- Dropdown List -->
-          @if (showFolderDropdown()) {
-            <div class="folder-dropdown">
-              @if (dashboardFolders().length === 0) {
-                <div class="folder-dropdown__empty">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                  </svg>
-                  <span>Chưa có bài học nào. <a routerLink="/topics">Xem chủ đề →</a></span>
-                </div>
-              }
-              @for (folder of dashboardFolders(); track folder.folderId) {
-                <button
-                  type="button"
-                  class="folder-dropdown__item"
-                  [class.folder-dropdown__item--active]="activeFolderId() === folder.folderId"
-                  [disabled]="isSwitchingFolder() === folder.folderId"
-                  (click)="selectFolder(folder.folderId)"
-                >
-                  <div class="fd-item__main">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
-                    </svg>
-                    <span class="fd-item__name">{{ folder.folderName }}</span>
-                    @if (activeFolderId() === folder.folderId) {
-                      <span class="fd-badge fd-badge--active">Đang học</span>
-                    }
-                  </div>
-                  <div class="fd-item__meta">
-                    <span>{{ folder.newCards }} mới</span>
-                    <span>{{ folder.dueCards }} đến hạn</span>
-                    <span>{{ folder.totalCards }} thẻ trong bài</span>
-                  </div>
-                </button>
-              }
-            </div>
-            <!-- Backdrop to close -->
-            <div class="folder-picker__backdrop" (click)="showFolderDropdown.set(false)"></div>
-          }
-        </div>
-        }
       </div>
 
       <!-- ── CHART SECTION ───────────────────────────────── -->
@@ -93,15 +30,15 @@
         <!-- Chart Header -->
         <div class="chart-header">
           <div>
-            <p class="chart-title">Phân bố cấp độ</p>
+            <p class="chart-title">{{ lang.t().srsPage.levelDistribution }}</p>
             @if (activeFolder(); as folder) {
-              <p class="chart-sub">{{ folder.totalCards }} thẻ từ tất cả bài đã học</p>
+              <p class="chart-sub">{{ folder.totalCards }} {{ lang.t().srsPage.cardsFromAllLearned }}</p>
             }
           </div>
           <div class="chart-summary-pills">
             @if (activeFolder(); as folder) {
-              <span class="summary-chip summary-chip--due">{{ activeSession()?.quizCards?.length ?? 0 }} cần ôn</span>
-              <span class="summary-chip summary-chip--master">{{ activeFolder()?.masteredCards ?? 0 }} master</span>
+              <span class="summary-chip summary-chip--due">{{ activeSession()?.quizCards?.length ?? 0 }} {{ lang.t().srsPage.needReview }}</span>
+              <span class="summary-chip summary-chip--master">{{ activeFolder()?.masteredCards ?? 0 }} {{ lang.t().srsPage.mastered }}</span>
             }
           </div>
         </div>
@@ -111,14 +48,14 @@
           @for (bucket of levelDistribution(); track bucket.level) {
             <div class="bar-col">
               <span class="bar-count" [class.bar-count--zero]="bucket.count === 0">
-                {{ bucket.count > 0 ? bucket.count + ' thẻ' : '—' }}
+                {{ bucket.count > 0 ? (bucket.count + ' ' + lang.t().srsPage.cards) : '—' }}
               </span>
               <div
                 class="bar"
                 [style.height.%]="getBarHeightPercent(bucket)"
                 [style.background]="bucket.color"
                 [style.opacity]="bucket.count === 0 ? '0.18' : '1'"
-                [title]="bucket.label + ': ' + bucket.count + ' thẻ'"
+                [title]="bucket.label + ': ' + bucket.count + ' ' + lang.t().srsPage.cards"
               ></div>
               <span class="bar-label">{{ bucket.level }}</span>
             </div>
@@ -136,7 +73,7 @@
         </div>
 
         <button type="button" class="level-details-toggle" (click)="toggleLevelDetails()" [attr.aria-expanded]="showLevelDetails()">
-          {{ showLevelDetails() ? 'Ẩn chi tiết từng cấp' : 'Xem chi tiết từng cấp' }}
+          {{ showLevelDetails() ? lang.t().srsPage.hideLevelDetails : lang.t().srsPage.showLevelDetails }}
           <span aria-hidden="true">{{ showLevelDetails() ? '−' : '+' }}</span>
         </button>
         @if (showLevelDetails()) {
@@ -145,8 +82,8 @@
               <div class="level-details__item">
                 <span class="level-details__dot" [style.background]="bucket.color"></span>
                 <span class="level-details__label">{{ bucket.label }}</span>
-                <strong>{{ bucket.count }} thẻ</strong>
-                <span>{{ bucket.kanjiCount }} Kanji · {{ bucket.vocabularyCount }} từ</span>
+                <strong>{{ bucket.count }} {{ lang.t().srsPage.cards }}</strong>
+                <span>{{ bucket.kanjiCount }} Kanji · {{ bucket.vocabularyCount }} {{ lang.t().vocab.folderBadge }}</span>
               </div>
             }
           </div>
@@ -164,10 +101,10 @@
               </svg>
             </div>
             <div>
-              <p class="action-bar__folder-name">SRS chung</p>
+              <p class="action-bar__folder-name">{{ lang.t().srsPage.globalSrs }}</p>
               <p class="action-bar__folder-stats">
-                {{ folder.learnedCards }} đã học •
-                <span class="text-green">{{ folder.masteredCards }} thành thạo</span>
+                {{ folder.learnedCards }} {{ lang.t().srsPage.learnedCount }} •
+                <span class="text-green">{{ folder.masteredCards }} {{ lang.t().srsPage.masteredCount }}</span>
               </p>
             </div>
           </div>
@@ -193,26 +130,26 @@
             <div class="action-bar__due">
               <div class="due-count-badge">
                 <span class="due-count-badge__num">{{ totalDueCards() }}</span>
-                <span class="due-count-badge__label">thẻ cần ôn</span>
+                <span class="due-count-badge__label">{{ lang.t().srsPage.needReview }}</span>
               </div>
               <button class="btn-start" (click)="startStudy()">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                   <polygon points="5 3 19 12 5 21 5 3"/>
                 </svg>
-                Bắt đầu ôn tập
+                {{ lang.t().srsPage.startReview }}
               </button>
             </div>
           } @else if (!countdownDisplay()) {
             <div class="action-bar__done">
               <span>🎉</span>
-              <p>Bạn đã hoàn thành mục tiêu hôm nay!</p>
+              <p>{{ lang.t().srsPage.completedTodayGoal }}</p>
             </div>
           }
 
           <!-- Always show the next-review countdown when a future card exists. -->
           @if (countdownDisplay()) {
             <div class="action-bar__countdown">
-              <p class="countdown-label">Thời gian đến lượt ôn tiếp</p>
+              <p class="countdown-label">{{ lang.t().srsPage.timeUntilNextReview }}</p>
               <div class="countdown-display">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
@@ -226,7 +163,7 @@
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
             </svg>
-            <p>Học từ một Lesson để thêm thẻ vào SRS chung</p>
+            <p>{{ lang.t().srsPage.noFolderHint }}</p>
           </div>
         }
       </div>
@@ -252,20 +189,20 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
             </svg>
-            Quay về
+            {{ lang.t().common.back }}
           </button>
 
           <div class="study-header__info">
             <span class="study-phase-pill" [class.study-phase-pill--quiz]="phase() === 'quiz'">
               @if (phase() === 'flashcard') { 🃏 Flashcard }
               @else if (phase() === 'quiz') { 🎯 Quiz }
-              @else { ✅ Hoàn thành }
+              @else { ✅ {{ lang.t().topicsPage.completed }} }
             </span>
             <span class="study-counter">{{ questionIndexLabel() }}</span>
           </div>
 
           <div class="study-header__accuracy">
-            <span>Độ chính xác</span>
+            <span>{{ lang.t().srsPage.accuracy }}</span>
             <strong [class.text-green]="accuracyPercent() >= 80"
                     [class.text-orange]="accuracyPercent() >= 50 && accuracyPercent() < 80"
                     [class.text-red]="accuracyPercent() < 50">
@@ -283,31 +220,31 @@
                 <path d="M12 12 2.1 7.1"></path>
               </svg>
               @if (dailyGoal() === null) {
-                <h2>Hôm nay bạn muốn học bao nhiêu từ mới?</h2>
-                <p class="setup-copy">Thẻ đến hạn luôn được ôn riêng và không trừ vào số từ mới.</p>
+                <h2>{{ lang.t().srsPage.howManyNewWords }}</h2>
+                <p class="setup-copy">{{ lang.t().srsPage.newWordsNotice }}</p>
                 <div class="limit-options">
-                  <button class="btn-limit" (click)="chooseDailyGoal(10)">10 từ mới</button>
-                  <button class="btn-limit" (click)="chooseDailyGoal(20)">20 từ mới</button>
-                  <button class="btn-limit" (click)="chooseDailyGoal(30)">30 từ mới</button>
-                  <button class="btn-limit" (click)="chooseDailyGoal(-1)">Tất cả từ mới</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(10)">10 {{ lang.t().srsPage.newWords }}</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(20)">20 {{ lang.t().srsPage.newWords }}</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(30)">30 {{ lang.t().srsPage.newWords }}</button>
+                  <button class="btn-limit" (click)="chooseDailyGoal(-1)">{{ lang.t().srsPage.allNewWords }}</button>
                 </div>
               } @else {
-                <p class="setup-kicker">NHỊP HỌC HÔM NAY</p>
-                <h2>Bạn đã học {{ todayNewLearned() }}/{{ dailyGoal() }} từ mới.</h2>
+                <p class="setup-kicker">{{ lang.t().srsPage.todayRhythm }}</p>
+                <h2>{{ todayNewLearned() }}/{{ dailyGoal() }} {{ lang.t().srsPage.learnedSoFar }}</h2>
                 @if (remainingDailyGoal() > 0) {
-                  <p class="setup-copy">Còn {{ remainingDailyGoal() }} từ để hoàn thành mục tiêu. Bạn có thể học tiếp hoặc chỉ ôn thẻ đến hạn.</p>
+                  <p class="setup-copy">{{ remainingDailyGoal() }} {{ lang.t().srsPage.newWords }}</p>
                   <div class="limit-options">
                     <button class="btn-limit btn-limit--primary" (click)="continueDailyGoal()">
-                      Học tiếp {{ remainingDailyGoal() }} từ
+                      {{ lang.t().topicsPage.continueText }} ({{ remainingDailyGoal() }})
                     </button>
-                    <button class="btn-limit" (click)="reviewOnly()">Chỉ ôn tập</button>
+                    <button class="btn-limit" (click)="reviewOnly()">{{ lang.t().srsPage.title }}</button>
                   </div>
                 } @else {
-                  <p class="setup-copy">Mục tiêu hôm nay đã hoàn thành. Giữ đúng 10 từ/ngày bằng cách chỉ ôn tập, hoặc chủ động học thêm.</p>
+                  <p class="setup-copy">{{ lang.t().srsPage.completedTodayGoal }}</p>
                   <div class="limit-options">
-                    <button class="btn-limit btn-limit--primary" (click)="reviewOnly()">Chỉ ôn tập</button>
-                    <button class="btn-limit" (click)="learnMore(5)">Học thêm 5 từ</button>
-                    <button class="btn-limit" (click)="learnMore(10)">Học thêm 10 từ</button>
+                    <button class="btn-limit btn-limit--primary" (click)="reviewOnly()">{{ lang.t().srsPage.title }}</button>
+                    <button class="btn-limit" (click)="learnMore(5)">+5 {{ lang.t().srsPage.newWords }}</button>
+                    <button class="btn-limit" (click)="learnMore(10)">+10 {{ lang.t().srsPage.newWords }}</button>
                   </div>
                 }
               }
@@ -323,7 +260,7 @@
                 <circle cx="12" cy="12" r="10"></circle>
                 <polyline points="12 6 12 12 16 14"></polyline>
               </svg>
-              <h2>Bạn có {{ dueQueue().length }} từ cần ôn tập trước khi bắt đầu học từ mới. Ôn tập ngay nha?</h2>
+              <h2>{{ dueQueue().length }} {{ lang.t().srsPage.cards }}</h2>
               
               <button class="btn-ok" (click)="startStudyingQueues()">
                 OK
@@ -339,8 +276,8 @@
               <span class="context-type-pill" [class.context-type-pill--kanji]="card.type === 'kanji'">
                 {{ card.type === 'kanji' ? '漢字' : '語彙' }}
               </span>
-              <span class="context-level-label">Lần đầu học • Level {{ card.boxLevel }}</span>
-              <span class="context-queue">Còn {{ flashQueue().length }} thẻ</span>
+              <span class="context-level-label">Level {{ card.boxLevel }}</span>
+              <span class="context-queue">{{ flashQueue().length }} {{ lang.t().srsPage.cards }}</span>
             </div>
 
             <!-- KANJI Flashcard -->
@@ -354,11 +291,11 @@
                 <div class="flashcard-face flashcard-face--front flashcard-face--kanji-front">
                   <div class="fc-badge fc-badge--kanji">漢字</div>
                   <div class="fc-kanji-char">{{ card.character }}</div>
-                  <div class="fc-stroke-count">{{ card.strokeCount ?? '—' }} nét</div>
-                  <div class="fc-flip-hint">Chạm để xem nghĩa →</div>
+                  <div class="fc-stroke-count">{{ card.strokeCount ?? '—' }} {{ lang.t().kanji.strokes }}</div>
+                  <div class="fc-flip-hint">{{ lang.t().srsPage.flipCard }} →</div>
                 </div>
                 <div class="flashcard-face flashcard-face--back flashcard-face--kanji-back">
-                  <div class="fc-badge fc-badge--kanji-back">Mặt sau</div>
+                  <div class="fc-badge fc-badge--kanji-back">{{ lang.t().vocab.meaningLabel }}</div>
                   <div class="fc-han-viet">{{ card.amHanViet }}</div>
                   <div class="fc-meaning">{{ card.meaning }}</div>
                   <div class="fc-readings">
@@ -370,7 +307,7 @@
                     }
                   </div>
                   <div class="fc-examples">
-                    <div class="fc-examples__title">Ví dụ có {{ card.character }}</div>
+                    <div class="fc-examples__title">{{ lang.t().kanji.examples }}</div>
                     @if (card.examples.length > 0) {
                       @for (example of card.examples; track example.word) {
                         <div class="fc-example">
@@ -407,18 +344,18 @@
                         [class.fc-btn-speak--active]="ttsService.isSpeaking(card.word)"
                         (click)="speakWord(card, $event)"
                         role="button"
-                        aria-label="Phát âm"
-                        title="Phát âm"
+                        [attr.aria-label]="lang.t().vocab.pronounce"
+                        [title]="lang.t().vocab.pronounce"
                       >🔊</span>
                     }
                   </div>
                   @if (card.pronunciation) {
                     <div class="fc-pronunciation">{{ card.pronunciation }}</div>
                   }
-                  <div class="fc-flip-hint">Chạm để xem nghĩa →</div>
+                  <div class="fc-flip-hint">{{ lang.t().srsPage.flipCard }} →</div>
                 </div>
                 <div class="flashcard-face flashcard-face--back flashcard-face--vocab-back">
-                  <div class="fc-badge fc-badge--vocab-back">Nghĩa</div>
+                  <div class="fc-badge fc-badge--vocab-back">{{ lang.t().vocab.meaningLabel }}</div>
                   <div class="fc-meaning">{{ card.meaning }}</div>
                   @if (card.pronunciation) {
                     <div class="fc-pronunciation fc-pronunciation--back">{{ card.pronunciation }}</div>
@@ -429,8 +366,8 @@
                       [class.fc-btn-speak--active]="ttsService.isSpeaking(card.word)"
                       (click)="speakWord(card, $event)"
                       role="button"
-                      aria-label="Phát âm"
-                      title="Phát âm"
+                      [attr.aria-label]="lang.t().vocab.pronounce"
+                      [title]="lang.t().vocab.pronounce"
                     >🔊</span>
                   }
                 </div>
@@ -448,7 +385,7 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3"/>
                 </svg>
-                Xem lại
+                {{ lang.t().srsPage.again }}
               </button>
               <button
                 type="button"
@@ -459,12 +396,12 @@
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                   <polyline points="20 6 9 17 4 12"/>
                 </svg>
-                Đã nhớ, sang ôn tập
+                {{ lang.t().srsPage.good }}
               </button>
             </div>
 
             @if (!isCardFlipped()) {
-              <p class="fc-flip-reminder">Hãy lật thẻ trước khi tiếp tục</p>
+              <p class="fc-flip-reminder">{{ lang.t().srsPage.flipCard }}</p>
             }
           </div>
         }
@@ -488,7 +425,7 @@
                   <span class="quiz-card-type" [class.quiz-card-type--kanji]="card.type === 'kanji'">
                     {{ card.type === 'kanji' ? '漢字' : '語彙' }}
                   </span>
-                  <span class="quiz-level-pill">Cấp {{ card.boxLevel }}</span>
+                  <span class="quiz-level-pill">Level {{ card.boxLevel }}</span>
                 </div>
 
                 <!-- Prompt -->
