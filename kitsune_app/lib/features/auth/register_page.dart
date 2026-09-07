@@ -59,30 +59,41 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
           : _fullNameController.text.trim(),
     );
 
-    await ref.read(authProvider.notifier).register(payload);
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() => _isLoading = false);
-
-    final authState = ref.read(authProvider);
-    authState.whenOrNull(
-      error: (error, _) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error.toString().replaceFirst('Exception: ', '')),
-            backgroundColor: KitsuneColors.error,
+    try {
+      await ref.read(authProvider.notifier).register(payload);
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/main');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      final message = error.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ),
+            ],
           ),
-        );
-      },
-      data: (user) {
-        if (user != null) {
-          Navigator.of(context).pushReplacementNamed('/main');
-        }
-      },
-    );
+          backgroundColor: KitsuneColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   @override

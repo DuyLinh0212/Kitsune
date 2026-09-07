@@ -22,22 +22,28 @@ class AuthNotifier extends StateNotifier<AsyncValue<UserProfile?>> {
     state = await AsyncValue.guard(() => _api.restoreSession());
   }
 
-  Future<void> login(String login, String password) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _api.login(login, password));
+  Future<UserProfile> login(String login, String password) async {
+    try {
+      final profile = await _api.login(login, password);
+      state = AsyncValue.data(profile);
+      return profile;
+    } catch (e) {
+      rethrow;
+    }
   }
 
-  Future<void> register(RegisterRequest payload) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() => _api.register(payload));
+  Future<UserProfile> register(RegisterRequest payload) async {
+    try {
+      final profile = await _api.register(payload);
+      state = AsyncValue.data(profile);
+      return profile;
+    } catch (e) {
+      rethrow;
+    }
   }
 
   Future<void> forgotPassword(String email) async {
-    state = const AsyncValue.loading();
-    state = await AsyncValue.guard(() async {
-      await _api.forgotPassword(email);
-      return _api.currentUser;
-    });
+    await _api.forgotPassword(email);
   }
 
   Future<void> logout() async {

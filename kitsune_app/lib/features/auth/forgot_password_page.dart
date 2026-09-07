@@ -33,18 +33,45 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
 
     setState(() => _isLoading = true);
 
-    await ref
-        .read(authProvider.notifier)
-        .forgotPassword(_emailController.text.trim());
+    try {
+      await ref
+          .read(authProvider.notifier)
+          .forgotPassword(_emailController.text.trim());
 
-    if (!mounted) {
-      return;
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+        _sent = true;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      final message = error.toString().replaceFirst('Exception: ', '');
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: KitsuneColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      setState(() {
+        _isLoading = false;
+      });
     }
-
-    setState(() {
-      _isLoading = false;
-      _sent = true;
-    });
   }
 
   @override

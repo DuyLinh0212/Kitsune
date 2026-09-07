@@ -351,4 +351,77 @@ class AppStrings {
         AppLanguage.en => 'Terms of Service',
         AppLanguage.ja => '利用規約',
       };
+
+  // --- AUTH ---
+  String get loginTitle => switch (language) {
+        AppLanguage.vi => 'Đăng nhập để tiếp tục hành trình học.',
+        AppLanguage.en => 'Log in to continue your learning journey.',
+        AppLanguage.ja => 'ログインして学習を続けましょう。',
+      };
+
+  String get loginSubtitle => switch (language) {
+        AppLanguage.vi =>
+            'Kitsune giữ sẵn từ vựng, kanji, quiz và lịch ôn tập của bạn ở cùng một nơi.',
+        AppLanguage.en =>
+            'Kitsune keeps your vocabulary, kanji, quizzes, and review schedule in one place.',
+        AppLanguage.ja =>
+            'Kitsuneは単語、漢字、クイズ、復習スケジュールを一括管理します。',
+      };
+
+  String get loginAccountLabel => switch (language) {
+        AppLanguage.vi => 'Tên đăng nhập hoặc email',
+        AppLanguage.en => 'Username or email',
+        AppLanguage.ja => 'ユーザー名またはメール',
+      };
+
+  String get loginPasswordLabel => switch (language) {
+        AppLanguage.vi => 'Mật khẩu',
+        AppLanguage.en => 'Password',
+        AppLanguage.ja => 'パスワード',
+      };
+
+  String get loginButton => switch (language) {
+        AppLanguage.vi => 'Đăng nhập',
+        AppLanguage.en => 'Log in',
+        AppLanguage.ja => 'ログイン',
+      };
+
+  String get loginForgotPassword => switch (language) {
+        AppLanguage.vi => 'Quên mật khẩu?',
+        AppLanguage.en => 'Forgot password?',
+        AppLanguage.ja => 'パスワードをお忘れですか？',
+      };
+
+  String get loginNoAccountPrompt => switch (language) {
+        AppLanguage.vi =>
+            'Chưa có tài khoản? Tạo ngay để lưu tiến độ ôn tập và quiz cá nhân.',
+        AppLanguage.en =>
+            "Don't have an account? Create one now to save your review and quiz progress.",
+        AppLanguage.ja =>
+            'アカウントをお持ちでないですか？登録して学習進捗を保存しましょう。',
+      };
+
+  String get loginRegisterButton => switch (language) {
+        AppLanguage.vi => 'Đăng ký',
+        AppLanguage.en => 'Sign up',
+        AppLanguage.ja => '新規登録',
+      };
+
+  String get loginRequiredUsername => switch (language) {
+        AppLanguage.vi => 'Vui lòng nhập tên đăng nhập hoặc email',
+        AppLanguage.en => 'Please enter username or email',
+        AppLanguage.ja => 'ユーザー名またはメールアドレスを入力してください',
+      };
+
+  String get loginRequiredPassword => switch (language) {
+        AppLanguage.vi => 'Vui lòng nhập mật khẩu',
+        AppLanguage.en => 'Please enter password',
+        AppLanguage.ja => 'パスワードを入力してください',
+      };
+
+  String get loginFailedDefault => switch (language) {
+        AppLanguage.vi => 'Tên đăng nhập hoặc mật khẩu không chính xác.',
+        AppLanguage.en => 'Invalid username or password.',
+        AppLanguage.ja => 'ユーザー名またはパスワードが正しくありません。',
+      };
 }

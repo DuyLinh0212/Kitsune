@@ -19,6 +19,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
   bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void dispose() {
@@ -32,39 +33,129 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       return;
     }
 
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
-    await ref.read(authProvider.notifier).login(
-          _loginController.text.trim(),
-          _passwordController.text,
-        );
+    try {
+      await ref.read(authProvider.notifier).login(
+            _loginController.text.trim(),
+            _passwordController.text,
+          );
 
-    if (!mounted) {
-      return;
+      if (mounted) {
+        Navigator.of(context).pushReplacementNamed('/main');
+      }
+    } catch (error) {
+      if (!mounted) return;
+      final message = error.toString().replaceFirst('Exception: ', '');
+      setState(() {
+        _errorMessage = message;
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  message,
+                  style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
+                ),
+              ),
+            ],
+          ),
+          backgroundColor: KitsuneColors.error,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          margin: const EdgeInsets.all(16),
+          duration: const Duration(seconds: 4),
+        ),
+      );
+    } finally {
+      if (mounted && _isLoading) {
+        setState(() => _isLoading = false);
+      }
     }
+  }
 
-    setState(() => _isLoading = false);
+  void _showLanguageSelector(BuildContext context) {
+    final currentLanguage = ref.read(appLanguageProvider);
+    final strings = ref.read(stringsProvider);
 
-    final authState = ref.read(authProvider);
-    authState.whenOrNull(
-      error: (error, _) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error.toString().replaceFirst('Exception: ', '')),
-            backgroundColor: KitsuneColors.error,
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        strings.selectLanguageTitle,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => Navigator.pop(sheetContext),
+                        icon: const Icon(Icons.close_rounded),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(),
+                ...AppLanguage.values.map((lang) {
+                  final isSelected = lang == currentLanguage;
+                  return ListTile(
+                    leading: Text(
+                      lang.flag,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                    title: Text(
+                      lang.displayName,
+                      style: TextStyle(
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected ? KitsuneColors.primary : KitsuneColors.onSurface,
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle_rounded, color: KitsuneColors.primary)
+                        : null,
+                    onTap: () {
+                      ref.read(appLanguageProvider.notifier).setLanguage(lang);
+                      Navigator.pop(sheetContext);
+                    },
+                  );
+                }),
+              ],
+            ),
           ),
         );
-      },
-      data: (user) {
-        if (user != null) {
-          Navigator.of(context).pushReplacementNamed('/main');
-        }
       },
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
+    final currentLang = ref.watch(appLanguageProvider);
+
     return Scaffold(
       body: KitsuneBackdrop(
         child: SafeArea(
@@ -78,10 +169,59 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
+                      // Language Selector at top-right
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            borderRadius: BorderRadius.circular(20),
+                            onTap: () => _showLanguageSelector(context),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: KitsuneColors.surface,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: KitsuneColors.surfaceBorder,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(
+                                    currentLang.flag,
+                                    style: const TextStyle(fontSize: 16),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    currentLang.displayName,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600,
+                                      color: KitsuneColors.onSurface,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    size: 18,
+                                    color: KitsuneColors.onSurfaceVariant,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: AppTheme.space12),
+
                       KitsuneHeroCard(
-                        title: 'Đăng nhập để tiếp tục hành trình học.',
-                        subtitle:
-                            'Kitsune giữ sẵn từ vựng, kanji, quiz và lịch ôn tập của bạn ở cùng một nơi.',
+                        title: strings.loginTitle,
+                        subtitle: strings.loginSubtitle,
                         trailing: Container(
                           width: 88,
                           height: 88,
@@ -96,22 +236,74 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                         ),
                       ),
                       const SizedBox(height: AppTheme.space20),
+
                       KitsuneSurface(
                         padding: const EdgeInsets.all(AppTheme.space20),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
+                            // Direct Inline Error Banner if login fails
+                            if (_errorMessage != null) ...[
+                              Container(
+                                margin: const EdgeInsets.only(
+                                  bottom: AppTheme.space16,
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: KitsuneColors.errorSurface,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: KitsuneColors.error.withValues(
+                                      alpha: 0.35,
+                                    ),
+                                  ),
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    const Icon(
+                                      Icons.error_outline_rounded,
+                                      color: KitsuneColors.error,
+                                      size: 20,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Text(
+                                        _errorMessage!,
+                                        style: const TextStyle(
+                                          color: KitsuneColors.error,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          height: 1.4,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+
                             TextFormField(
                               controller: _loginController,
-                              decoration: const InputDecoration(
-                                labelText: 'Tên đăng nhập hoặc email',
-                                prefixIcon: Icon(Icons.person_outline_rounded),
+                              decoration: InputDecoration(
+                                labelText: strings.loginAccountLabel,
+                                prefixIcon: const Icon(
+                                  Icons.person_outline_rounded,
+                                ),
                               ),
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
+                              onChanged: (_) {
+                                if (_errorMessage != null) {
+                                  setState(() => _errorMessage = null);
+                                }
+                              },
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Vui lòng nhập tên đăng nhập hoặc email';
+                                  return strings.loginRequiredUsername;
                                 }
                                 return null;
                               },
@@ -120,8 +312,10 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             TextFormField(
                               controller: _passwordController,
                               decoration: InputDecoration(
-                                labelText: 'Mật khẩu',
-                                prefixIcon: const Icon(Icons.lock_outline_rounded),
+                                labelText: strings.loginPasswordLabel,
+                                prefixIcon: const Icon(
+                                  Icons.lock_outline_rounded,
+                                ),
                                 suffixIcon: IconButton(
                                   onPressed: () {
                                     setState(() {
@@ -137,10 +331,15 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               ),
                               obscureText: _obscurePassword,
                               textInputAction: TextInputAction.done,
+                              onChanged: (_) {
+                                if (_errorMessage != null) {
+                                  setState(() => _errorMessage = null);
+                                }
+                              },
                               onFieldSubmitted: (_) => _handleLogin(),
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Vui lòng nhập mật khẩu';
+                                  return strings.loginRequiredPassword;
                                 }
                                 return null;
                               },
@@ -150,9 +349,11 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               alignment: Alignment.centerRight,
                               child: TextButton(
                                 onPressed: () {
-                                  Navigator.of(context).pushNamed('/forgot_password');
+                                  Navigator.of(
+                                    context,
+                                  ).pushNamed('/forgot_password');
                                 },
-                                child: const Text('Quên mật khẩu?'),
+                                child: Text(strings.loginForgotPassword),
                               ),
                             ),
                             const SizedBox(height: AppTheme.space8),
@@ -164,7 +365,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                                       height: 20,
                                       child: KitsuneLoadingFox(size: 28),
                                     )
-                                  : const Text('Đăng nhập'),
+                                  : Text(strings.loginButton),
                             ),
                           ],
                         ),
@@ -182,7 +383,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             const SizedBox(width: AppTheme.space12),
                             Expanded(
                               child: Text(
-                                'Chưa có tài khoản? Tạo ngay để lưu tiến độ ôn tập và quiz cá nhân.',
+                                strings.loginNoAccountPrompt,
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                             ),
@@ -191,7 +392,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               onPressed: () {
                                 Navigator.of(context).pushNamed('/register');
                               },
-                              child: const Text('Đăng ký'),
+                              child: Text(strings.loginRegisterButton),
                             ),
                           ],
                         ),

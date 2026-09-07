@@ -4,7 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:dio/dio.dart' show Options, RequestOptions, Response;
+import 'package:dio/dio.dart' show DioException, Options, RequestOptions, Response;
 import 'package:kitsune_app/core/constants/app_constants.dart';
 import 'package:kitsune_app/core/constants/supabase_config.dart';
 import 'package:kitsune_app/core/models/dashboard.dart';
@@ -46,71 +46,133 @@ class KitsuneApi {
   Future<UserProfile> login(String login, String password) async {
     String email = login;
     if (!login.contains('@')) {
-      final response = await client.dio.get(
-        client.table('Users'),
-        queryParameters: {'select': 'Email', 'Username': 'eq.$login'},
+      try {
+        final response = await client.dio.get(
+          client.table('Users'),
+          queryParameters: {'select': 'Email', 'Username': 'eq.$login'},
+        );
+        final data = response.data as List<dynamic>;
+        if (data.isEmpty) {
+          throw Exception('Tên đăng nhập không tồn tại');
+        }
+        email = (data[0] as Map<String, dynamic>)['Email'] as String;
+      } on DioException catch (e) {
+        throw Exception('Lỗi kiểm tra tên đăng nhập: ${e.message}');
+      }
+    }
+
+    try {
+      final authResponse = await client.dio.post(
+        '/auth/v1/token?grant_type=password',
+        data: {'email': email, 'password': password},
       );
-      final data = response.data as List<dynamic>;
-      if (data.isEmpty) throw Exception('Tên đăng nhập không tồn tại');
-      email = (data[0] as Map<String, dynamic>)['Email'] as String;
+
+      if (authResponse.statusCode != 200) {
+        throw Exception('Đăng nhập thất bại');
+      }
+
+      final authData = authResponse.data as Map<String, dynamic>;
+      await client.setSession(
+        accessToken: authData['access_token'] as String,
+        refreshToken: authData['refresh_token'] as String?,
+        email: email,
+      );
+
+      return _fetchAndEmitProfile(email);
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      String? desc;
+      if (data is Map<String, dynamic>) {
+        desc = data['error_description']?.toString() ??
+            data['msg']?.toString() ??
+            data['message']?.toString();
+      }
+      if (desc != null && desc.isNotEmpty) {
+        final lower = desc.toLowerCase();
+        if (lower.contains('invalid login credentials') ||
+            lower.contains('invalid_grant') ||
+            lower.contains('invalid password') ||
+            lower.contains('user not found')) {
+          throw Exception('Tên đăng nhập hoặc mật khẩu không chính xác.');
+        }
+        if (lower.contains('email not confirmed')) {
+          throw Exception('Tài khoản chưa được xác thực email.');
+        }
+        throw Exception(desc);
+      }
+      if (e.response?.statusCode == 400) {
+        throw Exception('Tên đăng nhập hoặc mật khẩu không chính xác.');
+      }
+      throw Exception('Không thể kết nối đến máy chủ. Vui lòng thử lại.');
     }
-
-    final authResponse = await client.dio.post(
-      '/auth/v1/token?grant_type=password',
-      data: {'email': email, 'password': password},
-    );
-
-    if (authResponse.statusCode != 200) {
-      throw Exception('Đăng nhập thất bại');
-    }
-
-    final authData = authResponse.data as Map<String, dynamic>;
-    await client.setSession(
-      accessToken: authData['access_token'] as String,
-      refreshToken: authData['refresh_token'] as String?,
-      email: email,
-    );
-
-    return _fetchAndEmitProfile(email);
   }
 
   Future<UserProfile> register(RegisterRequest payload) async {
-    final authResponse = await client.dio.post(
-      '/auth/v1/signup',
-      data: {
-        'email': payload.email,
-        'password': payload.password,
-        'data': {
-          'username': payload.username,
-          'full_name': payload.fullName,
+    try {
+      final authResponse = await client.dio.post(
+        '/auth/v1/signup',
+        data: {
+          'email': payload.email,
+          'password': payload.password,
+          'data': {
+            'username': payload.username,
+            'full_name': payload.fullName,
+          },
         },
-      },
-    );
-
-    if (authResponse.statusCode != 200) {
-      throw Exception('Đăng ký thất bại');
-    }
-
-    final authData = authResponse.data as Map<String, dynamic>;
-    final accessToken = authData['access_token'] as String?;
-    if (accessToken != null) {
-      await client.setSession(
-        accessToken: accessToken,
-        refreshToken: authData['refresh_token'] as String?,
-        email: payload.email,
       );
-    }
 
-    return _fetchAndEmitProfile(payload.email);
+      if (authResponse.statusCode != 200) {
+        throw Exception('Đăng ký thất bại');
+      }
+
+      final authData = authResponse.data as Map<String, dynamic>;
+      final accessToken = authData['access_token'] as String?;
+      if (accessToken != null) {
+        await client.setSession(
+          accessToken: accessToken,
+          refreshToken: authData['refresh_token'] as String?,
+          email: payload.email,
+        );
+      }
+
+      return _fetchAndEmitProfile(payload.email);
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      String? desc;
+      if (data is Map<String, dynamic>) {
+        desc = data['error_description']?.toString() ??
+            data['msg']?.toString() ??
+            data['message']?.toString();
+      }
+      if (desc != null && desc.isNotEmpty) {
+        final lower = desc.toLowerCase();
+        if (lower.contains('already registered') || lower.contains('user already exists')) {
+          throw Exception('Email hoặc tên người dùng đã tồn tại.');
+        }
+        throw Exception(desc);
+      }
+      throw Exception('Đăng ký không thành công. Vui lòng kiểm tra lại thông tin.');
+    }
   }
 
   Future<void> forgotPassword(String email) async {
-    final response = await client.dio.post(
-      '/auth/v1/recover',
-      data: {'email': email},
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Gửi email đặt lại mật khẩu thất bại');
+    try {
+      final response = await client.dio.post(
+        '/auth/v1/recover',
+        data: {'email': email},
+      );
+      if (response.statusCode != 200) {
+        throw Exception('Gửi email đặt lại mật khẩu thất bại');
+      }
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      String? desc;
+      if (data is Map<String, dynamic>) {
+        desc = data['error_description']?.toString() ??
+            data['msg']?.toString() ??
+            data['message']?.toString();
+      }
+      throw Exception(desc ?? 'Gửi email đặt lại mật khẩu thất bại.');
     }
   }
 
