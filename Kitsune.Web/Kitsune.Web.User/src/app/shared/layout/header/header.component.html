@@ -22,7 +22,7 @@
         <input
           #globalSearchInput
           type="search"
-          placeholder="Tìm bài viết, quiz, từ vựng, kanji..."
+          [placeholder]="langService.translations().searchPlaceholder"
           autocomplete="off"
           [ngModel]="searchQuery()"
           (ngModelChange)="onSearchInput($event)"
@@ -40,11 +40,11 @@
       @if (searchOpen() && searchQuery().trim().length >= 2) {
         <section class="search-results" aria-label="Kết quả tìm kiếm cục bộ">
           @if (isSearching() && searchResults().length === 0) {
-            <p class="search-status">Đang tìm trong Kitsune…</p>
+            <p class="search-status">{{ langService.translations().searching }}</p>
           } @else if (searchResults().length > 0) {
             <div class="search-results__heading">
-              <strong>Kết quả trong Kitsune</strong>
-              <span>{{ searchResults().length }} mục</span>
+              <strong>{{ langService.translations().searchResults }}</strong>
+              <span>{{ searchResults().length }} {{ langService.translations().items }}</span>
             </div>
             @for (result of searchResults(); track result.kind + '-' + result.id) {
               <button
@@ -63,7 +63,7 @@
               </button>
             }
           } @else {
-            <p class="search-status">Không tìm thấy nội dung phù hợp. Nhấn Enter để tra từ “{{ searchQuery().trim() }}”.</p>
+            <p class="search-status">{{ langService.translations().noResults }} Nhấn Enter để tra từ “{{ searchQuery().trim() }}”.</p>
           }
         </section>
       }
@@ -72,8 +72,42 @@
 
   <div class="top-actions">
     @if (dueSrsCount() > 0) {
-      <button class="review-chip" type="button" (click)="router.navigate(['/srs'])"><span>🔥</span>{{ dueSrsCount() }} thẻ chờ</button>
+      <button class="review-chip" type="button" (click)="router.navigate(['/srs'])"><span>🔥</span>{{ dueSrsCount() }} {{ langService.translations().dueCards }}</button>
     }
+
+    <!-- Language Switcher Dropdown -->
+    <div class="lang-menu" [class.lang-menu--open]="langMenuOpen()">
+      <button
+        class="lang-menu-trigger"
+        type="button"
+        (click)="toggleLangMenu()"
+        aria-haspopup="menu"
+        [attr.aria-expanded]="langMenuOpen()"
+        [title]="langService.translations().displayLanguage"
+      >
+        <span class="lang-flag">{{ langService.currentOption().flag }}</span>
+        <span class="lang-code">{{ langService.currentOption().code.toUpperCase() }}</span>
+        <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m7 10 5 5 5-5"/></svg>
+      </button>
+
+      <div class="lang-dropdown" role="menu">
+        @for (opt of langService.options; track opt.code) {
+          <button
+            type="button"
+            class="dropdown-item"
+            [class.dropdown-item--active]="opt.code === langService.currentLang()"
+            (click)="selectLanguage(opt.code)"
+          >
+            <span class="lang-dropdown-flag">{{ opt.flag }}</span>
+            <span class="lang-dropdown-name">{{ opt.displayName }}</span>
+            @if (opt.code === langService.currentLang()) {
+              <span class="lang-check">✓</span>
+            }
+          </button>
+        }
+      </div>
+    </div>
+
     <app-notification-bell />
 
     <div class="user-menu" [class.user-menu--open]="userMenuOpen()">
@@ -91,10 +125,10 @@
           <div><strong>{{ displayName }}</strong><span>{{ currentUser()?.email }}</span></div>
         </div>
         <div class="dropdown-divider"></div>
-        <button type="button" class="dropdown-item" (click)="goToProfile()"><span>◎</span>Thông tin & ảnh đại diện</button>
-        <button type="button" class="dropdown-item" (click)="goToProfile()"><span>⚙</span>Cài đặt tài khoản</button>
+        <button type="button" class="dropdown-item" (click)="goToProfile()"><span>◎</span>{{ langService.translations().profileAndAvatar }}</button>
+        <button type="button" class="dropdown-item" (click)="goToProfile()"><span>⚙</span>{{ langService.translations().accountSettings }}</button>
         <div class="dropdown-divider"></div>
-        <button type="button" class="dropdown-item dropdown-item--danger" (click)="logout()"><span>↪</span>Đăng xuất</button>
+        <button type="button" class="dropdown-item dropdown-item--danger" (click)="logout()"><span>↪</span>{{ langService.translations().logout }}</button>
       </div>
     </div>
   </div>

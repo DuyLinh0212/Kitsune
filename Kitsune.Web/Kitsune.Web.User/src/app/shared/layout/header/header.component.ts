@@ -19,6 +19,7 @@ import { filter } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserProfile } from '../../../core/models/auth.model';
 import { supabase } from '../../../core/supabase/supabase.client';
+import { LanguageService, AppLanguage } from '../../../core/services/language.service';
 import { NotificationBellComponent } from './notification-bell/notification-bell.component';
 
 type LocalSearchKind = 'post' | 'quiz' | 'vocabulary' | 'kanji';
@@ -42,6 +43,7 @@ export class HeaderComponent implements OnInit {
 
   readonly router = inject(Router);
   readonly authService = inject(AuthService);
+  readonly langService = inject(LanguageService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly sidebarCollapsed = input.required<boolean>();
@@ -54,6 +56,7 @@ export class HeaderComponent implements OnInit {
   readonly searchOpen = signal(false);
   readonly dueSrsCount = signal(0);
   readonly userMenuOpen = signal(false);
+  readonly langMenuOpen = signal(false);
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
   private searchRequestId = 0;
 
@@ -78,14 +81,15 @@ export class HeaderComponent implements OnInit {
 
   get pageTitle(): string {
     const url = this.currentUrl();
-    if (url.startsWith('/vocabulary') || url.startsWith('/kanji')) return 'Tra cứu';
-    if (url.startsWith('/topics') || url.startsWith('/grammar') || url.startsWith('/minigames')) return 'Học tập';
-    if (url.startsWith('/srs')) return 'Ôn tập';
-    if (url.startsWith('/quizzes')) return 'Quizzes';
-    if (url.startsWith('/exams')) return 'Đề kiểm tra';
-    if (url.startsWith('/leaderboard') || url.startsWith('/posts') || url.startsWith('/messages')) return 'Cộng đồng';
-    if (url.startsWith('/profile')) return 'Tài khoản';
-    return 'Hôm nay';
+    const t = this.langService.translations();
+    if (url.startsWith('/vocabulary') || url.startsWith('/kanji')) return t.lookup;
+    if (url.startsWith('/topics') || url.startsWith('/grammar') || url.startsWith('/minigames')) return t.topics;
+    if (url.startsWith('/srs')) return t.review;
+    if (url.startsWith('/quizzes')) return t.quizzes;
+    if (url.startsWith('/exams')) return t.exams;
+    if (url.startsWith('/leaderboard') || url.startsWith('/posts') || url.startsWith('/messages')) return t.community;
+    if (url.startsWith('/profile')) return t.profile;
+    return t.home;
   }
 
   get showSearch(): boolean {
@@ -193,8 +197,35 @@ export class HeaderComponent implements OnInit {
     void this.loadDueSrsCount();
   }
 
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement | null;
+    if (!target) return;
+    if (!target.closest('.user-menu')) {
+      this.userMenuOpen.set(false);
+    }
+    if (!target.closest('.lang-menu')) {
+      this.langMenuOpen.set(false);
+    }
+  }
+
+  toggleLangMenu(): void {
+    this.langMenuOpen.update((open) => !open);
+    if (this.langMenuOpen()) {
+      this.userMenuOpen.set(false);
+    }
+  }
+
+  selectLanguage(lang: AppLanguage): void {
+    this.langService.setLanguage(lang);
+    this.langMenuOpen.set(false);
+  }
+
   toggleUserMenu(): void {
     this.userMenuOpen.update((open) => !open);
+    if (this.userMenuOpen()) {
+      this.langMenuOpen.set(false);
+    }
   }
 
   closeUserMenu(): void {

@@ -95,10 +95,13 @@ class KitsuneApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authProvider);
+    final language = ref.watch(appLanguageProvider);
 
     return MaterialApp(
       title: 'Kitsune',
       debugShowCheckedModeBanner: false,
+      locale: language.locale,
+      supportedLocales: AppLanguage.values.map((l) => l.locale).toList(),
       theme: AppTheme.lightTheme,
       home: authState.when(
         data: (user) => user != null ? const MainScreen() : const LoginPage(),
@@ -283,6 +286,15 @@ class _MainScreenState extends ConsumerState<MainScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
+    final navLabels = [
+      strings.navHome,
+      strings.navSearch,
+      strings.navTopics,
+      strings.navReview,
+      strings.navProfile,
+    ];
+
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: _pages),
       bottomNavigationBar: SafeArea(
@@ -325,7 +337,7 @@ class _MainScreenState extends ConsumerState<MainScreen> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          item.label,
+                          navLabels[index],
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight:

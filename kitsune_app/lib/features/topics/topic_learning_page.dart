@@ -158,18 +158,19 @@ class _TopicCard extends StatelessWidget {
   }
 }
 
-class _TopicDetailPage extends StatelessWidget {
+class _TopicDetailPage extends ConsumerWidget {
   const _TopicDetailPage({required this.topic});
 
   final TopicDto topic;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFFFF7E8),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFFF7E8),
-        title: const Text('Lộ trình bài học'),
+        title: Text(strings.lessonPathTitle),
       ),
       body: SafeArea(
         child: ListView(
@@ -212,8 +213,11 @@ class _TopicDetailPage extends StatelessWidget {
                 index: index,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) =>
-                        LessonStudyPage(lessonId: topic.lessons[index].id),
+                    builder: (_) => LessonStudyPage(
+                      lessonId: topic.lessons[index].id,
+                      topic: topic,
+                      lessonIndex: index,
+                    ),
                   ),
                 ),
               ),
@@ -335,8 +339,17 @@ class _LessonTile extends StatelessWidget {
 }
 
 class LessonStudyPage extends ConsumerStatefulWidget {
-  const LessonStudyPage({super.key, required this.lessonId});
+  const LessonStudyPage({
+    super.key,
+    required this.lessonId,
+    this.topic,
+    this.lessonIndex,
+  });
+
   final int lessonId;
+  final TopicDto? topic;
+  final int? lessonIndex;
+
   @override
   ConsumerState<LessonStudyPage> createState() => _LessonStudyPageState();
 }
@@ -360,15 +373,20 @@ enum _CompletionSyncState { idle, saving, saved, error }
 class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
   late Future<LessonDto> _future;
   int _index = 0;
+  final Set<int> _memorizedItemIds = <int>{};
+  bool _isMemoExpanded = false;
+  late final DateTime _studyStartTime;
   _PendingLessonProgress? _pendingProgress;
   _PendingLessonProgress? _failedProgress;
   bool _progressSaveInFlight = false;
   bool _isCompleted = false;
   _CompletionSyncState _completionSyncState = _CompletionSyncState.idle;
   final TtsService _tts = TtsService();
+
   @override
   void initState() {
     super.initState();
+    _studyStartTime = DateTime.now();
     _future = _loadLesson();
   }
 
@@ -381,14 +399,22 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
     return lesson;
   }
 
+  String _toKatakana(String input) {
+    return String.fromCharCodes(input.runes.map((rune) {
+      if (rune >= 0x3041 && rune <= 0x3096) {
+        return rune + 0x60;
+      }
+      return rune;
+    }));
+  }
+
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
+    return Scaffold(
         backgroundColor: const Color(0xFFFFF7E8),
-        appBar: AppBar(
-            backgroundColor: const Color(0xFFFFF7E8),
-            title: const Text('Bài học'),
-            elevation: 0),
-        body: FutureBuilder<LessonDto>(
+        body: SafeArea(
+          child: FutureBuilder<LessonDto>(
             future: _future,
             builder: (_, snapshot) {
               if (snapshot.connectionState != ConnectionState.done) {
@@ -396,137 +422,669 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
               }
               if (snapshot.hasError) {
                 return _ErrorState(
-                    onRetry: () => setState(() => _future = _loadLesson()));
+                  onRetry: () => setState(() => _future = _loadLesson()),
+                );
               }
               if (!snapshot.hasData) {
-                return const Center(child: Text('Không thể tải bài học.'));
+                return Center(child: Text(strings.cannotLoadLesson));
               }
               final lesson = snapshot.data!;
               if (lesson.items.isEmpty) {
-                return const Center(child: Text('Bài học chưa có nội dung.'));
+                return Center(child: Text(strings.lessonEmpty));
               }
+
+              final lessonNumber = widget.lessonIndex != null
+                  ? '${widget.lessonIndex! + 1}. '
+                  : (lesson.orderIndex > 0 ? '${lesson.orderIndex}. ' : '');
+              final fullTitle = '$lessonNumber${lesson.title}';
+
               if (_isCompleted) {
+                LessonDto? nextLesson;
+                int? nextLessonIndex;
+                if (widget.topic != null && widget.lessonIndex != null) {
+                  final nextIdx = widget.lessonIndex! + 1;
+                  if (nextIdx < widget.topic!.lessons.length) {
+                    nextLesson = widget.topic!.lessons[nextIdx];
+                    nextLessonIndex = nextIdx;
+                  }
+                }
+
+                final elapsedMinutes = max(
+                  1,
+                  DateTime.now().difference(_studyStartTime).inMinutes,
+                );
+
                 return _LessonCompletion(
                   lesson: lesson,
+                  fullTitle: fullTitle,
+                  totalWords: lesson.items.length,
+                  memorizedCount: _memorizedItemIds.length,
+                  elapsedMinutes: elapsedMinutes,
+                  nextLesson: nextLesson,
+                  nextLessonIndex: nextLessonIndex,
                   syncState: _completionSyncState,
                   onRetry: _retryCompletion,
-                  onReturn: () =>
-                      Navigator.of(context).popUntil((route) => route.isFirst),
+                  onNextLesson: nextLesson != null
+                      ? () => Navigator.of(context).pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => LessonStudyPage(
+                                lessonId: nextLesson!.id,
+                                topic: widget.topic,
+                                lessonIndex: nextLessonIndex,
+                              ),
+                            ),
+                          )
+                      : null,
+                  onReturn: () => Navigator.of(context).pop(),
                 );
               }
+
               final item = lesson.items[_index];
-              return Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Column(children: [
-                    Row(children: [
-                      Expanded(
-                          child: Text(lesson.title,
-                              style: const TextStyle(
-                                  fontSize: 24, fontWeight: FontWeight.w800))),
-                      Text('${_index + 1}/${lesson.items.length}')
-                    ]),
-                    const SizedBox(height: 12),
-                    LinearProgressIndicator(
-                        value: (_index + 1) / lesson.items.length,
-                        color: const Color(0xFFE26331),
-                        backgroundColor: const Color(0xFFECD8BB)),
-                    const SizedBox(height: 24),
-                    Expanded(
-                        child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(26),
-                            decoration: BoxDecoration(
-                                color: const Color(0xFFFFFDF7),
-                                border:
-                                    Border.all(color: const Color(0xFFEAD5B7)),
-                                borderRadius: BorderRadius.circular(12)),
-                            child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text(
-                                      item.kanjiId != null
-                                          ? '漢字 · KANJI'
-                                          : '語彙 · TỪ VỰNG',
-                                      style: const TextStyle(
-                                          color: Color(0xFFB6502C),
-                                          letterSpacing: 1.2,
-                                          fontWeight: FontWeight.w800)),
-                                  const SizedBox(height: 22),
-                                  Text(item.word,
-                                      style: const TextStyle(
-                                          fontSize: 68,
-                                          color: Color(0xFF302A40))),
-                                  if (item.pronunciation.isNotEmpty)
-                                    Text(item.pronunciation,
-                                        style: const TextStyle(
-                                            fontSize: 20,
-                                            color: Color(0xFFC7532C))),
-                                  if (item.kanjiId != null &&
-                                      (item.amHanViet ?? '').isNotEmpty)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 8),
-                                      child: Text(
-                                        'Âm Hán Việt: ${item.amHanViet}',
-                                        style: const TextStyle(
-                                          color: Color(0xFF4C3A68),
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                  const SizedBox(height: 14),
-                                  Text(item.meaning,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(
-                                          fontSize: 22,
-                                          fontWeight: FontWeight.w700)),
-                                  IconButton(
-                                      onPressed: () => _tts.speakVocabulary(
-                                            item.word,
-                                            item.pronunciation,
-                                          ),
-                                      icon:
-                                          const Icon(Icons.volume_up_rounded)),
-                                  if (item.exampleSentence != null)
-                                    Container(
-                                        margin: const EdgeInsets.only(top: 18),
-                                        padding: const EdgeInsets.all(14),
-                                        color: const Color(0xFFFFF5E8),
-                                        child: Column(children: [
-                                          Text(item.exampleSentence!,
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.w700)),
-                                          if (item.exampleTranslation != null)
-                                            Text(item.exampleTranslation!,
-                                                style: const TextStyle(
-                                                    color: Color(0xFF75665F)))
-                                        ])),
-                                ]))),
-                    const SizedBox(height: 18),
-                    Row(children: [
-                      OutlinedButton(
-                          onPressed: _index == 0
-                              ? null
-                              : () => setState(() => _index--),
-                          child: const Text('Trước')),
-                      const Spacer(),
-                      FilledButton(
-                          onPressed: () => _advanceLesson(lesson, item),
-                          style: FilledButton.styleFrom(
-                              backgroundColor: const Color(0xFFD85A2B)),
-                          child: Text(_index == lesson.items.length - 1
-                              ? 'Hoàn thành'
-                              : 'Đã nhớ · Tiếp')),
-                    ]),
-                  ]));
-            }),
+              return Column(
+                children: [
+                  _buildHeader(fullTitle, lesson.items.length),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+                      child: _buildMainCard(item, strings),
+                    ),
+                  ),
+                  _buildBottomBar(lesson, item, strings),
+                ],
+              );
+            },
+          ),
+        ),
       );
+  }
+
+  Widget _buildHeader(String title, int totalItems) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 4, 16, 8),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: Color(0xFF302A40),
+                  size: 24,
+                ),
+                onPressed: () => Navigator.of(context).maybePop(),
+              ),
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF302A40),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                '${_index + 1} / $totalItems',
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF8A7566),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: (_index + 1) / totalItems,
+                minHeight: 4,
+                color: const Color(0xFFE26331),
+                backgroundColor: const Color(0xFFECD8BB),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMainCard(LessonItemDto item, AppStrings strings) {
+    final hasPronunciation = item.pronunciation.trim().isNotEmpty &&
+        item.pronunciation.trim() != item.word.trim();
+    final furigana = hasPronunciation ? item.pronunciation.trim() : '';
+
+    String readingSubtext = '';
+    if (item.onyomi != null && item.onyomi!.trim().isNotEmpty) {
+      readingSubtext = item.onyomi!.trim();
+    } else if (item.pronunciation.trim().isNotEmpty) {
+      readingSubtext = _toKatakana(item.pronunciation.trim());
+    } else if (item.romaji != null && item.romaji!.trim().isNotEmpty) {
+      readingSubtext = item.romaji!.trim();
+    }
+
+    final hasReadings = (item.onyomi != null && item.onyomi!.trim().isNotEmpty) ||
+        (item.kunyomi != null && item.kunyomi!.trim().isNotEmpty) ||
+        (item.amHanViet != null && item.amHanViet!.trim().isNotEmpty);
+
+    final hasExample = item.exampleSentence != null &&
+        item.exampleSentence!.trim().isNotEmpty;
+
+    final memoText = item.memo?.trim().isNotEmpty == true
+        ? item.memo!.trim()
+        : '';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFDF8),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFEAD5B7), width: 1.2),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A3A2510),
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Word, Furigana & Audio
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (furigana.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 2),
+                  child: Text(
+                    furigana,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: const Color(0xFF8A7566),
+                      fontWeight: FontWeight.w600,
+                      fontFamily: AppTheme.japaneseFontFamily,
+                    ),
+                  ),
+                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  const SizedBox(width: 42),
+                  Flexible(
+                    child: Text(
+                      item.word,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 34,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF2C2420),
+                        fontFamily: AppTheme.japaneseFontFamily,
+                        letterSpacing: 1.5,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Material(
+                    color: const Color(0xFFFFF0DF),
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(10),
+                      onTap: () => _tts.speak(item.word),
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFF0CEB4)),
+                        ),
+                        child: const Icon(
+                          Icons.volume_up_rounded,
+                          color: Color(0xFFE26331),
+                          size: 21,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (readingSubtext.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: Text(
+                    readingSubtext,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      color: Color(0xFF6B5C55),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+
+          const Divider(color: Color(0xFFF0E2D0), height: 30, thickness: 1),
+
+          // Ý nghĩa
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 78,
+                child: Text(
+                  strings.meaning,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF332B27),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  item.meaning,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    color: Color(0xFF332B27),
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
+
+          // Cách đọc
+          if (hasReadings) ...[
+            const Divider(color: Color(0xFFF0E2D0), height: 30, thickness: 1),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 78,
+                  child: Text(
+                    strings.readings,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF332B27),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (item.onyomi != null &&
+                          item.onyomi!.trim().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 68,
+                                child: Text(
+                                  strings.onyomi,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF7A6B63),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  item.onyomi!.trim(),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2C2420),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (item.kunyomi != null &&
+                          item.kunyomi!.trim().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 68,
+                                child: Text(
+                                  strings.kunyomi,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    color: Color(0xFF7A6B63),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                child: Text(
+                                  item.kunyomi!.trim(),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF2C2420),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (item.amHanViet != null &&
+                          item.amHanViet!.trim().isNotEmpty)
+                        Row(
+                          children: [
+                            SizedBox(
+                              width: 68,
+                              child: Text(
+                                strings.sinoVietnamese,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF7A6B63),
+                                ),
+                              ),
+                            ),
+                            Expanded(
+                              child: Text(
+                                item.amHanViet!.trim(),
+                                style: const TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2C2420),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          // Ví dụ
+          if (hasExample) ...[
+            const Divider(color: Color(0xFFF0E2D0), height: 30, thickness: 1),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      strings.example,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF332B27),
+                      ),
+                    ),
+                    Material(
+                      color: const Color(0xFFFFF0DF),
+                      borderRadius: BorderRadius.circular(6),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(6),
+                        onTap: () => _tts.speak(item.exampleSentence!),
+                        child: Container(
+                          padding: const EdgeInsets.all(5),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(6),
+                            border: Border.all(
+                                color: const Color(0xFFF0CEB4), width: 0.8),
+                          ),
+                          child: const Icon(
+                            Icons.volume_up_rounded,
+                            size: 17,
+                            color: Color(0xFFE26331),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  item.exampleSentence!,
+                  style: TextStyle(
+                    fontSize: 15.5,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF2C2420),
+                    fontFamily: AppTheme.japaneseFontFamily,
+                    height: 1.45,
+                  ),
+                ),
+                if (item.exampleTranslation != null &&
+                    item.exampleTranslation!.trim().isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    item.exampleTranslation!.trim(),
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      color: Color(0xFF75665F),
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ],
+
+          // Ghi chú
+          const Divider(color: Color(0xFFF0E2D0), height: 30, thickness: 1),
+          InkWell(
+            onTap: () => setState(() => _isMemoExpanded = !_isMemoExpanded),
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    strings.notes,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF332B27),
+                    ),
+                  ),
+                  Icon(
+                    _isMemoExpanded
+                        ? Icons.keyboard_arrow_up_rounded
+                        : Icons.keyboard_arrow_down_rounded,
+                    color: const Color(0xFF75665F),
+                    size: 22,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (_isMemoExpanded)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                memoText.isNotEmpty
+                    ? memoText
+                    : strings.noNotesYet,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  color: Color(0xFF6B5C55),
+                  height: 1.45,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBottomBar(LessonDto lesson, LessonItemDto item, AppStrings strings) {
+    final isMemorized = _memorizedItemIds.contains(item.id);
+    final isFirst = _index == 0;
+    final isLast = _index == lesson.items.length - 1;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+      decoration: const BoxDecoration(
+        color: Color(0xFFFFF7E8),
+        border: Border(
+          top: BorderSide(color: Color(0xFFEEDCC7), width: 1),
+        ),
+      ),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            // Nút [前へ] (Previous)
+            SizedBox(
+              width: 88,
+              height: 46,
+              child: OutlinedButton(
+                onPressed: isFirst
+                    ? null
+                    : () {
+                        setState(() {
+                          _index--;
+                          _isMemoExpanded = false;
+                        });
+                      },
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(88, 46),
+                  padding: EdgeInsets.zero,
+                  side: BorderSide(
+                    color: isFirst
+                        ? const Color(0xFFD6C8B8)
+                        : const Color(0xFFE26331),
+                    width: 1.4,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  backgroundColor: isFirst
+                      ? const Color(0xFFF7EFE6)
+                      : Colors.transparent,
+                ),
+                child: Text(
+                  strings.previous,
+                  style: TextStyle(
+                    color: isFirst
+                        ? const Color(0xFFB0A094)
+                        : const Color(0xFFE26331),
+                    fontWeight: FontWeight.w800,
+                    fontSize: 15,
+                  ),
+                ),
+              ),
+            ),
+
+            const Spacer(),
+
+            // Checkbox [ ] Đã nhớ
+            InkWell(
+              onTap: () {
+                setState(() {
+                  if (isMemorized) {
+                    _memorizedItemIds.remove(item.id);
+                  } else {
+                    _memorizedItemIds.add(item.id);
+                  }
+                });
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 22,
+                      height: 22,
+                      decoration: BoxDecoration(
+                        color: isMemorized
+                            ? const Color(0xFFE26331)
+                            : const Color(0xFFFFFDF8),
+                        borderRadius: BorderRadius.circular(4),
+                        border: Border.all(
+                          color: isMemorized
+                              ? const Color(0xFFE26331)
+                              : const Color(0xFF9E8E84),
+                          width: 1.8,
+                        ),
+                      ),
+                      child: isMemorized
+                          ? const Icon(
+                              Icons.check_rounded,
+                              size: 16,
+                              color: Colors.white,
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      strings.memorized,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF2C2420),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const Spacer(),
+
+            // Nút [Tiếp theo] (Next / Complete)
+            SizedBox(
+              width: 96,
+              height: 46,
+              child: FilledButton(
+                onPressed: () => _advanceLesson(lesson, item),
+                style: FilledButton.styleFrom(
+                  minimumSize: const Size(96, 46),
+                  padding: EdgeInsets.zero,
+                  backgroundColor: const Color(0xFFE26331),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+                child: Text(
+                  isLast ? strings.complete : strings.next,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14.5,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   void _advanceLesson(LessonDto lesson, LessonItemDto item) {
     final completed = _index + 1;
     final isCompleted = completed >= lesson.items.length;
     if (!isCompleted) {
-      setState(() => _index++);
+      setState(() {
+        _index++;
+        _isMemoExpanded = false;
+      });
     } else {
       setState(() {
         _isCompleted = true;
@@ -594,140 +1152,363 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
   }
 }
 
-class _LessonCompletion extends StatelessWidget {
+class _LessonCompletion extends ConsumerWidget {
   const _LessonCompletion({
     required this.lesson,
+    required this.fullTitle,
+    required this.totalWords,
+    required this.memorizedCount,
+    required this.elapsedMinutes,
+    required this.nextLesson,
+    required this.nextLessonIndex,
     required this.syncState,
     required this.onRetry,
+    required this.onNextLesson,
     required this.onReturn,
   });
 
   final LessonDto lesson;
+  final String fullTitle;
+  final int totalWords;
+  final int memorizedCount;
+  final int elapsedMinutes;
+  final LessonDto? nextLesson;
+  final int? nextLessonIndex;
   final _CompletionSyncState syncState;
   final VoidCallback onRetry;
+  final VoidCallback? onNextLesson;
   final VoidCallback onReturn;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
+    final accuracy = totalWords == 0
+        ? 100
+        : ((memorizedCount / totalWords) * 100).round();
+
     final syncCopy = switch (syncState) {
-      _CompletionSyncState.saving => 'Đang lưu tiến độ của bạn…',
-      _CompletionSyncState.saved => 'Tiến độ đã được lưu.',
-      _CompletionSyncState.error =>
-        'Chưa thể đồng bộ lúc này. Bạn có thể thử lưu lại.',
+      _CompletionSyncState.saving => strings.savingProgress,
+      _CompletionSyncState.saved => strings.progressSaved,
+      _CompletionSyncState.error => strings.syncError,
       _CompletionSyncState.idle => '',
     };
-    return SafeArea(
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              color: const Color(0xFFFFFDF8),
-              border: Border.all(color: const Color(0xFFEAD5B7)),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                width: 58,
-                height: 58,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(
-                    color: Color(0xFFFFF0DF), shape: BoxShape.circle),
-                child: const Icon(Icons.check_rounded,
-                    color: Color(0xFFAA4A2B), size: 30),
+
+    return Column(
+      children: [
+        // Top Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(
+                  Icons.close_rounded,
+                  color: Color(0xFF302A40),
+                  size: 24,
+                ),
+                onPressed: onReturn,
               ),
-              const SizedBox(height: 20),
-              const Text('BÀI HỌC ĐÃ HOÀN THÀNH',
-                  style: TextStyle(
-                      color: Color(0xFFB6502C),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1.2)),
-              const SizedBox(height: 7),
-              Text(lesson.title,
+              Expanded(
+                child: Text(
+                  strings.lessonCompletedTitle,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                      color: Color(0xFF302A40),
-                      fontFamily: AppTheme.displayFontFamily,
-                      fontSize: 30,
-                      fontWeight: FontWeight.w800)),
-              const SizedBox(height: 12),
-              const Text(
-                  'Bạn đã đi qua toàn bộ mục học. Từ vựng sẽ sẵn sàng cho các lượt ôn tập tiếp theo.',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF302A40),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 48), // Balance close button
+            ],
+          ),
+        ),
+
+        // Scrollable content
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 24),
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+
+                // Orange circular badge
+                Container(
+                  width: 168,
+                  height: 168,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: const Color(0xFFE26331),
+                      width: 7.5,
+                    ),
+                  ),
+                  alignment: Alignment.center,
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '$memorizedCount / $totalWords',
+                        style: const TextStyle(
+                          fontSize: 27,
+                          fontWeight: FontWeight.w900,
+                          color: Color(0xFF2C2420),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        strings.memorized,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF75665F),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 22),
+
+                // Congratulation headline
+                Text(
+                  strings.congratulations,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: Color(0xFF75665F), height: 1.5)),
-              const SizedBox(height: 22),
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 13),
-                decoration: const BoxDecoration(
-                    border: Border.symmetric(
-                        horizontal: BorderSide(color: Color(0xFFEAD5B7)))),
-                child: Row(children: [
-                  Expanded(
-                      child: _CompletionStat(
-                          label: 'ĐÃ HỌC',
-                          value:
-                              '${lesson.items.length} / ${lesson.items.length}')),
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF2C2420),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  strings.lessonCompletedSubtitle(fullTitle),
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 14.5,
+                    color: Color(0xFF6B5C55),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Kết quả học tập Card
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFDF8),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFEAD5B7)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 10),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFF9EDE0),
+                          borderRadius:
+                              BorderRadius.vertical(top: Radius.circular(11)),
+                        ),
+                        child: Text(
+                          strings.learningResults,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13.5,
+                            color: Color(0xFF5A493F),
+                          ),
+                        ),
+                      ),
+                      _StatRow(
+                        label: strings.learnedWords,
+                        value: '$totalWords',
+                      ),
+                      _StatRow(
+                        label: strings.rememberedCount,
+                        value: '$memorizedCount',
+                      ),
+                      _StatRow(
+                        label: strings.memoryRate,
+                        value: '$accuracy%',
+                      ),
+                      _StatRow(
+                        label: strings.studyTime,
+                        value: strings.formatMinutes(elapsedMinutes),
+                        isLast: true,
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Bài học tiếp theo Card (if next lesson exists)
+                if (nextLesson != null && onNextLesson != null) ...[
+                  const SizedBox(height: 16),
                   Container(
-                      width: 1, height: 34, color: const Color(0xFFEAD5B7)),
-                  Expanded(
-                      child: _CompletionStat(
-                          label: 'THỜI LƯỢNG',
-                          value: '${lesson.estimatedMinutes} phút')),
-                ]),
-              ),
-              const SizedBox(height: 16),
-              Text(syncCopy,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFFDF8),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFEAD5B7)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 10),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFF9EDE0),
+                            borderRadius:
+                                BorderRadius.vertical(top: Radius.circular(11)),
+                          ),
+                          child: Text(
+                            strings.nextLesson,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 13.5,
+                              color: Color(0xFF5A493F),
+                            ),
+                          ),
+                        ),
+                        InkWell(
+                          onTap: onNextLesson,
+                          borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(11)),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 14),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    '${nextLessonIndex != null ? '${nextLessonIndex! + 1}. ' : ''}${nextLesson!.title}',
+                                    style: const TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF2C2420),
+                                    ),
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.chevron_right_rounded,
+                                  color: Color(0xFF9E8E84),
+                                  size: 22,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                if (syncCopy.isNotEmpty)
+                  Text(
+                    syncCopy,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
                       color: syncState == _CompletionSyncState.error
                           ? const Color(0xFFA6412A)
                           : const Color(0xFF66715D),
                       fontSize: 13,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 10),
-              if (syncState == _CompletionSyncState.error)
-                OutlinedButton(
-                    onPressed: onRetry, child: const Text('Thử lưu lại')),
-              const SizedBox(height: 8),
-              SizedBox(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+
+                if (syncState == _CompletionSyncState.error) ...[
+                  const SizedBox(height: 8),
+                  OutlinedButton(
+                    onPressed: onRetry,
+                    child: Text(strings.retry),
+                  ),
+                ],
+
+                const SizedBox(height: 16),
+
+                // Button [Quay về lộ trình]
+                SizedBox(
                   width: double.infinity,
+                  height: 48,
                   child: FilledButton(
-                      onPressed: onReturn,
-                      style: FilledButton.styleFrom(
-                          backgroundColor: const Color(0xFFD85A2B),
-                          minimumSize: const Size.fromHeight(46)),
-                      child: const Text('Quay về lộ trình'))),
-            ]),
+                    onPressed: onReturn,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFE26331),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: Text(
+                      strings.returnToTopics,
+                      style: const TextStyle(
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
 
-class _CompletionStat extends StatelessWidget {
-  const _CompletionStat({required this.label, required this.value});
+class _StatRow extends StatelessWidget {
+  const _StatRow({
+    required this.label,
+    required this.value,
+    this.isLast = false,
+  });
+
   final String label;
   final String value;
+  final bool isLast;
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-        Text(label,
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        border: isLast
+            ? null
+            : const Border(
+                bottom: BorderSide(color: Color(0xFFF2E6D6), width: 0.9),
+              ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
             style: const TextStyle(
-                color: Color(0xFF8A7566),
-                fontSize: 10,
-                fontWeight: FontWeight.w800,
-                letterSpacing: .7)),
-        const SizedBox(height: 4),
-        Text(value,
+              fontSize: 14,
+              color: Color(0xFF554841),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            value,
             style: const TextStyle(
-                color: Color(0xFF3A3044),
-                fontSize: 16,
-                fontWeight: FontWeight.w900)),
-      ]);
+              fontSize: 14.5,
+              color: Color(0xFF2C2420),
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ErrorState extends StatelessWidget {

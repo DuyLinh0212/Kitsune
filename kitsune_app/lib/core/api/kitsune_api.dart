@@ -2652,7 +2652,7 @@ class KitsuneApi {
       }),
       client.dio.get(client.table('LessonItems'), queryParameters: {
         'select':
-            'Id,LessonId,VocabularyId,KanjiId,OrderIndex,ExampleSentence,ExampleTranslation,Vocabulary:VocabularyId(Word,Pronunciation,Meaning),Kanji:KanjiId(Character,AmHanViet,Onyomi,Kunyomi,Meaning)',
+            'Id,LessonId,VocabularyId,KanjiId,OrderIndex,ExampleSentence,ExampleTranslation,Vocabulary:VocabularyId(Word,Pronunciation,Meaning,SpecificData),Kanji:KanjiId(Character,AmHanViet,Onyomi,Kunyomi,Meaning,Mnemonic)',
         'LessonId': 'eq.$lessonId',
         'order': 'OrderIndex.asc',
       }),
@@ -2665,6 +2665,18 @@ class KitsuneApi {
     final items = rows.map((row) {
       final vocab = row['Vocabulary'] as Map<String, dynamic>?;
       final kanji = row['Kanji'] as Map<String, dynamic>?;
+      final specificData = vocab?['SpecificData'] is Map
+          ? (vocab!['SpecificData'] as Map).cast<String, dynamic>()
+          : null;
+      final onyomi = kanji?['Onyomi'] as String?;
+      final kunyomi = kanji?['Kunyomi'] as String?;
+      final memo = (kanji?['Mnemonic'] as String?)?.trim().isNotEmpty == true
+          ? kanji!['Mnemonic'] as String
+          : (specificData?['notes'] as String? ??
+              specificData?['note'] as String?);
+      final romaji = specificData?['romaji'] as String?;
+      final partOfSpeech = (specificData?['partOfSpeech'] as String?) ??
+          (specificData?['type'] as String?);
       return LessonItemDto(
         id: (row['Id'] as num).toInt(),
         vocabularyId: (row['VocabularyId'] as num?)?.toInt(),
@@ -2679,6 +2691,12 @@ class KitsuneApi {
             vocab?['Meaning'] as String? ?? kanji?['Meaning'] as String? ?? '',
         exampleSentence: row['ExampleSentence'] as String?,
         exampleTranslation: row['ExampleTranslation'] as String?,
+        onyomi: onyomi,
+        kunyomi: kunyomi,
+        nanori: kanji?['AmHanViet'] as String?,
+        memo: memo,
+        romaji: romaji,
+        partOfSpeech: partOfSpeech,
       );
     }).toList();
     return LessonDto(

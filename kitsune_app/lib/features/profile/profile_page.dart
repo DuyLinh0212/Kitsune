@@ -65,6 +65,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final authState = ref.watch(authProvider);
     final user =
         authState.valueOrNull ?? ref.read(authProvider.notifier).currentUser;
+    final strings = ref.watch(stringsProvider);
+    final currentLanguage = ref.watch(appLanguageProvider);
 
     if (user == null) {
       return const Scaffold(
@@ -77,10 +79,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hồ sơ'),
+        title: Text(strings.profileTitle),
         actions: [
           IconButton(
-            tooltip: 'Đăng xuất',
+            tooltip: strings.logout,
             onPressed: () async {
               await ref.read(authProvider.notifier).logout();
               if (context.mounted) {
@@ -158,8 +160,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ),
             ),
             const SizedBox(height: AppTheme.space20),
-            const KitsuneSectionHeader(
-              title: 'Thống kê học tập',
+            KitsuneSectionHeader(
+              title: strings.studyStats,
               accent: KitsuneColors.primary,
             ),
             const SizedBox(height: AppTheme.space12),
@@ -168,7 +170,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 children: [
                   Expanded(
                     child: KitsuneStatTile(
-                      label: 'Streak',
+                      label: strings.streakLabel,
                       value: '${stats.streak}',
                       color: KitsuneColors.primary,
                     ),
@@ -184,7 +186,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: KitsuneStatTile(
-                      label: 'SRS đến hạn',
+                      label: strings.srsDueLabel,
                       value: '${stats.srsCardsDue}',
                       color: KitsuneColors.warning,
                     ),
@@ -199,8 +201,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               error: (_, __) => const SizedBox.shrink(),
             ),
             const SizedBox(height: AppTheme.space20),
-            const KitsuneSectionHeader(
-              title: 'Bản đồ năng lực',
+            KitsuneSectionHeader(
+              title: strings.knowledgeMap,
               accent: KitsuneColors.success,
             ),
             const SizedBox(height: AppTheme.space12),
@@ -220,7 +222,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ),
                     TextButton(
                       onPressed: () => ref.invalidate(knowledgeGraphProvider),
-                      child: const Text('Thử lại'),
+                      child: Text(strings.retry),
                     ),
                   ],
                 ),
@@ -228,8 +230,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             ),
             const SizedBox(height: AppTheme.space20),
             KitsuneSectionHeader(
-              title: 'Thông tin tài khoản',
-              actionLabel: 'Chỉnh sửa',
+              title: strings.accountInfo,
+              actionLabel: strings.edit,
               onAction: () => _showEditDialog(context, ref, user),
             ),
             const SizedBox(height: AppTheme.space12),
@@ -262,8 +264,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ),
             ),
             const SizedBox(height: AppTheme.space20),
-            const KitsuneSectionHeader(
-              title: 'Cài đặt',
+            KitsuneSectionHeader(
+              title: strings.appSettings,
               accent: KitsuneColors.secondary,
             ),
             const SizedBox(height: AppTheme.space12),
@@ -277,10 +279,26 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                         color: KitsuneColors.surfaceVariant,
                         borderRadius: BorderRadius.circular(10),
                       ),
+                      child: const Icon(Icons.language_rounded,
+                          size: 20, color: KitsuneColors.onSurfaceVariant),
+                    ),
+                    title: Text(strings.displayLanguage),
+                    subtitle: Text('${currentLanguage.flag}  ${currentLanguage.displayName}'),
+                    trailing: const Icon(Icons.chevron_right_rounded),
+                    onTap: () => _showLanguagePicker(context, ref, currentLanguage),
+                  ),
+                  const Divider(height: 1),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: KitsuneColors.surfaceVariant,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       child: const Icon(Icons.description_outlined,
                           size: 20, color: KitsuneColors.onSurfaceVariant),
                     ),
-                    title: const Text('Điều khoản dịch vụ'),
+                    title: Text(strings.termsOfService),
                     trailing: const Icon(Icons.chevron_right_rounded),
                     onTap: () => _showTermsDialog(context),
                   ),
@@ -428,12 +446,78 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               ],
             ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Đóng'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Đóng'),
+                ),
+              ],
+            );
+          },
+        );
+      }
+
+  void _showLanguagePicker(
+    BuildContext context,
+    WidgetRef ref,
+    AppLanguage currentLanguage,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: KitsuneColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        final strings = ref.watch(stringsProvider);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text(
+                    strings.selectLanguageTitle,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                ),
+                const Divider(),
+                ...AppLanguage.values.map((lang) {
+                  final isSelected = lang == currentLanguage;
+                  return ListTile(
+                    leading: Text(
+                      lang.flag,
+                      style: const TextStyle(fontSize: 24),
+                    ),
+                    title: Text(
+                      lang.displayName,
+                      style: TextStyle(
+                        fontWeight:
+                            isSelected ? FontWeight.bold : FontWeight.normal,
+                        color: isSelected
+                            ? KitsuneColors.primary
+                            : KitsuneColors.onSurface,
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle_rounded,
+                            color: KitsuneColors.primary)
+                        : null,
+                    onTap: () {
+                      ref.read(appLanguageProvider.notifier).setLanguage(lang);
+                      Navigator.pop(sheetContext);
+                    },
+                  );
+                }),
+              ],
             ),
-          ],
+          ),
         );
       },
     );

@@ -51,6 +51,12 @@ class LessonItemDto {
   final String meaning;
   final String? exampleSentence;
   final String? exampleTranslation;
+  final String? onyomi;
+  final String? kunyomi;
+  final String? nanori;
+  final String? memo;
+  final String? romaji;
+  final String? partOfSpeech;
 
   const LessonItemDto(
       {required this.id,
@@ -61,7 +67,13 @@ class LessonItemDto {
       this.amHanViet,
       required this.meaning,
       this.exampleSentence,
-      this.exampleTranslation});
+      this.exampleTranslation,
+      this.onyomi,
+      this.kunyomi,
+      this.nanori,
+      this.memo,
+      this.romaji,
+      this.partOfSpeech});
 }
 
 class GameVocabularyDto {

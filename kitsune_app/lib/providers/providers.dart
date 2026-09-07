@@ -6,6 +6,8 @@ import 'package:kitsune_app/core/models/user.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/services/tts_service.dart';
 import 'package:kitsune_app/providers/auth_provider.dart';
+export 'package:kitsune_app/core/localization/app_strings.dart';
+export 'locale_provider.dart';
 
 // Supabase client provider (lazy singleton)
 final supabaseClientProvider = Provider<SupabaseClient>((ref) {

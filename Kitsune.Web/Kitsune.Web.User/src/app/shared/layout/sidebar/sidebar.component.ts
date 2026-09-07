@@ -7,6 +7,8 @@ import { filter } from 'rxjs';
 import { ThemeService } from '../../../core/services/theme.service';
 import { UserStatsService } from '../../../core/services/user-stats.service';
 
+import { LanguageService } from '../../../core/services/language.service';
+
 export interface NavItem {
   id: number;
   label: string;
@@ -27,6 +29,7 @@ export class SidebarComponent implements OnInit {
   private readonly destroyRef = inject(DestroyRef);
   private readonly userStatsService = inject(UserStatsService);
   public readonly themeService = inject(ThemeService);
+  public readonly langService = inject(LanguageService);
 
   readonly collapsed = input.required<boolean>();
   readonly navClick = output<void>();
@@ -34,20 +37,26 @@ export class SidebarComponent implements OnInit {
   readonly streak = computed(() => this.userStatsService.stats().streak);
   readonly totalXP = computed(() => this.userStatsService.stats().totalXP);
 
-  readonly primaryNavItems: NavItem[] = [
-    { id: 1, label: 'Tổng quan', iconAsset: '/images/navigation/house.png', route: '/home', matchPrefixes: ['/home'] },
-    { id: 2, label: 'Tra cứu', iconAsset: '/images/navigation/research.png', route: '/vocabulary', matchPrefixes: ['/vocabulary', '/kanji'] },
-    { id: 3, label: 'Học tập', iconAsset: '/images/navigation/reading-book.png', route: '/topics', matchPrefixes: ['/topics', '/grammar', '/minigames'] },
-    { id: 4, label: 'Ôn tập', iconAsset: '/images/navigation/brain.png', route: '/srs', matchPrefixes: ['/srs'] },
-    { id: 5, label: 'Quizzes', iconAsset: '/images/navigation/test.png', route: '/quizzes', matchPrefixes: ['/quizzes', '/my-quizzes', '/quiz-create'] },
-    { id: 6, label: 'Đề kiểm tra', iconAsset: '/images/navigation/manual.png', route: '/exams', matchPrefixes: ['/exams'] },
-    { id: 7, label: 'Cộng đồng', iconAsset: '/images/navigation/instagram-post.png', route: '/posts', matchPrefixes: ['/posts', '/messages'] },
-  ];
+  get primaryNavItems(): NavItem[] {
+    const t = this.langService.translations();
+    return [
+      { id: 1, label: t.home, iconAsset: '/images/navigation/house.png', route: '/home', matchPrefixes: ['/home'] },
+      { id: 2, label: t.lookup, iconAsset: '/images/navigation/research.png', route: '/vocabulary', matchPrefixes: ['/vocabulary', '/kanji'] },
+      { id: 3, label: t.topics, iconAsset: '/images/navigation/reading-book.png', route: '/topics', matchPrefixes: ['/topics', '/grammar', '/minigames'] },
+      { id: 4, label: t.review, iconAsset: '/images/navigation/brain.png', route: '/srs', matchPrefixes: ['/srs'] },
+      { id: 5, label: t.quizzes, iconAsset: '/images/navigation/test.png', route: '/quizzes', matchPrefixes: ['/quizzes', '/my-quizzes', '/quiz-create'] },
+      { id: 6, label: t.exams, iconAsset: '/images/navigation/manual.png', route: '/exams', matchPrefixes: ['/exams'] },
+      { id: 7, label: t.community, iconAsset: '/images/navigation/instagram-post.png', route: '/posts', matchPrefixes: ['/posts', '/messages'] },
+    ];
+  }
 
-  readonly utilityNavItems: NavItem[] = [
-    { id: 8, label: 'Bảng xếp hạng', iconAsset: '/images/navigation/podium.png', route: '/leaderboard', matchPrefixes: ['/leaderboard'] },
-    { id: 9, label: 'Minigame', iconAsset: '/images/navigation/console.png', route: '/minigames', matchPrefixes: ['/minigames'] },
-  ];
+  get utilityNavItems(): NavItem[] {
+    const t = this.langService.translations();
+    return [
+      { id: 8, label: t.leaderboard, iconAsset: '/images/navigation/podium.png', route: '/leaderboard', matchPrefixes: ['/leaderboard'] },
+      { id: 9, label: t.minigames, iconAsset: '/images/navigation/console.png', route: '/minigames', matchPrefixes: ['/minigames'] },
+    ];
+  }
 
   ngOnInit(): void {
     this.router.events.pipe(
