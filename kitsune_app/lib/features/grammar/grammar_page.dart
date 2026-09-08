@@ -7,6 +7,7 @@ import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
+import 'package:kitsune_app/providers/providers.dart';
 import 'package:kitsune_app/providers/grammar_provider.dart';
 
 class GrammarPage extends ConsumerStatefulWidget {
@@ -39,11 +40,12 @@ class _GrammarPageState extends ConsumerState<GrammarPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     final filter = GrammarFilter(query: _query, jlptLevel: _jlptLevel);
     final grammarAsync = ref.watch(grammarPointsProvider(filter));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Học ngữ pháp')),
+      appBar: AppBar(title: Text(strings.grammarHeaderTitle)),
       body: KitsuneBackdrop(
         child: Padding(
           padding: const EdgeInsets.all(AppTheme.space16),
@@ -51,7 +53,7 @@ class _GrammarPageState extends ConsumerState<GrammarPage> {
             children: [
               KitsuneSearchField(
                 controller: _searchController,
-                hintText: 'Tìm mẫu ngữ pháp hoặc nghĩa...',
+                hintText: strings.grammarSearchHint,
                 onChanged: _search,
                 onClear: () {
                   _searchController.clear();
@@ -68,7 +70,7 @@ class _GrammarPageState extends ConsumerState<GrammarPage> {
                     return Padding(
                       padding: const EdgeInsets.only(right: 8),
                       child: ChoiceChip(
-                        label: Text(level == null ? 'Tất cả' : 'N$level'),
+                        label: Text(level == null ? strings.all : 'N$level'),
                         selected: selected,
                         onSelected: (_) => setState(() => _jlptLevel = level),
                       ),
@@ -79,22 +81,22 @@ class _GrammarPageState extends ConsumerState<GrammarPage> {
               const SizedBox(height: AppTheme.space12),
               Expanded(
                 child: grammarAsync.when(
-                  loading: () => const KitsuneLoadingFox(message: 'Đang tải ngữ pháp...'),
+                  loading: () => KitsuneLoadingFox(message: strings.grammarLoading),
                   error: (_, __) => KitsuneEmptyState(
                     icon: Icons.error_outline_rounded,
-                    title: 'Không thể tải ngữ pháp',
-                    message: 'Kiểm tra kết nối rồi thử lại.',
+                    title: strings.grammarLoadErrorTitle,
+                    message: strings.grammarLoadErrorMessage,
                     action: ElevatedButton(
                       onPressed: () => ref.invalidate(grammarPointsProvider(filter)),
-                      child: const Text('Thử lại'),
+                      child: Text(strings.retry),
                     ),
                   ),
                   data: (items) {
                     if (items.isEmpty) {
-                      return const KitsuneEmptyState(
+                      return KitsuneEmptyState(
                         icon: Icons.menu_book_outlined,
-                        title: 'Chưa tìm thấy ngữ pháp',
-                        message: 'Hãy thử mẫu khác hoặc đổi cấp độ JLPT.',
+                        title: strings.grammarNotFoundTitle,
+                        message: strings.grammarNotFoundMessage,
                       );
                     }
                     return ListView.separated(
@@ -120,6 +122,7 @@ class _GrammarPageState extends ConsumerState<GrammarPage> {
           : _GrammarDetailSheet(
               grammar: _selected!,
               onClose: () => setState(() => _selected = null),
+              examplesTitle: strings.examplesTitle,
             ),
     );
   }
@@ -159,10 +162,15 @@ class _GrammarCard extends StatelessWidget {
 }
 
 class _GrammarDetailSheet extends StatelessWidget {
-  const _GrammarDetailSheet({required this.grammar, required this.onClose});
+  const _GrammarDetailSheet({
+    required this.grammar,
+    required this.onClose,
+    required this.examplesTitle,
+  });
 
   final GrammarPoint grammar;
   final VoidCallback onClose;
+  final String examplesTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +201,7 @@ class _GrammarDetailSheet extends StatelessWidget {
                 Text(grammar.explanation!, style: const TextStyle(height: 1.6)),
               ],
               const SizedBox(height: 20),
-              Text('Ví dụ', style: Theme.of(context).textTheme.titleMedium),
+              Text(examplesTitle, style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 8),
               ...grammar.examples.map((example) => Padding(
                     padding: const EdgeInsets.only(bottom: 10),
@@ -214,4 +222,5 @@ class _GrammarDetailSheet extends StatelessWidget {
       ),
     );
   }
+
 }

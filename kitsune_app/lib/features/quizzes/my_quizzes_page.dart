@@ -4,6 +4,7 @@ import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
+import 'package:kitsune_app/providers/providers.dart';
 import 'package:kitsune_app/providers/quiz_provider.dart';
 
 class MyQuizzesPage extends ConsumerWidget {
@@ -12,13 +13,14 @@ class MyQuizzesPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quizzesAsync = ref.watch(myQuizzesProvider);
+    final strings = ref.watch(stringsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Quiz của tôi')),
+      appBar: AppBar(title: Text(strings.myQuizzesTitle)),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Navigator.pushNamed(context, '/quizzes/create'),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Tạo quiz'),
+        label: Text(strings.createQuizFAB),
       ),
       body: KitsuneBackdrop(
         child: quizzesAsync.when(
@@ -26,26 +28,24 @@ class MyQuizzesPage extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
               children: [
-                const KitsuneHeroCard(
-                  title: 'Những bộ đề bạn tự thiết kế để học theo cách riêng.',
-                  subtitle:
-                      'Tập trung vào đúng nhóm từ hoặc kanji bạn muốn luyện, rồi chơi lại bất cứ lúc nào.',
+                KitsuneHeroCard(
+                  title: strings.myQuizzesHeroTitle,
+                  subtitle: strings.myQuizzesHeroDesc,
                   accent: KitsuneColors.primary,
                 ),
                 const SizedBox(height: AppTheme.space20),
                 if (quizzes.isEmpty)
                   KitsuneEmptyState(
                     icon: Icons.add_circle_outline_rounded,
-                    title: 'Bạn chưa có quiz nào',
-                    message:
-                        'Tạo bộ quiz đầu tiên để kiểm tra đúng phần kiến thức mình đang học.',
+                    title: strings.noMyQuizzesTitle,
+                    message: strings.noMyQuizzesMessage,
                     action: SizedBox(
                       width: 190,
                       child: ElevatedButton.icon(
                         onPressed: () =>
                             Navigator.pushNamed(context, '/quizzes/create'),
                         icon: const Icon(Icons.add_rounded),
-                        label: const Text('Tạo quiz ngay'),
+                        label: Text(strings.createQuizNow),
                       ),
                     ),
                   )
@@ -79,7 +79,11 @@ class MyQuizzesPage extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: AppTheme.space4),
                                   Text(
-                                    '${quiz.description.modes.length} chế độ • ${quiz.description.vocabIds.length + quiz.description.kanjiIds.length} mục',
+                                    strings.formatMyQuizSubtitle(
+                                      quiz.description.modes.length,
+                                      quiz.description.vocabIds.length +
+                                          quiz.description.kanjiIds.length,
+                                    ),
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
                                 ],
@@ -93,7 +97,7 @@ class MyQuizzesPage extends ConsumerWidget {
                               ),
                               onPressed: () =>
                                   Navigator.pushNamed(context, '/quizzes/${quiz.id}'),
-                              child: const Text('Chơi'),
+                              child: Text(strings.playQuizButton),
                             ),
                           ],
                         ),
@@ -103,8 +107,8 @@ class MyQuizzesPage extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const KitsuneLoadingFox(message: 'Đang tải quiz của bạn...'),
-          error: (error, _) => Center(child: Text('Lỗi: $error')),
+          loading: () => KitsuneLoadingFox(message: strings.loadingMyQuizzes),
+          error: (error, _) => Center(child: Text(strings.commonError(error))),
         ),
       ),
     );

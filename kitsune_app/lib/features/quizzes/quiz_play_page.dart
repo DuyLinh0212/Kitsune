@@ -63,7 +63,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: $error'),
+            content: Text(ref.read(stringsProvider).commonError(error)),
             backgroundColor: KitsuneColors.error,
           ),
         );
@@ -145,21 +145,23 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
+
     if (_isComplete) {
-      return _buildResult();
+      return _buildResult(strings);
     }
 
     if (_isLoading) {
-      return const Scaffold(
+      return Scaffold(
         body: KitsuneBackdrop(
-          child: KitsuneLoadingFox(message: 'Đang chuẩn bị quiz...'),
+          child: KitsuneLoadingFox(message: strings.loadingPreparingQuiz),
         ),
       );
     }
 
     if (_questions.isEmpty) {
-      return const Scaffold(
-        body: Center(child: Text('Không có câu hỏi')),
+      return Scaffold(
+        body: Center(child: Text(strings.noQuestions)),
       );
     }
 
@@ -168,7 +170,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Câu ${_currentIndex + 1} / ${_questions.length}'),
+        title: Text(strings.questionCounter(_currentIndex + 1, _questions.length)),
       ),
       body: KitsuneBackdrop(
         child: ListView(
@@ -286,13 +288,13 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
     );
   }
 
-  Widget _buildResult() {
+  Widget _buildResult(AppStrings strings) {
     final total = _questions.length;
     final accuracy = total > 0 ? (_correctCount / total * 100) : 0.0;
     final isGood = accuracy >= 70;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Kết quả')),
+      appBar: AppBar(title: Text(strings.quizResultTitle)),
       body: KitsuneBackdrop(
         child: Center(
           child: Padding(
@@ -303,9 +305,10 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   KitsuneHeroCard(
-                    title: isGood ? 'Bạn giữ nhịp khá tốt.' : 'Lượt này vẫn còn chỗ để cải thiện.',
-                    subtitle:
-                        'Dùng kết quả này để quyết định nên quay lại quiz hay chuyển sang ôn SRS ngay bây giờ.',
+                    title: isGood
+                        ? strings.quizResultGoodTitle
+                        : strings.quizResultKeepPracticingTitle,
+                    subtitle: strings.quizResultAdvice,
                     accent: isGood ? KitsuneColors.success : KitsuneColors.stamp,
                     trailing: Container(
                       width: 94,
@@ -334,7 +337,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                     children: [
                       Expanded(
                         child: KitsuneStatTile(
-                          label: 'Câu đúng',
+                          label: strings.correctAnswersLabel,
                           value: '$_correctCount/$total',
                           color: KitsuneColors.primary,
                         ),
@@ -342,7 +345,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: KitsuneStatTile(
-                          label: 'Độ chính xác',
+                          label: strings.accuracyLabel,
                           value: '${accuracy.round()}%',
                           color: isGood
                               ? KitsuneColors.success
@@ -354,7 +357,7 @@ class _QuizPlayPageState extends ConsumerState<QuizPlayPage> {
                   const SizedBox(height: AppTheme.space20),
                   ElevatedButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Quay lại'),
+                    child: Text(strings.back),
                   ),
                 ],
               ),

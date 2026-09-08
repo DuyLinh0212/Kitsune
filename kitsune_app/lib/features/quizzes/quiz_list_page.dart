@@ -4,6 +4,7 @@ import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
+import 'package:kitsune_app/providers/providers.dart';
 import 'package:kitsune_app/providers/quiz_provider.dart';
 
 class QuizListPage extends ConsumerWidget {
@@ -12,27 +13,27 @@ class QuizListPage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final quizzesAsync = ref.watch(publicQuizzesProvider);
+    final strings = ref.watch(stringsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Quiz cộng đồng')),
+      appBar: AppBar(title: Text(strings.communityQuizzesTitle)),
       body: KitsuneBackdrop(
         child: quizzesAsync.when(
           data: (quizzes) {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
               children: [
-                const KitsuneHeroCard(
-                  title: 'Khám phá những bộ đề người khác đang chia sẻ.',
-                  subtitle:
-                      'Chọn nhanh một quiz để kiểm tra vốn từ, tốc độ nhớ và cảm giác học hiện tại.',
+                KitsuneHeroCard(
+                  title: strings.communityQuizzesSubtitle,
+                  subtitle: strings.communityQuizzesHeroSubtitle,
                   accent: KitsuneColors.secondary,
                 ),
                 const SizedBox(height: AppTheme.space20),
                 if (quizzes.isEmpty)
-                  const KitsuneEmptyState(
+                  KitsuneEmptyState(
                     icon: Icons.quiz_outlined,
-                    title: 'Chưa có quiz công khai nào',
-                    message: 'Hãy quay lại sau hoặc tự tạo quiz của bạn để mở màn.',
+                    title: strings.noCommunityQuizzesTitle,
+                    message: strings.noCommunityQuizzesMessage,
                   )
                 else
                   ...quizzes.map((quiz) {
@@ -67,7 +68,10 @@ class QuizListPage extends ConsumerWidget {
                                   ),
                                   const SizedBox(height: AppTheme.space4),
                                   Text(
-                                    '$questionCount câu hỏi • ${quiz.creatorName ?? 'Cộng đồng'}',
+                                    strings.formatQuizItemSubtitle(
+                                      questionCount,
+                                      quiz.creatorName ?? strings.communityCreatorLabel,
+                                    ),
                                     style: Theme.of(context).textTheme.bodySmall,
                                   ),
                                 ],
@@ -82,7 +86,7 @@ class QuizListPage extends ConsumerWidget {
                               ),
                               onPressed: () =>
                                   Navigator.pushNamed(context, '/quizzes/${quiz.id}'),
-                              child: const Text('Làm bài'),
+                              child: Text(strings.playButton),
                             ),
                           ],
                         ),
@@ -92,8 +96,8 @@ class QuizListPage extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const KitsuneLoadingFox(message: 'Đang tải quiz...'),
-          error: (error, _) => Center(child: Text('Lỗi: $error')),
+          loading: () => KitsuneLoadingFox(message: strings.loadingQuiz),
+          error: (error, _) => Center(child: Text(strings.commonError(error))),
         ),
       ),
     );

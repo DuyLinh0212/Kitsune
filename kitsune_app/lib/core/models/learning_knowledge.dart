@@ -1,3 +1,5 @@
+import 'package:kitsune_app/core/localization/app_strings.dart';
+
 enum KnowledgeStatus { strong, growing, weak, learning }
 
 class KnowledgeNode {
@@ -17,18 +19,20 @@ class KnowledgeNode {
   final int attempts;
   final KnowledgeStatus status;
 
-  String get insight {
+  String getInsight(AppStrings strings) {
     if (status == KnowledgeStatus.learning) {
-      return 'Mới có $attempts bằng chứng — tiếp tục luyện để đánh giá chính xác.';
+      return strings.knowledgeInsightLearning(attempts);
     }
     if (status == KnowledgeStatus.strong) {
-      return 'Điểm mạnh ổn định ($score% đúng).';
+      return strings.knowledgeInsightStrong(score);
     }
     if (status == KnowledgeStatus.weak) {
-      return 'Nên ưu tiên ôn lại ($score% đúng).';
+      return strings.knowledgeInsightWeak(score);
     }
-    return 'Đang tiến bộ, cần thêm vài lượt củng cố ($score% đúng).';
+    return strings.knowledgeInsightGrowing(score);
   }
+
+  String get insight => getInsight(AppStrings(AppLanguage.vi));
 }
 
 class LearningKnowledgeGraph {

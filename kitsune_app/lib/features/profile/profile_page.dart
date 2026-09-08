@@ -46,9 +46,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
       ref.invalidate(authProvider);
     } catch (error) {
       if (mounted) {
+        final strings = ref.read(stringsProvider);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Không tải được ảnh đại diện: $error'),
+            content: Text('${strings.avatarUploadError}: $error'),
             backgroundColor: KitsuneColors.error,
           ),
         );
@@ -69,8 +70,8 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     final currentLanguage = ref.watch(appLanguageProvider);
 
     if (user == null) {
-      return const Scaffold(
-        body: Center(child: Text('Chưa đăng nhập')),
+      return Scaffold(
+        body: Center(child: Text(strings.notLoggedIn)),
       );
     }
 
@@ -84,10 +85,33 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           IconButton(
             tooltip: strings.logout,
             onPressed: () async {
-              await ref.read(authProvider.notifier).logout();
-              if (context.mounted) {
-                Navigator.pushNamedAndRemoveUntil(
-                    context, '/login', (_) => false);
+              final confirm = await showDialog<bool>(
+                context: context,
+                builder: (dialogContext) => AlertDialog(
+                  title: Text(strings.logoutConfirmTitle),
+                  content: Text(strings.logoutConfirmMessage),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogContext, false),
+                      child: Text(strings.cancel),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        minimumSize: Size.zero,
+                        backgroundColor: KitsuneColors.error,
+                      ),
+                      onPressed: () => Navigator.pop(dialogContext, true),
+                      child: Text(strings.logout),
+                    ),
+                  ],
+                ),
+              );
+              if (confirm == true) {
+                await ref.read(authProvider.notifier).logout();
+                if (context.mounted) {
+                  Navigator.pushNamedAndRemoveUntil(
+                      context, '/login', (_) => false);
+                }
               }
             },
             icon: const Icon(Icons.logout_rounded),
@@ -100,8 +124,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           children: [
             KitsuneHeroCard(
               title: user.displayName,
-              subtitle:
-                  '@${user.username} • giữ nhịp học của bạn đồng bộ trên mọi màn từ vựng, kanji và quiz.',
+              subtitle: strings.profileHeroSubtitle(user.username),
               accent: KitsuneColors.secondary,
               trailing: GestureDetector(
                 onTap: () => _pickAndUploadAvatar(user),
@@ -193,10 +216,10 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   ),
                 ],
               ),
-              loading: () => const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
+              loading: () => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: KitsuneLoadingFox(
-                    message: 'Đang tải thống kê...', size: 72),
+                    message: strings.loadingStats, size: 72),
               ),
               error: (_, __) => const SizedBox.shrink(),
             ),
@@ -208,17 +231,17 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             const SizedBox(height: AppTheme.space12),
             knowledgeAsync.when(
               data: (graph) => KnowledgeGraphPanel(graph: graph),
-              loading: () => const KitsuneSurface(
+              loading: () => KitsuneSurface(
                 child: KitsuneLoadingFox(
-                  message: 'Đang nối các bằng chứng học tập...',
+                  message: strings.connectingKnowledgeGraph,
                   size: 68,
                 ),
               ),
               error: (_, __) => KitsuneSurface(
                 child: Row(
                   children: [
-                    const Expanded(
-                      child: Text('Chưa tải được bản đồ năng lực.'),
+                    Expanded(
+                      child: Text(strings.cannotLoadKnowledgeGraph),
                     ),
                     TextButton(
                       onPressed: () => ref.invalidate(knowledgeGraphProvider),
@@ -232,7 +255,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             KitsuneSectionHeader(
               title: strings.accountInfo,
               actionLabel: strings.edit,
-              onAction: () => _showEditDialog(context, ref, user),
+              onAction: () => _showEditDialog(context, ref, user, strings),
             ),
             const SizedBox(height: AppTheme.space12),
             KitsuneSurface(
@@ -248,7 +271,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   _infoRow(
                     context,
                     icon: Icons.shield_outlined,
-                    label: 'Vai trò',
+                    label: strings.roleLabel,
                     value: user.roles.join(', '),
                   ),
                   if (user.fullName != null) ...[
@@ -256,7 +279,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     _infoRow(
                       context,
                       icon: Icons.badge_outlined,
-                      label: 'Họ tên',
+                      label: strings.fullNameLabel,
                       value: user.fullName!,
                     ),
                   ],
@@ -300,7 +323,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                     ),
                     title: Text(strings.termsOfService),
                     trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () => _showTermsDialog(context),
+                    onTap: () => _showTermsDialog(context, strings),
                   ),
                 ],
               ),
@@ -355,26 +378,31 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  void _showEditDialog(BuildContext context, WidgetRef ref, UserProfile user) {
+  void _showEditDialog(
+    BuildContext context,
+    WidgetRef ref,
+    UserProfile user,
+    AppStrings strings,
+  ) {
     final fullNameController = TextEditingController(text: user.fullName ?? '');
 
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Chỉnh sửa hồ sơ'),
+          title: Text(strings.editProfileTitle),
           content: TextField(
             controller: fullNameController,
-            decoration: const InputDecoration(
-              labelText: 'Họ và tên',
-              prefixIcon: Icon(Icons.person_outline_rounded),
+            decoration: InputDecoration(
+              labelText: strings.fullNameLabel,
+              prefixIcon: const Icon(Icons.person_outline_rounded),
             ),
             textCapitalization: TextCapitalization.words,
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Hủy'),
+              child: Text(strings.cancel),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(minimumSize: Size.zero),
@@ -394,14 +422,14 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                   if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('$error'),
+                        content: Text('${strings.errorPrefix}: $error'),
                         backgroundColor: KitsuneColors.error,
                       ),
                     );
                   }
                 }
               },
-              child: const Text('Lưu'),
+              child: Text(strings.save),
             ),
           ],
         );
@@ -409,53 +437,49 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
     );
   }
 
-  void _showTermsDialog(BuildContext context) {
-    showDialog(
+  void _showTermsDialog(BuildContext context, AppStrings strings) {
+    showDialog<void>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Điều khoản dịch vụ'),
+          title: Text(strings.termsOfService),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text('1. Chấp nhận điều khoản',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text(
-                    'Bằng việc đăng ký tài khoản và sử dụng Kitsune, bạn đồng ý tuân thủ các điều khoản này.'),
-                SizedBox(height: 12),
-                Text('2. Quyền riêng tư & Dữ liệu',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text(
-                    'Chúng tôi lưu trữ thông tin cơ bản (email, tên) và tiến trình học tập của bạn để đồng bộ trên các thiết bị. Dữ liệu của bạn được bảo mật và không chia sẻ cho bên thứ ba vì mục đích quảng cáo.'),
-                SizedBox(height: 12),
-                Text('3. Sử dụng hợp lý',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text(
-                    'Bạn không được sử dụng các công cụ tự động (bot) để tạo tải giả hoặc phá hoại dịch vụ. Mọi hành vi vi phạm có thể dẫn đến việc khóa tài khoản vĩnh viễn mà không cần báo trước.'),
-                SizedBox(height: 12),
-                Text('4. Quyền sở hữu nội dung',
-                    style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text(
-                    'Dữ liệu từ vựng và ngữ pháp do cộng đồng đóng góp thuộc quyền sở hữu chung. Mã nguồn và thiết kế của Kitsune thuộc quyền sở hữu của tác giả Nguyễn Duy Linh.'),
+              children: [
+                Text(strings.termsTitle1,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(strings.termsBody1),
+                const SizedBox(height: 12),
+                Text(strings.termsTitle2,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(strings.termsBody2),
+                const SizedBox(height: 12),
+                Text(strings.termsTitle3,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(strings.termsBody3),
+                const SizedBox(height: 12),
+                Text(strings.termsTitle4,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(strings.termsBody4),
               ],
             ),
           ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: const Text('Đóng'),
-                ),
-              ],
-            );
-          },
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text(strings.close),
+            ),
+          ],
         );
-      }
+      },
+    );
+  }
 
   void _showLanguagePicker(
     BuildContext context,

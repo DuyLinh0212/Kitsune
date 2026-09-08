@@ -66,6 +66,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     final kanjiAsync = ref.watch(kanjiDetailProvider(widget.kanjiId));
 
     return Scaffold(
@@ -83,15 +84,18 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
               return ListView(
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 28),
                 children: [
-                  _DetailHeader(character: kanji.character),
+                  _DetailHeader(
+                    character: kanji.character,
+                    label: strings.kanjiHeaderTitle,
+                  ),
                   const SizedBox(height: AppTheme.space14),
-                  _buildHeroCard(context, kanji, accent),
+                  _buildHeroCard(context, kanji, accent, strings),
                   if (kanji.radical != null) ...[
                     const SizedBox(height: AppTheme.space14),
                     _buildRadicalCard(context, kanji.radical!, accent),
                   ],
                   const SizedBox(height: AppTheme.space14),
-                  _buildExamplesCard(context, kanji),
+                  _buildExamplesCard(context, kanji, strings),
                   if ((kanji.mnemonic ?? '').trim().isNotEmpty) ...[
                     const SizedBox(height: AppTheme.space14),
                     _buildMnemonicCard(context, kanji),
@@ -100,12 +104,12 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
               );
             },
             loading: () =>
-                const KitsuneLoadingFox(message: 'Đang tải Kanji...'),
+                KitsuneLoadingFox(message: strings.kanjiLoading),
             error: (error, _) => Center(
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Text(
-                  'Error loading kanji: $error',
+                  strings.commonError(error),
                   textAlign: TextAlign.center,
                 ),
               ),
@@ -120,6 +124,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
     BuildContext context,
     KanjiDetailDto kanji,
     Color accent,
+    AppStrings strings,
   ) {
     final hasOn = (kanji.onyomi ?? '').trim().isNotEmpty;
     final hasKun = (kanji.kunyomi ?? '').trim().isNotEmpty;
@@ -195,7 +200,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                   ),
                   const SizedBox(height: AppTheme.space10),
                   Text(
-                    'Số nét: ${kanji.strokeCount}',
+                    strings.formatStrokesDetail(kanji.strokeCount),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: KitsuneColors.onSurfaceVariant,
                         ),
@@ -203,7 +208,10 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                   if (kanji.radical != null) ...[
                     const SizedBox(height: AppTheme.space6),
                     Text(
-                      'Bộ thủ: ${kanji.radical!.radicalCharacter} · ${kanji.radical!.radicalName}',
+                      strings.formatRadicalDetail(
+                        kanji.radical!.radicalCharacter,
+                        kanji.radical!.radicalName,
+                      ),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: KitsuneColors.onSurfaceVariant,
                           ),
@@ -216,18 +224,18 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
                     children: [
                       if (hasOn)
                         _ReadingChip(
-                          label: 'Âm On',
+                          label: strings.onyomiLabel,
                           value: kanji.onyomi!,
                           color: KitsuneColors.secondary,
                         ),
                       if (hasKun)
                         _ReadingChip(
-                          label: 'Âm Kun',
+                          label: strings.kunyomiLabel,
                           value: kanji.kunyomi!,
                           color: KitsuneColors.primary,
                         ),
                       _ReadingChip(
-                        label: 'Âm Hán Việt',
+                        label: strings.hanVietLabel,
                         value: kanji.amHanViet,
                         color: accent,
                       ),
@@ -263,7 +271,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
             child: OutlinedButton.icon(
               onPressed: () => Navigator.pushNamed(context, '/srs'),
               icon: const Icon(Icons.edit_note_rounded),
-              label: const Text('Mở phiên ôn tập'),
+              label: Text(strings.openReviewSession),
             ),
           ),
         ],
@@ -332,14 +340,18 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
     );
   }
 
-  Widget _buildExamplesCard(BuildContext context, KanjiDetailDto kanji) {
+  Widget _buildExamplesCard(
+    BuildContext context,
+    KanjiDetailDto kanji,
+    AppStrings strings,
+  ) {
     return KitsuneSurface(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const KitsuneSectionHeader(
-            title: 'Từ vựng ví dụ',
+          KitsuneSectionHeader(
+            title: strings.wordsWithKanjiTitle,
             accent: KitsuneColors.primary,
           ),
           const SizedBox(height: AppTheme.space10),
@@ -357,7 +369,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
 
               if (snapshot.hasError) {
                 return Text(
-                  'Could not load example vocabulary yet.',
+                  strings.loadExamplesError,
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: KitsuneColors.error,
                       ),
@@ -367,7 +379,7 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
               final items = snapshot.data ?? const <VocabularyDto>[];
               if (items.isEmpty) {
                 return Text(
-                  'Chua tim thay tu vi du cho kanji ${kanji.character}.',
+                  strings.formatNoExamplesForKanji(kanji.character),
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: KitsuneColors.onSurfaceVariant,
                       ),
@@ -476,9 +488,11 @@ class _KanjiDetailPageState extends ConsumerState<KanjiDetailPage> {
 class _DetailHeader extends StatelessWidget {
   const _DetailHeader({
     required this.character,
+    required this.label,
   });
 
   final String character;
+  final String label;
 
   @override
   Widget build(BuildContext context) {
@@ -507,7 +521,7 @@ class _DetailHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Kanji',
+                label,
                 style: Theme.of(context).textTheme.labelMedium,
               ),
               Text(

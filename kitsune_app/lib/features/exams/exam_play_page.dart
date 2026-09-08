@@ -54,6 +54,7 @@ class _ExamPlayPageState extends ConsumerState<ExamPlayPage> {
     if (_submitting) return;
     setState(() => _submitting = true);
     _timer?.cancel();
+    final strings = ref.read(stringsProvider);
     try {
       final elapsed = DateTime.now().difference(_startedAt ?? DateTime.now()).inSeconds;
       final result = await ref.read(kitsuneApiProvider).saveExamAttempt(
@@ -73,7 +74,7 @@ class _ExamPlayPageState extends ConsumerState<ExamPlayPage> {
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Không thể nộp bài. Hãy thử lại.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(strings.cannotSubmitExam)));
         setState(() => _submitting = false);
       }
     }
@@ -81,22 +82,23 @@ class _ExamPlayPageState extends ConsumerState<ExamPlayPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     final examAsync = ref.watch(examDetailProvider(widget.examId));
     return Scaffold(
-      appBar: AppBar(title: const Text('Làm đề kiểm tra')),
+      appBar: AppBar(title: Text(strings.examPlayTitle)),
       body: KitsuneBackdrop(
         child: examAsync.when(
-          loading: () => const KitsuneLoadingFox(message: 'Đang tải đề...'),
+          loading: () => KitsuneLoadingFox(message: strings.loadingExams),
           error: (_, __) => KitsuneEmptyState(
             icon: Icons.error_outline_rounded,
-            title: 'Không thể tải đề',
-            message: 'Đề có thể không còn công khai hoặc kết nối đang gặp lỗi.',
-            action: ElevatedButton(onPressed: () => ref.invalidate(examDetailProvider(widget.examId)), child: const Text('Thử lại')),
+            title: strings.cannotLoadExams,
+            message: strings.cannotLoadExamDetail,
+            action: ElevatedButton(onPressed: () => ref.invalidate(examDetailProvider(widget.examId)), child: Text(strings.retry)),
           ),
           data: (exam) {
             _startTimer(exam);
             if (exam.questions.isEmpty) {
-              return const KitsuneEmptyState(icon: Icons.assignment_late_outlined, title: 'Đề chưa có câu hỏi', message: 'Hãy chọn một đề khác.');
+              return KitsuneEmptyState(icon: Icons.assignment_late_outlined, title: strings.noQuestions, message: strings.chooseAnotherExamPrompt);
             }
             final question = exam.questions[_index];
             return Padding(
@@ -112,7 +114,7 @@ class _ExamPlayPageState extends ConsumerState<ExamPlayPage> {
                   const SizedBox(height: 10),
                   LinearProgressIndicator(value: (_index + 1) / exam.questions.length),
                   const SizedBox(height: 8),
-                  Text('Câu ${_index + 1}/${exam.questions.length} · ${_answers.length} đã trả lời'),
+                  Text(strings.formatExamQuestionProgress(_index + 1, exam.questions.length, _answers.length)),
                   const SizedBox(height: 16),
                   Expanded(
                     child: SingleChildScrollView(
@@ -128,14 +130,14 @@ class _ExamPlayPageState extends ConsumerState<ExamPlayPage> {
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      OutlinedButton(onPressed: _index == 0 ? null : () => setState(() => _index--), child: const Text('Trước')),
+                      OutlinedButton(onPressed: _index == 0 ? null : () => setState(() => _index--), child: Text(strings.previous)),
                       const Spacer(),
                       if (_index < exam.questions.length - 1)
-                        ElevatedButton(onPressed: () => setState(() => _index++), child: const Text('Tiếp'))
+                        ElevatedButton(onPressed: () => setState(() => _index++), child: Text(strings.next))
                       else
                         ElevatedButton(
                           onPressed: _submitting ? null : () => _submit(exam),
-                          child: Text(_submitting ? 'Đang nộp...' : 'Nộp bài'),
+                          child: Text(_submitting ? strings.submitting : strings.submitExam),
                         ),
                     ],
                   ),

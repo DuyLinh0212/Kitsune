@@ -1,3 +1,4 @@
+// kitsune_app/lib/features/auth/register_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/models/user.dart';
@@ -34,14 +35,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   }
 
   Future<void> _handleRegister() async {
+    final strings = ref.read(stringsProvider);
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
 
     if (!_agreeTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng đồng ý với Điều khoản dịch vụ'),
+        SnackBar(
+          content: Text(strings.registerTermsRequired),
           backgroundColor: KitsuneColors.error,
         ),
       );
@@ -66,7 +69,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       }
     } catch (error) {
       if (!mounted) return;
-      final message = error.toString().replaceFirst('Exception: ', '');
+      final rawMessage = error.toString().replaceFirst('Exception: ', '');
+      final message = strings.mapAuthError(rawMessage);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -98,6 +102,8 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
+
     return Scaffold(
       appBar: AppBar(),
       body: KitsuneBackdrop(
@@ -113,10 +119,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const KitsuneHeroCard(
-                        title: 'Bắt đầu hành trình học tiếng Nhật của bạn.',
-                        subtitle:
-                            'Tạo tài khoản để đồng bộ tiến độ, thư mục riêng và các quiz bạn tự xây dựng.',
+                      KitsuneHeroCard(
+                        title: strings.registerHeroTitle,
+                        subtitle: strings.registerHeroSubtitle,
                         accent: KitsuneColors.secondary,
                       ),
                       const SizedBox(height: AppTheme.space20),
@@ -126,23 +131,23 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             Text(
-                              'Thông tin tài khoản',
+                              strings.registerAccountInfo,
                               style: Theme.of(context).textTheme.titleLarge,
                             ),
                             const SizedBox(height: AppTheme.space16),
                             TextFormField(
                               controller: _usernameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Tên đăng nhập',
-                                prefixIcon: Icon(Icons.person_outline_rounded),
+                              decoration: InputDecoration(
+                                labelText: strings.registerUsernameLabel,
+                                prefixIcon: const Icon(Icons.person_outline_rounded),
                               ),
                               textInputAction: TextInputAction.next,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Vui lòng nhập tên đăng nhập';
+                                  return strings.registerUsernameRequired;
                                 }
                                 if (value.trim().length < 2) {
-                                  return 'Tên đăng nhập phải có ít nhất 2 ký tự';
+                                  return strings.registerUsernameMinLength;
                                 }
                                 return null;
                               },
@@ -150,18 +155,18 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             const SizedBox(height: AppTheme.space16),
                             TextFormField(
                               controller: _emailController,
-                              decoration: const InputDecoration(
-                                labelText: 'Email',
-                                prefixIcon: Icon(Icons.email_outlined),
+                              decoration: InputDecoration(
+                                labelText: strings.registerEmailLabel,
+                                prefixIcon: const Icon(Icons.email_outlined),
                               ),
                               keyboardType: TextInputType.emailAddress,
                               textInputAction: TextInputAction.next,
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
-                                  return 'Vui lòng nhập email';
+                                  return strings.registerEmailRequired;
                                 }
                                 if (!value.contains('@')) {
-                                  return 'Email không hợp lệ';
+                                  return strings.registerEmailInvalid;
                                 }
                                 return null;
                               },
@@ -170,7 +175,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             TextFormField(
                               controller: _passwordController,
                               decoration: InputDecoration(
-                                labelText: 'Mật khẩu',
+                                labelText: strings.registerPasswordLabel,
                                 prefixIcon: const Icon(Icons.lock_outline_rounded),
                                 suffixIcon: IconButton(
                                   onPressed: () {
@@ -189,10 +194,10 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                               textInputAction: TextInputAction.next,
                               validator: (value) {
                                 if (value == null || value.isEmpty) {
-                                  return 'Vui lòng nhập mật khẩu';
+                                  return strings.registerPasswordRequired;
                                 }
                                 if (value.length < 6) {
-                                  return 'Mật khẩu phải có ít nhất 6 ký tự';
+                                  return strings.registerPasswordMinLength;
                                 }
                                 return null;
                               },
@@ -200,9 +205,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             const SizedBox(height: AppTheme.space16),
                             TextFormField(
                               controller: _fullNameController,
-                              decoration: const InputDecoration(
-                                labelText: 'Họ và tên',
-                                prefixIcon: Icon(Icons.badge_outlined),
+                              decoration: InputDecoration(
+                                labelText: strings.registerFullNameLabel,
+                                prefixIcon: const Icon(Icons.badge_outlined),
                               ),
                               textInputAction: TextInputAction.done,
                               onFieldSubmitted: (_) => _handleRegister(),
@@ -221,14 +226,14 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                                 ),
                                 Expanded(
                                   child: GestureDetector(
-                                    onTap: _showTermsDialog,
+                                    onTap: () => _showTermsDialog(strings),
                                     child: RichText(
                                       text: TextSpan(
                                         style: Theme.of(context).textTheme.bodyMedium,
                                         children: [
-                                          const TextSpan(text: 'Tôi đồng ý với '),
+                                          TextSpan(text: strings.registerAgreeTerms),
                                           TextSpan(
-                                            text: 'Điều khoản dịch vụ',
+                                            text: strings.termsOfService,
                                             style: const TextStyle(
                                               color: KitsuneColors.primary,
                                               decoration: TextDecoration.underline,
@@ -250,7 +255,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                                       height: 20,
                                       child: KitsuneLoadingFox(size: 28),
                                     )
-                                  : const Text('Tạo tài khoản'),
+                                  : Text(strings.registerSubmitButton),
                             ),
                           ],
                         ),
@@ -268,13 +273,13 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             const SizedBox(width: AppTheme.space12),
                             Expanded(
                               child: Text(
-                                'Đã có tài khoản rồi? Quay lại màn đăng nhập để tiếp tục.',
+                                strings.registerAlreadyHaveAccount,
                                 style: Theme.of(context).textTheme.bodyMedium,
                               ),
                             ),
                             TextButton(
                               onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('Đăng nhập'),
+                              child: Text(strings.registerLoginNow),
                             ),
                           ],
                         ),
@@ -290,39 +295,31 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 
-  void _showTermsDialog() {
+  void _showTermsDialog(AppStrings strings) {
     showDialog(
       context: context,
-      builder: (context) {
+      builder: (dialogCtx) {
         return AlertDialog(
-          title: const Text('Điều khoản dịch vụ'),
+          title: Text(strings.termsOfService),
           content: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
-              children: const [
-                Text('1. Chấp nhận điều khoản', style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('Bằng việc đăng ký tài khoản và sử dụng Kitsune, bạn đồng ý tuân thủ các điều khoản này.'),
-                SizedBox(height: 12),
-                Text('2. Quyền riêng tư & Dữ liệu', style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('Chúng tôi lưu trữ thông tin cơ bản (email, tên) và tiến trình học tập của bạn để đồng bộ trên các thiết bị. Dữ liệu của bạn được bảo mật và không chia sẻ cho bên thứ ba vì mục đích quảng cáo.'),
-                SizedBox(height: 12),
-                Text('3. Sử dụng hợp lý', style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('Bạn không được sử dụng các công cụ tự động (bot) để tạo tải giả hoặc phá hoại dịch vụ. Mọi hành vi vi phạm có thể dẫn đến việc khóa tài khoản vĩnh viễn mà không cần báo trước.'),
-                SizedBox(height: 12),
-                Text('4. Quyền sở hữu nội dung', style: TextStyle(fontWeight: FontWeight.bold)),
-                SizedBox(height: 4),
-                Text('Dữ liệu từ vựng và ngữ pháp do cộng đồng đóng góp thuộc quyền sở hữu chung. Mã nguồn và thiết kế của Kitsune thuộc quyền sở hữu của tác giả Nguyễn Duy Linh.'),
+              children: [
+                Text(strings.termsTitle1, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(strings.termsBody1),
+                const SizedBox(height: 12),
+                Text(strings.termsTitle2, style: const TextStyle(fontWeight: FontWeight.bold)),
+                const SizedBox(height: 4),
+                Text(strings.termsBody2),
               ],
             ),
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Đóng'),
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: Text(strings.close),
             ),
           ],
         );
@@ -330,4 +327,3 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     );
   }
 }
-

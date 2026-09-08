@@ -1,16 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/models/learning_knowledge.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
+import 'package:kitsune_app/providers/providers.dart';
 
-class KnowledgeGraphPanel extends StatelessWidget {
+class KnowledgeGraphPanel extends ConsumerWidget {
   const KnowledgeGraphPanel({super.key, required this.graph});
 
   final LearningKnowledgeGraph graph;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     return KitsuneSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,15 +67,15 @@ class KnowledgeGraphPanel extends StatelessWidget {
           ),
           const SizedBox(height: AppTheme.space16),
           if (graph.nodes.isEmpty)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'Chưa đủ dữ liệu. Làm vài câu ôn tập hoặc một đề kiểm tra để mở bản đồ.',
-                style: TextStyle(color: KitsuneColors.onSurfaceVariant),
+                strings.knowledgeEmptyGraph,
+                style: const TextStyle(color: KitsuneColors.onSurfaceVariant),
               ),
             )
           else
-            ...graph.nodes.map((node) => _KnowledgeBranch(node: node)),
+            ...graph.nodes.map((node) => _KnowledgeBranch(node: node, strings: strings)),
         ],
       ),
     );
@@ -80,9 +83,10 @@ class KnowledgeGraphPanel extends StatelessWidget {
 }
 
 class _KnowledgeBranch extends StatelessWidget {
-  const _KnowledgeBranch({required this.node});
+  const _KnowledgeBranch({required this.node, required this.strings});
 
   final KnowledgeNode node;
+  final AppStrings strings;
 
   @override
   Widget build(BuildContext context) {
@@ -135,7 +139,7 @@ class _KnowledgeBranch extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(node.insight,
+                  child: Text(node.getInsight(strings),
                       style: const TextStyle(
                           fontSize: 12, color: KitsuneColors.onSurfaceVariant)),
                 ),

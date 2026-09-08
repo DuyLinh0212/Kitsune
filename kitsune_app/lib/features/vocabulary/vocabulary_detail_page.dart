@@ -76,8 +76,9 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
       if (mounted) {
         setState(() => _isBookmarked = bookmarked);
       }
+      final strings = ref.read(stringsProvider);
       _showMessage(
-        bookmarked ? 'Da luu vao yeu thich.' : 'Da bo luu khoi yeu thich.',
+        bookmarked ? strings.bookmarkAdded : strings.bookmarkRemoved,
       );
     } catch (error) {
       _showError(error);
@@ -113,10 +114,11 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     final vocabAsync = ref.watch(vocabularyDetailProvider(widget.vocabularyId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Chi tiết từ vựng')),
+      appBar: AppBar(title: Text(strings.vocabDetailTitle)),
       body: KitsuneBackdrop(
         child: vocabAsync.when(
           data: (vocab) => ListView(
@@ -131,7 +133,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                 ),
                 subtitle: vocab.pronunciation?.trim().isNotEmpty == true
                     ? vocab.pronunciation!
-                    : 'Đọc, nghe và kết nối các thành phần Kanji của từ.',
+                    : strings.vocabHeroSubtitle,
                 accent: KitsuneColors.primary,
                 trailing: Container(
                   width: 96,
@@ -167,7 +169,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                       borderRadius: BorderRadius.circular(AppTheme.radiusMd),
                     ),
                     child: Text(
-                      '語彙 · TỪ VỰNG',
+                      strings.vocabBadge,
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
@@ -180,7 +182,9 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                       icon: _isBookmarked!
                           ? Icons.star_rounded
                           : Icons.star_outline_rounded,
-                      label: _isBookmarked! ? 'Đã lưu' : 'Chưa lưu',
+                      label: _isBookmarked!
+                          ? strings.bookmarked
+                          : strings.notBookmarked,
                       color: KitsuneColors.stamp,
                       isActive: _isBookmarked!,
                     ),
@@ -189,7 +193,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                     onTap: () => _speak(vocab),
                     child: KitsuneActionBadge(
                       icon: Icons.volume_up_rounded,
-                      label: 'Phát âm',
+                      label: strings.pronounceAction,
                       color: KitsuneColors.primary,
                       isActive: _speakingWord == vocab.word,
                     ),
@@ -201,9 +205,9 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const KitsuneSectionHeader(
-                      title: 'Nghĩa',
-                      subtitle: 'Ý nghĩa cốt lõi để nhận ra từ trong ngữ cảnh.',
+                    KitsuneSectionHeader(
+                      title: strings.meaningTitle,
+                      subtitle: strings.meaningSubtitle,
                       accent: KitsuneColors.secondary,
                     ),
                     const SizedBox(height: AppTheme.space12),
@@ -218,7 +222,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                     if (vocab.pronunciation?.trim().isNotEmpty == true) ...[
                       const SizedBox(height: AppTheme.space12),
                       Text(
-                        'Cách đọc: ${vocab.pronunciation}',
+                        strings.formatReading(vocab.pronunciation!),
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                     ],
@@ -230,9 +234,9 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const KitsuneSectionHeader(
-                      title: 'Ghi nhớ từ này',
-                      subtitle: 'Nghe lại phát âm hoặc lưu vào mục yêu thích.',
+                    KitsuneSectionHeader(
+                      title: strings.memorizeVocabTitle,
+                      subtitle: strings.memorizeVocabSubtitle,
                       accent: KitsuneColors.stamp,
                     ),
                     const SizedBox(height: AppTheme.space14),
@@ -253,8 +257,8 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                                         : Icons.star_outline_rounded,
                                   ),
                             label: Text((_isBookmarked ?? false)
-                                ? 'Bỏ lưu'
-                                : 'Lưu yêu thích'),
+                                ? strings.unbookmarkAction
+                                : strings.bookmarkAction),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -262,7 +266,7 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                           child: ElevatedButton.icon(
                             onPressed: () => _speak(vocab),
                             icon: const Icon(Icons.volume_up_rounded),
-                            label: const Text('Nghe lại'),
+                            label: Text(strings.listenAgainAction),
                           ),
                         ),
                       ],
@@ -276,10 +280,9 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const KitsuneSectionHeader(
-                        title: 'Thành phần Kanji',
-                        subtitle:
-                            'Tách cấu tạo để ghi nhớ từ như một công thức.',
+                      KitsuneSectionHeader(
+                        title: strings.kanjiBreakdownTitle,
+                        subtitle: strings.kanjiBreakdownSubtitle,
                         accent: KitsuneColors.primary,
                       ),
                       const SizedBox(height: AppTheme.space12),
@@ -339,10 +342,11 @@ class _VocabularyDetailPageState extends ConsumerState<VocabularyDetailPage> {
               ],
             ],
           ),
-          loading: () => const KitsuneLoadingFox(message: 'Đang tải...'),
-          error: (error, _) => Center(child: Text('Loi: $error')),
+          loading: () => KitsuneLoadingFox(message: strings.loading),
+          error: (error, _) => Center(child: Text(strings.commonError(error))),
         ),
       ),
     );
+
   }
 }

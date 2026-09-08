@@ -1,3 +1,4 @@
+// kitsune_app/lib/features/home/home_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/services/app_usage_service.dart';
@@ -44,14 +45,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     final authState = ref.watch(authProvider);
     final user =
         authState.valueOrNull ?? ref.read(authProvider.notifier).currentUser;
+    final strings = ref.watch(stringsProvider);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Trang chủ'),
+        title: Text(strings.homeTitle),
       ),
       body: KitsuneBackdrop(
         child: _userId == null
-            ? const KitsuneLoadingFox(message: 'Đang tải...')
+            ? KitsuneLoadingFox(message: strings.loading)
             : RefreshIndicator(
                 onRefresh: () async {
                   ref.invalidate(userStatsProvider(_userId!));
@@ -64,35 +66,35 @@ class _HomePageState extends ConsumerState<HomePage> {
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                   children: [
-                    _buildHero(user),
+                    _buildHero(user, strings),
                     const SizedBox(height: AppTheme.space16),
-                    _buildQuickActions(),
-                    const SizedBox(height: AppTheme.space24),
-                    const KitsuneSectionHeader(
-                      title: 'Nhịp học tuần này',
-                    ),
-                    const SizedBox(height: AppTheme.space12),
-                    _buildWeekChart(),
+                    _buildQuickActions(strings),
                     const SizedBox(height: AppTheme.space24),
                     KitsuneSectionHeader(
-                      title: 'Quiz của bạn',
-                      subtitle: 'Ôn lại bộ đề bạn đã tạo hoặc chơi lại ngay.',
-                      actionLabel: 'Mở bộ quiz',
+                      title: strings.weekStudyPace,
+                    ),
+                    const SizedBox(height: AppTheme.space12),
+                    _buildWeekChart(strings),
+                    const SizedBox(height: AppTheme.space24),
+                    KitsuneSectionHeader(
+                      title: strings.myQuizzesSectionTitle,
+                      subtitle: strings.myQuizzesSectionSubtitle,
+                      actionLabel: strings.openQuizSet,
                       onAction: () =>
                           Navigator.pushNamed(context, '/my_quizzes'),
                     ),
                     const SizedBox(height: AppTheme.space12),
-                    _buildMyQuizzes(),
+                    _buildMyQuizzes(strings),
                     const SizedBox(height: AppTheme.space24),
                     KitsuneSectionHeader(
-                      title: 'Bảng xếp hạng',
-                      subtitle: 'Nhìn nhanh mặt bằng chung của cộng đồng.',
-                      actionLabel: 'Chi tiết',
+                      title: strings.leaderboardSectionTitle,
+                      subtitle: strings.leaderboardSectionSubtitle,
+                      actionLabel: strings.viewDetails,
                       onAction: () =>
                           Navigator.pushNamed(context, '/leaderboard'),
                     ),
                     const SizedBox(height: AppTheme.space12),
-                    _buildLeaderboardPreview(),
+                    _buildLeaderboardPreview(strings),
                   ],
                 ),
               ),
@@ -100,16 +102,17 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildHero(dynamic user) {
+  Widget _buildHero(dynamic user, AppStrings strings) {
     final statsAsync = ref.watch(userStatsProvider(_userId!));
+    final userName = user?.displayName ?? (strings.language == AppLanguage.ja ? 'あなた' : (strings.language == AppLanguage.en ? 'Learner' : 'bạn'));
+
     return statsAsync.when(
       data: (stats) {
         return KitsuneHeroCard(
-          title:
-              'Xin chào ${user?.displayName ?? 'bạn'}, hôm nay mình học gì tiếp?',
+          title: strings.homeGreeting(userName),
           subtitle: stats.srsCardsDue > 0
-              ? 'Bạn đang có ${stats.srsCardsDue} thẻ đến hạn. Đây là lúc tốt nhất để giữ nhịp nhớ lâu.'
-              : 'Hôm nay chưa có thẻ đến hạn. Bạn có thể mở một bài học hoặc thử quiz mới.',
+              ? strings.homeSrsDue(stats.srsCardsDue)
+              : strings.homeNoSrsDue,
           trailing: Column(
             children: [
               CircleAvatar(
@@ -134,7 +137,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       minimumSize: const Size(0, 40),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
-                    child: const Text('Ôn ngay'),
+                    child: Text(strings.reviewNow),
                   ),
                 ),
             ],
@@ -151,32 +154,32 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildQuickActions() {
+  Widget _buildQuickActions(AppStrings strings) {
     final actions = [
       (
-        label: 'Ôn tập',
-        detail: 'Giữ nhịp SRS',
+        label: strings.quickActionSrs,
+        detail: strings.quickActionSrsDetail,
         icon: Icons.auto_awesome_motion_rounded,
         color: KitsuneColors.primary,
         route: '/srs',
       ),
       (
-        label: 'Quiz',
-        detail: 'Luyện phản xạ',
+        label: strings.quickActionQuiz,
+        detail: strings.quickActionQuizDetail,
         icon: Icons.quiz_rounded,
         color: KitsuneColors.secondary,
         route: '/quizzes',
       ),
       (
-        label: 'Đề kiểm tra',
-        detail: 'Đo tiến bộ',
+        label: strings.quickActionExam,
+        detail: strings.quickActionExamDetail,
         icon: Icons.assignment_rounded,
         color: KitsuneColors.stamp,
         route: '/exams',
       ),
       (
-        label: 'Cộng đồng',
-        detail: 'Xem xếp hạng',
+        label: strings.quickActionCommunity,
+        detail: strings.quickActionCommunityDetail,
         icon: Icons.groups_rounded,
         color: KitsuneColors.success,
         route: '/leaderboard',
@@ -235,11 +238,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildWeekChart() {
+  Widget _buildWeekChart(AppStrings strings) {
     final data = _weekUsageHours;
     final maxValue = data.reduce((a, b) => a > b ? a : b).clamp(0.25, 999999);
     final totalHours = data.fold<double>(0, (sum, value) => sum + value);
-    final days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7'];
+    final days = strings.language == AppLanguage.ja
+        ? ['日', '月', '火', '水', '木', '金', '土']
+        : (strings.language == AppLanguage.en
+            ? ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+            : ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']);
 
     return KitsuneSurface(
       padding: const EdgeInsets.fromLTRB(14, 16, 14, 12),
@@ -251,15 +258,15 @@ class _HomePageState extends ConsumerState<HomePage> {
             runSpacing: 10,
             children: [
               KitsuneMetricPill(
-                label: 'Streak',
+                label: strings.streakLabel,
                 value:
-                    '${ref.watch(userStatsProvider(_userId!)).valueOrNull?.streak ?? 0} ngày',
+                    '${ref.watch(userStatsProvider(_userId!)).valueOrNull?.streak ?? 0}',
                 icon: Icons.local_fire_department_rounded,
                 color: KitsuneColors.primary,
               ),
               KitsuneMetricPill(
-                label: 'Thời gian mở app',
-                value: _formatWeekDuration(totalHours),
+                label: strings.totalTimeWeek,
+                value: _formatWeekDuration(totalHours, strings),
                 icon: Icons.schedule_rounded,
                 color: KitsuneColors.stamp,
               ),
@@ -281,7 +288,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Text(
-                        _formatWeekDuration(data[index]),
+                        _formatWeekDuration(data[index], strings),
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
@@ -336,31 +343,30 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  String _formatWeekDuration(double hours) {
+  String _formatWeekDuration(double hours, AppStrings strings) {
     final totalMinutes = (hours * 60).round().clamp(0, 2147483647);
-    if (totalMinutes < 60) return '$totalMinutes phút';
+    if (totalMinutes < 60) return strings.formatMinutes(totalMinutes);
 
     final displayHours = (totalMinutes / 60).toStringAsFixed(1);
     final normalizedHours = double.parse(displayHours).toString();
-    return '$normalizedHours giờ';
+    return strings.formatHours(normalizedHours);
   }
 
-  Widget _buildMyQuizzes() {
+  Widget _buildMyQuizzes(AppStrings strings) {
     final quizzes = ref.watch(dashboardQuizzesProvider(_userId!));
     return quizzes.when(
       data: (items) {
         if (items.isEmpty) {
           return KitsuneEmptyState(
             icon: Icons.quiz_outlined,
-            title: 'Bạn chưa tạo quiz nào',
-            message:
-                'Dựng một bộ quiz riêng để luyện đúng phần từ vựng bạn đang học.',
+            title: strings.noQuizzesYet,
+            message: strings.noQuizzesPrompt,
             action: SizedBox(
               width: 180,
               child: ElevatedButton(
                 onPressed: () =>
                     Navigator.pushNamed(context, '/quizzes/create'),
-                child: const Text('Tạo quiz'),
+                child: Text(strings.createQuizFAB),
               ),
             ),
           );
@@ -403,8 +409,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                           const SizedBox(height: 4),
                           Text(
                             hasAccuracy
-                                ? 'Lần gần nhất: ${quiz.lastAccuracy!.round()}% chính xác'
-                                : 'Chưa có lượt làm nào gần đây',
+                                ? strings.formatAccuracy(quiz.lastAccuracy!.round())
+                                : strings.empty,
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],
@@ -421,7 +427,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                         borderRadius: BorderRadius.circular(999),
                       ),
                       child: Text(
-                        hasAccuracy ? '${quiz.lastAccuracy!.round()}%' : 'Mới',
+                        hasAccuracy ? '${quiz.lastAccuracy!.round()}%' : (strings.language == AppLanguage.ja ? '新規' : (strings.language == AppLanguage.en ? 'New' : 'Mới')),
                         style: TextStyle(
                           color: accent,
                           fontWeight: FontWeight.w700,
@@ -440,16 +446,15 @@ class _HomePageState extends ConsumerState<HomePage> {
     );
   }
 
-  Widget _buildLeaderboardPreview() {
+  Widget _buildLeaderboardPreview(AppStrings strings) {
     final leaderboard = ref.watch(leaderboardProvider);
     return leaderboard.when(
       data: (items) {
         if (items.isEmpty) {
-          return const KitsuneEmptyState(
+          return KitsuneEmptyState(
             icon: Icons.leaderboard_outlined,
-            title: 'Bảng xếp hạng đang trống',
-            message:
-                'Hoàn thành quiz để bắt đầu xuất hiện trên đường đua cộng đồng.',
+            title: strings.noLeaderboardData,
+            message: strings.playQuizPrompt,
           );
         }
 
@@ -498,7 +503,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
                           Text(
-                            '${item.quizCount} quiz • ${item.correctAnswers} câu đúng',
+                            strings.formatQuizStats(item.quizCount, item.correctAnswers),
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ],

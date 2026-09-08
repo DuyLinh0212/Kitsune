@@ -42,9 +42,10 @@ class _TopicLearningPageState extends ConsumerState<TopicLearningPage> {
                   onRetry: () => setState(() => _future =
                       ref.read(kitsuneApiProvider).getTopicsWithLessons()));
             }
+            final strings = ref.watch(stringsProvider);
             final topics = snapshot.data ?? const <TopicDto>[];
             if (topics.isEmpty) {
-              return const Center(child: Text('Chưa có chủ đề được xuất bản.'));
+              return Center(child: Text(strings.noTopicsPublished));
             }
             return RefreshIndicator(
               onRefresh: () async => setState(() => _future =
@@ -80,7 +81,7 @@ class _TopicLearningPageState extends ConsumerState<TopicLearningPage> {
   }
 }
 
-class _TopicCard extends StatelessWidget {
+class _TopicCard extends ConsumerWidget {
   const _TopicCard({
     required this.topic,
     required this.index,
@@ -92,7 +93,8 @@ class _TopicCard extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     final completed =
         topic.lessons.where((lesson) => lesson.progress >= 1).length;
     final totalMinutes = topic.lessons.fold<int>(
@@ -136,8 +138,13 @@ class _TopicCard extends StatelessWidget {
                             fontSize: 18,
                             fontWeight: FontWeight.w800)),
                     const SizedBox(height: 4),
-                    Text('${topic.lessons.length} bài học · $totalMinutes phút',
-                        style: const TextStyle(color: Color(0xFF75665F))),
+                    Text(
+                      strings.formatTopicStats(
+                        topic.lessons.length,
+                        totalMinutes,
+                      ),
+                      style: const TextStyle(color: Color(0xFF75665F)),
+                    ),
                     const SizedBox(height: 11),
                     LinearProgressIndicator(
                         value: topic.lessons.isEmpty
@@ -178,10 +185,10 @@ class _TopicDetailPage extends ConsumerWidget {
           children: [
             Text(
               topic.jlptLevel == null
-                  ? 'CHỦ ĐỀ HỌC'
+                  ? strings.topicStudyHeader
                   : 'JLPT N${topic.jlptLevel}',
-              style: TextStyle(
-                color: const Color(0xFFB6502C),
+              style: const TextStyle(
+                color: Color(0xFFB6502C),
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.4,
@@ -200,7 +207,7 @@ class _TopicDetailPage extends ConsumerWidget {
             const SizedBox(height: 6),
             Text(
               topic.description.isEmpty
-                  ? '${topic.lessons.length} bài học · học lần lượt để giữ đúng mạch kiến thức.'
+                  ? strings.formatTopicLessonCountHint(topic.lessons.length)
                   : topic.description,
               style: const TextStyle(color: Color(0xFF75665F), height: 1.45),
             ),
@@ -228,37 +235,38 @@ class _TopicDetailPage extends ConsumerWidget {
   }
 }
 
-class _CourseHeader extends StatelessWidget {
+class _CourseHeader extends ConsumerWidget {
   const _CourseHeader();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     return Padding(
       padding: const EdgeInsets.fromLTRB(18, 24, 18, 16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('HỌC TẬP',
-            style: TextStyle(
+        Text(strings.topicsHeaderTag,
+            style: const TextStyle(
                 color: Color(0xFFB6502C),
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
                 letterSpacing: 1.4)),
-        SizedBox(height: 6),
-        Text('Lộ trình bài học',
+        const SizedBox(height: 6),
+        Text(strings.lessonPathTitle,
             style: TextStyle(
-                color: Color(0xFF302A40),
+                color: const Color(0xFF302A40),
                 fontFamily: AppTheme.displayFontFamily,
                 fontSize: 32,
                 fontWeight: FontWeight.w800,
                 height: 1)),
-        SizedBox(height: 9),
-        Text('Chọn một chủ đề và học theo từng bài để giữ mạch kiến thức.',
-            style: TextStyle(color: Color(0xFF75665F), height: 1.45)),
+        const SizedBox(height: 9),
+        Text(strings.courseHeaderSubtitle,
+            style: const TextStyle(color: Color(0xFF75665F), height: 1.45)),
       ]),
     );
   }
 }
 
-class _LessonTile extends StatelessWidget {
+class _LessonTile extends ConsumerWidget {
   const _LessonTile(
       {required this.lesson, required this.index, required this.onTap});
   final LessonDto lesson;
@@ -266,7 +274,8 @@ class _LessonTile extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -300,7 +309,10 @@ class _LessonTile extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                   Text(
-                      '${lesson.estimatedMinutes} PHÚT · ${lesson.itemCount} MỤC',
+                      strings.formatLessonMetric(
+                        lesson.estimatedMinutes,
+                        lesson.itemCount,
+                      ),
                       style: const TextStyle(
                           color: Color(0xFF966C59),
                           fontSize: 10,
@@ -1133,9 +1145,9 @@ class _LessonStudyPageState extends ConsumerState<LessonStudyPage> {
           if (progress.completedItemCount == progress.totalItems) {
             setState(() => _completionSyncState = _CompletionSyncState.error);
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
               content:
-                  Text('Chưa thể đồng bộ tiến độ. Lượt tiếp theo sẽ thử lại.'),
+                  Text(ref.read(stringsProvider).syncProgressFailed),
             ));
           }
         }
@@ -1511,62 +1523,72 @@ class _StatRow extends StatelessWidget {
   }
 }
 
-class _ErrorState extends StatelessWidget {
+class _ErrorState extends ConsumerWidget {
   const _ErrorState({required this.onRetry});
   final VoidCallback onRetry;
   @override
-  Widget build(BuildContext context) => Center(
-          child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Icon(Icons.cloud_off_rounded,
-            size: 44, color: KitsuneColors.error),
-        const SizedBox(height: 10),
-        const Text('Không thể tải chủ đề. Hãy kiểm tra migration v3.'),
-        TextButton(onPressed: onRetry, child: const Text('Thử lại'))
-      ]));
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded,
+              size: 44, color: KitsuneColors.error),
+          const SizedBox(height: 10),
+          Text(strings.topicLoadError),
+          TextButton(onPressed: onRetry, child: Text(strings.retry)),
+        ],
+      ),
+    );
+  }
 }
 
 enum _MobileGame { bubble, kana, memory, listening, shiritori }
 
-class MobileGameHubPage extends StatelessWidget {
+class MobileGameHubPage extends ConsumerWidget {
   const MobileGameHubPage({super.key});
-  static const games = [
-    (
-      _MobileGame.bubble,
-      'Bong bóng từ vựng',
-      '60 giây · sai trừ 2 giây',
-      Icons.bubble_chart_rounded
-    ),
-    (
-      _MobileGame.kana,
-      'Kéo từ thành nghĩa',
-      'Nối kana thành cách đọc',
-      Icons.gesture_rounded
-    ),
-    (
-      _MobileGame.memory,
-      'Siêu trí nhớ',
-      '10 cặp · 90 giây',
-      Icons.grid_view_rounded
-    ),
-    (
-      _MobileGame.listening,
-      'Nghe đoán từ',
-      'Nghe và chọn nghĩa',
-      Icons.headphones_rounded
-    ),
-    (
-      _MobileGame.shiritori,
-      'Nối từ với máy',
-      '10 giây mỗi lượt · nhập bằng Kanji',
-      Icons.hub_rounded
-    ),
-  ];
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
+    final games = [
+      (
+        _MobileGame.bubble,
+        strings.gameBubbleTitle,
+        strings.gameBubbleSubtitle,
+        Icons.bubble_chart_rounded
+      ),
+      (
+        _MobileGame.kana,
+        strings.gameKanaTitle,
+        strings.gameKanaSubtitle,
+        Icons.gesture_rounded
+      ),
+      (
+        _MobileGame.memory,
+        strings.gameMemoryTitle,
+        strings.gameMemorySubtitle,
+        Icons.grid_view_rounded
+      ),
+      (
+        _MobileGame.listening,
+        strings.gameListeningTitle,
+        strings.gameListeningSubtitle,
+        Icons.headphones_rounded
+      ),
+      (
+        _MobileGame.shiritori,
+        strings.gameShiritoriTitle,
+        strings.gameShiritoriSubtitle,
+        Icons.hub_rounded
+      ),
+    ];
+
     return Scaffold(
       backgroundColor: const Color(0xFFFBF7ED),
       appBar: AppBar(
-        title: const Text('Kitsune Playground'),
+        title: Text(strings.playgroundTitle),
         backgroundColor: const Color(0xFFFBF7ED),
       ),
       body: SafeArea(
@@ -1790,7 +1812,7 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
             !_normalizeReading(item.pronunciation).endsWith('ん'))
         .toList();
     if (choices.isEmpty) {
-      _shiritoriError = 'Kho từ chưa đủ dữ liệu Kanji.';
+      _shiritoriError = ref.read(stringsProvider).shiritoriInsufficientData;
       return;
     }
     final first = choices[Random().nextInt(choices.length)];
@@ -1803,9 +1825,10 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
 
   void _submitShiritori() {
     if (_botThinking) return;
+    final strings = ref.read(stringsProvider);
     final input = _shiritoriController.text.trim();
     if (!_containsKanji(input)) {
-      setState(() => _shiritoriError = 'Hãy nhập một từ có Kanji.');
+      setState(() => _shiritoriError = strings.shiritoriMustContainKanji);
       return;
     }
     final used = _shiritoriHistory.map((turn) => turn.item.word).toSet();
@@ -1814,17 +1837,17 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
     final match = matches.isEmpty ? null : matches.first;
     if (match == null) {
       setState(
-          () => _shiritoriError = 'Từ không có trong kho hoặc đã được dùng.');
+          () => _shiritoriError = strings.shiritoriNotInDictOrUsed);
       return;
     }
     if (!_normalizeReading(match.pronunciation)
         .startsWith(_shiritoriRequired)) {
       setState(() =>
-          _shiritoriError = 'Từ phải bắt đầu bằng “$_shiritoriRequired”.');
+          _shiritoriError = strings.shiritoriMustStartWith(_shiritoriRequired));
       return;
     }
     setState(() {
-      _shiritoriHistory.add((speaker: 'Bạn', item: match));
+      _shiritoriHistory.add((speaker: 'user', item: match));
       _correct++;
       _score += 150 + _seconds * 5;
       _shiritoriController.clear();
@@ -1907,7 +1930,9 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
+    return Scaffold(
       backgroundColor: const Color(0xFF272238),
       appBar: AppBar(
           backgroundColor: const Color(0xFF272238),
@@ -1915,13 +1940,13 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
           title: Text(widget.title),
           actions: [
             Center(
-                child: Text('$_score điểm · ${_seconds}s  ',
+                child: Text('$_score ${strings.pointsUnit} · ${_seconds}s  ',
                     style: const TextStyle(fontWeight: FontWeight.w800)))
           ]),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
           : _finished
-              ? _result()
+              ? _result(strings)
               : Container(
                   margin: const EdgeInsets.all(12),
                   padding: const EdgeInsets.all(20),
@@ -1932,8 +1957,10 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
                           bottomLeft: Radius.circular(4),
                           bottomRight: Radius.circular(4),
                           topLeft: Radius.circular(4))),
-                  child: _gameBody()));
-  Widget _result() => Center(
+                  child: _gameBody(strings)));
+  }
+
+  Widget _result(AppStrings strings) => Center(
       child: Card(
           color: const Color(0xFFFFFDF7),
           child: Padding(
@@ -1944,13 +1971,14 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
                 Text('$_score',
                     style: const TextStyle(
                         fontSize: 62, fontWeight: FontWeight.w900)),
-                Text('$_correct đúng · $_wrong sai'),
+                Text('$_correct ${strings.correctWord} · $_wrong ${strings.wrongWord}'),
                 const SizedBox(height: 20),
                 FilledButton(
                     onPressed: () => Navigator.pop(context),
-                    child: const Text('Chọn trò khác'))
+                    child: Text(strings.chooseAnotherGame))
               ]))));
-  Widget _gameBody() {
+
+  Widget _gameBody(AppStrings strings) {
     if (widget.type == _MobileGame.memory) {
       return GridView.count(
           physics: const NeverScrollableScrollPhysics(),
@@ -2015,11 +2043,11 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
                         _kana.removeLast();
                         _usedKanaIndexes.removeLast();
                       }),
-              child: const Text('Xóa')),
+              child: Text(strings.clear)),
           const Spacer(),
           FilledButton(
               onPressed: () => _answer(_kana.join() == current.pronunciation),
-              child: const Text('Kiểm tra'))
+              child: Text(strings.check))
         ])
       ]);
     }
@@ -2029,7 +2057,7 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
           const Text('しりとり',
               style: TextStyle(
                   color: Color(0xFFD85B3F), fontWeight: FontWeight.w900)),
-          Text('Bắt đầu bằng $_shiritoriRequired',
+          Text('${strings.startsWith} $_shiritoriRequired',
               style: const TextStyle(fontWeight: FontWeight.w800)),
         ]),
         const SizedBox(height: 12),
@@ -2047,21 +2075,22 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
                 color: Color(0xFFD85B3F)),
             itemBuilder: (context, historyIndex) {
               final turn = _shiritoriHistory.reversed.toList()[historyIndex];
+              final isUser = turn.speaker == 'user' || turn.speaker == 'Bạn';
               return Center(
                   child: Container(
                       width: 132,
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                          color: turn.speaker == 'Bạn'
+                          color: isUser
                               ? const Color(0xFFFFE8BE)
                               : const Color(0xFFE4F8F7),
                           borderRadius: BorderRadius.circular(14),
                           border: Border.all(
-                              color: turn.speaker == 'Bạn'
+                              color: isUser
                                   ? const Color(0xFFF1A84B)
                                   : const Color(0xFF65BFC3))),
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        Text(turn.speaker,
+                        Text(isUser ? strings.you : 'Kitsune',
                             style: const TextStyle(fontSize: 11)),
                         Text(turn.item.word,
                             style: const TextStyle(
@@ -2080,8 +2109,8 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
           onSubmitted: (_) => _submitShiritori(),
           decoration: InputDecoration(
             labelText:
-                _botThinking ? 'Kitsune đang nghĩ…' : 'Bạn còn $_seconds giây',
-            hintText: 'Nhập từ bằng Kanji…',
+                _botThinking ? strings.kitsuneThinking : strings.secondsRemaining(_seconds),
+            hintText: strings.shiritoriInputHint,
             errorText: _shiritoriError,
             suffixIcon: IconButton.filled(
                 onPressed: _botThinking ? null : _submitShiritori,
@@ -2094,7 +2123,7 @@ class _MobileGamePageState extends ConsumerState<_MobileGamePage>
     final listening = widget.type == _MobileGame.listening;
     final options = _roundOptions;
     return Column(children: [
-      Text(listening ? 'Nghe và chọn nghĩa đúng' : 'Tìm từ có nghĩa',
+      Text(listening ? strings.listenAndPickMeaning : strings.findWordForMeaning,
           style: const TextStyle(
               color: Color(0xFFD85B3F), fontWeight: FontWeight.w800)),
       const SizedBox(height: 14),

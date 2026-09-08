@@ -49,7 +49,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       }
     } catch (error) {
       if (!mounted) return;
-      final message = error.toString().replaceFirst('Exception: ', '');
+      final rawMessage = error.toString().replaceFirst('Exception: ', '');
+      final strings = ref.read(stringsProvider);
+      final message = strings.mapAuthError(rawMessage);
       setState(() {
         _errorMessage = message;
         _isLoading = false;

@@ -5,27 +5,28 @@ import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/dashboard_provider.dart';
+import 'package:kitsune_app/providers/providers.dart';
 
 class LeaderboardPage extends ConsumerWidget {
   const LeaderboardPage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     final leaderboardAsync = ref.watch(leaderboardProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Bảng xếp hạng')),
+      appBar: AppBar(title: Text(strings.leaderboardTitle)),
       body: KitsuneBackdrop(
         child: leaderboardAsync.when(
           data: (items) {
             if (items.isEmpty) {
-              return const Padding(
-                padding: EdgeInsets.all(16),
+              return Padding(
+                padding: const EdgeInsets.all(16),
                 child: KitsuneEmptyState(
                   icon: Icons.leaderboard_outlined,
-                  title: 'Chưa có dữ liệu xếp hạng',
-                  message:
-                      'Hoàn thành quiz để xuất hiện trong đường đua cộng đồng.',
+                  title: strings.noLeaderboardData,
+                  message: strings.leaderboardEmptyMessage,
                 ),
               );
             }
@@ -36,19 +37,18 @@ class LeaderboardPage extends ConsumerWidget {
             return ListView(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
               children: [
-                const KitsuneHeroCard(
-                  title: 'Những người đang giữ nhịp quiz tốt nhất.',
-                  subtitle:
-                      'Một cái nhìn nhanh vào độ chính xác, số lượt làm và ai đang dẫn đầu trong cộng đồng.',
+                KitsuneHeroCard(
+                  title: strings.leaderboardHeroTitle,
+                  subtitle: strings.leaderboardHeroSubtitle,
                   accent: KitsuneColors.stamp,
                 ),
                 const SizedBox(height: AppTheme.space20),
                 if (top3.isNotEmpty) _buildPodium(context, top3),
                 if (rest.isNotEmpty) ...[
                   const SizedBox(height: AppTheme.space20),
-                  const KitsuneSectionHeader(
-                    title: 'Các vị trí còn lại',
-                    subtitle: 'Theo dõi phần còn lại của bảng mà không mất nhịp.',
+                  KitsuneSectionHeader(
+                    title: strings.leaderboardRemainingPositions,
+                    subtitle: strings.leaderboardRemainingSubtitle,
                   ),
                   const SizedBox(height: AppTheme.space12),
                   KitsuneSurface(
@@ -89,7 +89,7 @@ class LeaderboardPage extends ConsumerWidget {
                                       style: Theme.of(context).textTheme.titleMedium,
                                     ),
                                     Text(
-                                      '${item.quizCount} quiz • ${item.correctAnswers} câu đúng',
+                                      strings.formatQuizStats(item.quizCount, item.correctAnswers),
                                       style: Theme.of(context).textTheme.bodySmall,
                                     ),
                                   ],
@@ -98,7 +98,7 @@ class LeaderboardPage extends ConsumerWidget {
                               Text(
                                 '${item.accuracy.round()}%',
                                 style: AppTheme.numeralStyle(
-                                  fontSize: 16,
+                                    fontSize: 16,
                                   color: KitsuneColors.primary,
                                 ),
                               ),
@@ -112,8 +112,8 @@ class LeaderboardPage extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const KitsuneLoadingFox(message: 'Đang tải bảng xếp hạng...'),
-          error: (error, _) => Center(child: Text('Lỗi: $error')),
+          loading: () => KitsuneLoadingFox(message: strings.loadingLeaderboard),
+          error: (error, _) => Center(child: Text('${strings.errorPrefix}: $error')),
         ),
       ),
     );

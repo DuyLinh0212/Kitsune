@@ -67,21 +67,21 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
     }
   }
 
-  Future<void> _removeVocab(int vocabId) async {
+  Future<void> _removeVocab(int vocabId, AppStrings strings) async {
     try {
       final api = ref.read(kitsuneApiProvider);
       await api.removeVocabulary(vocabId);
       if (mounted) {
         setState(() => _vocabs.removeWhere((vocab) => vocab.id == vocabId));
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Đã xóa từ vựng khỏi thư mục')),
+          SnackBar(content: Text(strings.wordRemovedFromFolder)),
         );
       }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: $error'),
+            content: Text('${strings.errorPrefix}: $error'),
             backgroundColor: KitsuneColors.error,
           ),
         );
@@ -91,22 +91,21 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     final vocabularyItems = _vocabularyItems;
     final kanjiGroups = _kanjiGroups;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Chi tiết thư mục')),
+      appBar: AppBar(title: Text(strings.folderDetailTitle)),
       body: KitsuneBackdrop(
         child: _isLoading
-            ? const KitsuneLoadingFox(message: 'Đang tải thư mục...')
+            ? KitsuneLoadingFox(message: strings.loadingFolders)
             : ListView(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
                 children: [
                   KitsuneHeroCard(
-                    title:
-                        '${vocabularyItems.length} từ · ${kanjiGroups.length} kanji trong bộ học này.',
-                    subtitle:
-                        'Kanji độc lập chỉ xuất hiện ở khu vực Kanji, không bị lặp trong danh sách từ vựng.',
+                    title: strings.formatFolderItemsSummary(vocabularyItems.length, kanjiGroups.length),
+                    subtitle: strings.folderDetailHeroSubtitle,
                     accent: KitsuneColors.secondary,
                     trailing: Container(
                       width: 86,
@@ -128,16 +127,15 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
                   ),
                   const SizedBox(height: AppTheme.space20),
                   if (vocabularyItems.isEmpty && kanjiGroups.isEmpty)
-                    const KitsuneEmptyState(
+                    KitsuneEmptyState(
                       icon: Icons.folder_open_rounded,
-                      title: 'Thư mục này đang trống',
-                      message:
-                          'Thêm từ vựng từ màn hình tìm kiếm để bắt đầu biến thư mục này thành một bộ học thực sự.',
+                      title: strings.folderEmptyTitle,
+                      message: strings.folderEmptySubtitle,
                     ),
                   if (vocabularyItems.isNotEmpty) ...[
                     KitsuneSectionHeader(
-                      title: 'Từ vựng',
-                      subtitle: '${vocabularyItems.length} mục đang học',
+                      title: strings.vocabulary,
+                      subtitle: strings.formatLearningCount(vocabularyItems.length),
                       accent: KitsuneColors.secondary,
                     ),
                     const SizedBox(height: AppTheme.space12),
@@ -189,7 +187,7 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
                                 ),
                               ),
                               IconButton(
-                                onPressed: () => _showDeleteConfirm(vocab),
+                                onPressed: () => _showDeleteConfirm(vocab, strings),
                                 icon: const Icon(
                                   Icons.delete_outline_rounded,
                                   color: KitsuneColors.error,
@@ -204,9 +202,8 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
                   if (kanjiGroups.isNotEmpty) ...[
                     const SizedBox(height: AppTheme.space12),
                     KitsuneSectionHeader(
-                      title: 'Kanji trong thư mục',
-                      subtitle:
-                          '${kanjiGroups.length} chữ · không lặp vào bảng từ vựng',
+                      title: strings.folderKanjiSectionTitle,
+                      subtitle: strings.formatFolderKanjiSubtitle(kanjiGroups.length),
                       accent: KitsuneColors.primary,
                     ),
                     const SizedBox(height: AppTheme.space12),
@@ -251,7 +248,7 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
                                     ),
                                     const SizedBox(height: AppTheme.space4),
                                     Text(
-                                      '${group.usageCount} từ liên quan${group.examples.isEmpty ? '' : ' · ${group.examples.join(', ')}'}',
+                                      strings.formatRelatedWords(group.usageCount, group.examples.join(', ')),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                       style:
@@ -262,10 +259,11 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
                               ),
                               if (group.standaloneVocabularyId != null)
                                 IconButton(
-                                  tooltip: 'Xóa Kanji khỏi thư mục',
+                                  tooltip: strings.removeKanjiFromFolderTooltip,
                                   onPressed: () => _showDeleteConfirmById(
                                     group.standaloneVocabularyId!,
                                     group.character,
+                                    strings,
                                     isKanji: true,
                                   ),
                                   icon: const Icon(
@@ -285,25 +283,26 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
     );
   }
 
-  void _showDeleteConfirm(VocabularyDto vocab) {
-    _showDeleteConfirmById(vocab.id, vocab.word);
+  void _showDeleteConfirm(VocabularyDto vocab, AppStrings strings) {
+    _showDeleteConfirmById(vocab.id, vocab.word, strings);
   }
 
   void _showDeleteConfirmById(
     int vocabularyId,
-    String label, {
+    String label,
+    AppStrings strings, {
     bool isKanji = false,
   }) {
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: Text(isKanji ? 'Xóa Kanji' : 'Xóa từ vựng'),
-          content: Text('Xóa "$label" khỏi thư mục này?'),
+          title: Text(isKanji ? strings.deleteKanjiTitle : strings.deleteVocabTitle),
+          content: Text(strings.confirmRemoveItemFromFolder(label)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Hủy'),
+              child: Text(strings.cancel),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -312,9 +311,9 @@ class _FolderDetailPageState extends ConsumerState<FolderDetailPage> {
               ),
               onPressed: () {
                 Navigator.pop(dialogContext);
-                _removeVocab(vocabularyId);
+                _removeVocab(vocabularyId, strings);
               },
-              child: const Text('Xóa'),
+              child: Text(strings.delete),
             ),
           ],
         );

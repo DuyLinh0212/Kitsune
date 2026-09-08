@@ -48,13 +48,19 @@ void main() async {
   runApp(const ProviderScope(child: KitsuneApp()));
 }
 
-class _AppErrorCard extends StatelessWidget {
+class _AppErrorCard extends ConsumerWidget {
   const _AppErrorCard({required this.details});
 
   final FlutterErrorDetails details;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    AppStrings strings;
+    try {
+      strings = ref.watch(stringsProvider);
+    } catch (_) {
+      strings = AppStrings(AppLanguage.vi);
+    }
     return Material(
       color: KitsuneColors.errorSurface,
       child: Padding(
@@ -66,7 +72,7 @@ class _AppErrorCard extends StatelessWidget {
             const Icon(Icons.error_outline_rounded, color: KitsuneColors.error),
             const SizedBox(height: 8),
             Text(
-              'Có lỗi khi hiển thị phần này.',
+              strings.appErrorTitle,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: KitsuneColors.error,
                     fontWeight: FontWeight.w700,
@@ -193,11 +199,12 @@ class KitsuneApp extends ConsumerWidget {
   }
 }
 
-class SplashScreen extends StatelessWidget {
+class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     return Scaffold(
       body: KitsuneBackdrop(
         child: Center(
@@ -217,7 +224,7 @@ class SplashScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppTheme.space8),
                 Text(
-                  'Học tiếng Nhật mỗi ngày.',
+                  strings.splashTagline,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: KitsuneColors.onSurfaceVariant,
                       ),
@@ -243,39 +250,32 @@ class _NavItem {
   const _NavItem({
     required this.icon,
     required this.selectedIcon,
-    required this.label,
   });
 
   final IconData icon;
   final IconData selectedIcon;
-  final String label;
 }
 
 const _navItems = [
   _NavItem(
     icon: Icons.home_outlined,
     selectedIcon: Icons.home_rounded,
-    label: 'Trang chủ',
   ),
   _NavItem(
     icon: Icons.search_rounded,
     selectedIcon: Icons.manage_search_rounded,
-    label: 'Tìm kiếm',
   ),
   _NavItem(
     icon: Icons.route_outlined,
     selectedIcon: Icons.route_rounded,
-    label: 'Chủ đề',
   ),
   _NavItem(
     icon: Icons.repeat_rounded,
     selectedIcon: Icons.auto_awesome_motion_rounded,
-    label: 'Ôn tập',
   ),
   _NavItem(
     icon: Icons.person_outline_rounded,
     selectedIcon: Icons.person_rounded,
-    label: 'Cá nhân',
   ),
 ];
 

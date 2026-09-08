@@ -1,9 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
+import 'package:kitsune_app/providers/providers.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:xml/xml.dart';
 
@@ -18,7 +20,7 @@ const _kStrokePalette = [
   Color(0xFF0F766E),
 ];
 
-class KanjiStrokeWriter extends StatefulWidget {
+class KanjiStrokeWriter extends ConsumerStatefulWidget {
   const KanjiStrokeWriter({
     super.key,
     required this.character,
@@ -33,10 +35,10 @@ class KanjiStrokeWriter extends StatefulWidget {
   final bool compact;
 
   @override
-  State<KanjiStrokeWriter> createState() => _KanjiStrokeWriterState();
+  ConsumerState<KanjiStrokeWriter> createState() => _KanjiStrokeWriterState();
 }
 
-class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
+class _KanjiStrokeWriterState extends ConsumerState<KanjiStrokeWriter>
     with SingleTickerProviderStateMixin {
   bool _isLoading = true;
   String? _error;
@@ -76,7 +78,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
       }
       setState(() {
         _isLoading = false;
-        _error = 'Không có dữ liệu kanji.';
+        _error = ref.read(stringsProvider).kanjiDrawNoData;
         _strokes = const [];
       });
       return;
@@ -109,7 +111,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
       if (response.statusCode == 404 || response.data == null || response.data!.trim().isEmpty) {
         setState(() {
           _isLoading = false;
-          _error = 'Không có dữ liệu nét viết cho chữ này.';
+          _error = ref.read(stringsProvider).kanjiDrawNoStrokes;
           _strokes = const [];
         });
         return;
@@ -123,7 +125,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
       if (parsed.strokes.isEmpty) {
         setState(() {
           _isLoading = false;
-          _error = 'Không có dữ liệu nét viết cho chữ này.';
+          _error = ref.read(stringsProvider).kanjiDrawNoStrokes;
           _strokes = const [];
         });
         return;
@@ -143,7 +145,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
 
       setState(() {
         _isLoading = false;
-        _error = 'Không tải được dữ liệu nét viết.';
+        _error = ref.read(stringsProvider).kanjiDrawLoadFailed;
         _strokes = const [];
       });
     }
@@ -200,7 +202,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
     _playAnimation();
   }
 
-  Widget _buildDrawingBox() {
+  Widget _buildDrawingBox(AppStrings strings) {
     return Container(
       width: widget.width,
       height: widget.height,
@@ -257,17 +259,17 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
                             if (!widget.compact) ...[
                               const SizedBox(height: 8),
                               Text(
-                                _error ?? 'Không có dữ liệu nét viết.',
+                                _error ?? strings.kanjiDrawNoStrokes,
                                 style: const TextStyle(
-                                  fontSize: 12,
-                                  color: KitsuneColors.onSurfaceVariant,
-                                ),
+                                   fontSize: 12,
+                                   color: KitsuneColors.onSurfaceVariant,
+                                 ),
                                 textAlign: TextAlign.center,
                               ),
                               const SizedBox(height: 10),
                               OutlinedButton(
                                 onPressed: _load,
-                                child: const Text('Thử lại'),
+                                child: Text(strings.retry),
                               ),
                             ],
                           ],
@@ -304,8 +306,9 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     if (widget.compact) {
-      return _buildDrawingBox();
+      return _buildDrawingBox(strings);
     }
 
     return Column(
@@ -318,8 +321,8 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'THỨ TỰ NÉT',
-                    style: TextStyle(
+                    strings.strokeOrderHeader,
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1.1,
@@ -328,7 +331,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Từng nét được vẽ chậm để dễ quan sát.',
+                    strings.strokeOrderSub,
                     style: const TextStyle(fontSize: 11, color: KitsuneColors.onSurfaceVariant),
                   ),
                 ],
@@ -336,7 +339,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
             ),
             IconButton(
               onPressed: (_isLoading || _error != null) ? null : _replay,
-              tooltip: 'Phát lại nét viết',
+              tooltip: strings.replayStroke,
               icon: const Icon(Icons.replay_rounded, size: 20),
               style: IconButton.styleFrom(
                 backgroundColor: KitsuneColors.surface,
@@ -346,7 +349,7 @@ class _KanjiStrokeWriterState extends State<KanjiStrokeWriter>
           ],
         ),
         const SizedBox(height: AppTheme.space10),
-        _buildDrawingBox(),
+        _buildDrawingBox(strings),
       ],
     );
   }

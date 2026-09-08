@@ -87,7 +87,7 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
         builder: (_) => _KanjiQuickDialog(kanji: kanji),
       );
     } catch (_) {
-      _showMessage('Không thể tải thông tin Kanji.');
+      _showMessage(ref.read(stringsProvider).kanjiLoadFailed);
     }
   }
 
@@ -99,11 +99,12 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     final displayItems = _results.isNotEmpty ? _results : _randomItems;
     final isShowingRandom = _results.isEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Từ vựng')),
+      appBar: AppBar(title: Text(strings.vocabulary)),
       body: KitsuneBackdrop(
         child: Column(
           children: [
@@ -111,16 +112,15 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
                 children: [
-                  const KitsuneHeroCard(
-                    title: 'Tra nhanh, lưu đúng và quay lại ôn sau.',
-                    subtitle:
-                        'Tìm theo chữ Nhật, romaji hoặc nghĩa tiếng Việt rồi tiếp tục học ngay trong cùng một nhịp.',
+                  KitsuneHeroCard(
+                    title: strings.vocabSearchHeroTitle,
+                    subtitle: strings.vocabSearchHeroSubtitle,
                     accent: KitsuneColors.primary,
                   ),
                   const SizedBox(height: AppTheme.space16),
                   KitsuneSearchField(
                     controller: _searchController,
-                    hintText: 'Tìm từ vựng...',
+                    hintText: strings.vocabSearchPlaceholder,
                     onChanged: (value) {
                       Future.delayed(const Duration(milliseconds: 320), () {
                         if (value == _searchController.text) {
@@ -147,11 +147,11 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
                           child: KitsuneEmptyState(
                             icon: Icons.menu_book_rounded,
                             title: _searchController.text.trim().isEmpty
-                                ? 'Bắt đầu bằng một từ khóa'
-                                : 'Không tìm thấy từ vựng',
+                                ? strings.searchHintEmpty
+                                : strings.noVocabFound,
                             message: _searchController.text.trim().isEmpty
-                                ? 'Bạn có thể tìm theo tiếng Nhật, cách đọc hoặc nghĩa tiếng Việt.'
-                                : 'Thử đổi cách viết, romaji hoặc nghĩa để mở rộng kết quả.',
+                                ? strings.vocabSearchEmptyMessage
+                                : strings.vocabSearchNoResultsMessage,
                           ),
                         )
                       : ListView.builder(
@@ -163,11 +163,12 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
                                 padding: const EdgeInsets.only(bottom: 12),
                                 child: KitsuneSectionHeader(
                                   title: isShowingRandom
-                                      ? 'Khám phá ngẫu nhiên'
-                                      : 'Kết quả phù hợp',
+                                      ? strings.vocabExploreRandomTitle
+                                      : strings.vocabMatchingResultsTitle,
                                   subtitle: isShowingRandom
-                                      ? 'Một vài thẻ để bạn mở rộng vốn từ khi chưa nhập từ khóa.'
-                                      : '${displayItems.length} mục khớp với truy vấn hiện tại.',
+                                      ? strings.vocabExploreRandomSubtitle
+                                      : strings.vocabMatchingResultsSubtitle(
+                                          displayItems.length),
                                   accent: isShowingRandom
                                       ? KitsuneColors.stamp
                                       : KitsuneColors.secondary,
@@ -177,7 +178,7 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
 
                             return Padding(
                               padding: const EdgeInsets.only(bottom: 12),
-                              child: _buildVocabCard(displayItems[index - 1]),
+                              child: _buildVocabCard(displayItems[index - 1], strings),
                             );
                           },
                         ),
@@ -188,7 +189,7 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
     );
   }
 
-  Widget _buildVocabCard(VocabularyDto vocab) {
+  Widget _buildVocabCard(VocabularyDto vocab, AppStrings strings) {
     return KitsuneSurface(
       onTap: () => Navigator.pushNamed(context, '/vocabulary/${vocab.id}'),
       child: Column(
@@ -304,7 +305,7 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
             children: [
               Expanded(
                 child: Text(
-                  'Mở chi tiết',
+                  strings.viewDetails,
                   style: Theme.of(context).textTheme.labelMedium?.copyWith(
                         color: KitsuneColors.primary,
                       ),
@@ -323,13 +324,14 @@ class _VocabularySearchPageState extends ConsumerState<VocabularySearchPage> {
   }
 }
 
-class _KanjiQuickDialog extends StatelessWidget {
+class _KanjiQuickDialog extends ConsumerWidget {
   const _KanjiQuickDialog({required this.kanji});
 
   final KanjiDetailDto kanji;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     final textTheme = Theme.of(context).textTheme;
     return Dialog(
       insetPadding: const EdgeInsets.all(20),
@@ -344,7 +346,7 @@ class _KanjiQuickDialog extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: IconButton(
-                  tooltip: 'Đóng',
+                  tooltip: strings.close,
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.close_rounded),
                 ),
@@ -379,7 +381,7 @@ class _KanjiQuickDialog extends StatelessWidget {
               _KanjiInfoGrid(kanji: kanji),
               if (kanji.mnemonic?.trim().isNotEmpty == true) ...[
                 const SizedBox(height: AppTheme.space16),
-                Text('Cách ghi nhớ', style: textTheme.titleSmall),
+                Text(strings.mnemonic, style: textTheme.titleSmall),
                 const SizedBox(height: AppTheme.space6),
                 Text(kanji.mnemonic!, style: textTheme.bodyMedium),
               ],
@@ -391,26 +393,31 @@ class _KanjiQuickDialog extends StatelessWidget {
   }
 }
 
-class _KanjiInfoGrid extends StatelessWidget {
+class _KanjiInfoGrid extends ConsumerWidget {
   const _KanjiInfoGrid({required this.kanji});
 
   final KanjiDetailDto kanji;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     final entries = <({String label, String value, bool japanese})>[
       (
-        label: 'Âm On',
+        label: strings.onyomi,
         value: kanji.onyomi?.trim().isNotEmpty == true ? kanji.onyomi! : '—',
         japanese: true
       ),
       (
-        label: 'Âm Kun',
+        label: strings.kunyomi,
         value: kanji.kunyomi?.trim().isNotEmpty == true ? kanji.kunyomi! : '—',
         japanese: true
       ),
-      (label: 'Nghĩa', value: kanji.meaning, japanese: false),
-      (label: 'Số nét', value: '${kanji.strokeCount} nét', japanese: false),
+      (label: strings.meaning, value: kanji.meaning, japanese: false),
+      (
+        label: strings.strokeCount,
+        value: '${kanji.strokeCount} ${strings.strokeUnit}',
+        japanese: false
+      ),
     ];
 
     return GridView.builder(

@@ -7,6 +7,7 @@ import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/kitsune_ui.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
 import 'package:kitsune_app/providers/exam_provider.dart';
+import 'package:kitsune_app/providers/providers.dart';
 
 class ExamListPage extends ConsumerStatefulWidget {
   const ExamListPage({super.key});
@@ -30,10 +31,11 @@ class _ExamListPageState extends ConsumerState<ExamListPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     final filter = ExamFilter(query: _query, jlptLevel: _jlptLevel);
     final examsAsync = ref.watch(publicExamsProvider(filter));
     return Scaffold(
-      appBar: AppBar(title: const Text('Đề kiểm tra')),
+      appBar: AppBar(title: Text(strings.examsListTitle)),
       body: KitsuneBackdrop(
         child: Padding(
           padding: const EdgeInsets.all(AppTheme.space16),
@@ -41,7 +43,7 @@ class _ExamListPageState extends ConsumerState<ExamListPage> {
             children: [
               KitsuneSearchField(
                 controller: _searchController,
-                hintText: 'Tìm đề theo tên...',
+                hintText: strings.searchExamsHint,
                 onChanged: (value) {
                   _debounce?.cancel();
                   _debounce = Timer(const Duration(milliseconds: 300), () {
@@ -61,7 +63,7 @@ class _ExamListPageState extends ConsumerState<ExamListPage> {
                   children: [null, 5, 4, 3, 2, 1].map((level) => Padding(
                     padding: const EdgeInsets.only(right: 8),
                     child: ChoiceChip(
-                      label: Text(level == null ? 'Tất cả' : 'N$level'),
+                      label: Text(level == null ? strings.all : 'N$level'),
                       selected: _jlptLevel == level,
                       onSelected: (_) => setState(() => _jlptLevel = level),
                     ),
@@ -71,27 +73,30 @@ class _ExamListPageState extends ConsumerState<ExamListPage> {
               const SizedBox(height: 12),
               Expanded(
                 child: examsAsync.when(
-                  loading: () => const KitsuneLoadingFox(message: 'Đang tải đề kiểm tra...'),
+                  loading: () => KitsuneLoadingFox(message: strings.loadingExams),
                   error: (_, __) => KitsuneEmptyState(
                     icon: Icons.error_outline_rounded,
-                    title: 'Không thể tải đề',
-                    message: 'Kiểm tra kết nối rồi thử lại.',
+                    title: strings.cannotLoadExams,
+                    message: strings.checkConnectionRetry,
                     action: ElevatedButton(
                       onPressed: () => ref.invalidate(publicExamsProvider(filter)),
-                      child: const Text('Thử lại'),
+                      child: Text(strings.retry),
                     ),
                   ),
                   data: (exams) => exams.isEmpty
-                      ? const KitsuneEmptyState(
+                      ? KitsuneEmptyState(
                           icon: Icons.assignment_outlined,
-                          title: 'Chưa có đề kiểm tra',
-                          message: 'Các đề công khai sẽ xuất hiện tại đây.',
+                          title: strings.examNoExamsTitle,
+                          message: strings.examNoExamsSubtitle,
                         )
                       : ListView.separated(
                           itemCount: exams.length,
                           separatorBuilder: (_, __) => const SizedBox(height: 10),
                           itemBuilder: (context, index) {
                             final exam = exams[index];
+                            final minutes = exam.timeLimitInSeconds == null
+                                ? null
+                                : (exam.timeLimitInSeconds! / 60).ceil();
                             return InkWell(
                               borderRadius: BorderRadius.circular(18),
                               onTap: () => Navigator.pushNamed(context, '/exams/${exam.id}'),
@@ -110,7 +115,10 @@ class _ExamListPageState extends ConsumerState<ExamListPage> {
                                       Text(exam.description!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: KitsuneColors.onSurfaceVariant)),
                                     ],
                                     const SizedBox(height: 10),
-                                    Text('${exam.questionCount} câu · ${exam.timeLimitInSeconds == null ? 'Không giới hạn' : '${(exam.timeLimitInSeconds! / 60).ceil()} phút'}', style: const TextStyle(color: KitsuneColors.onSurfaceMuted)),
+                                    Text(
+                                      strings.formatExamMeta(exam.questionCount, minutes),
+                                      style: const TextStyle(color: KitsuneColors.onSurfaceMuted),
+                                    ),
                                   ],
                                 ),
                               ),

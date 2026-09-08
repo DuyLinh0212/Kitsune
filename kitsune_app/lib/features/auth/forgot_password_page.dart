@@ -1,3 +1,4 @@
+// kitsune_app/lib/features/auth/forgot_password_page.dart
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
@@ -27,6 +28,8 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
   }
 
   Future<void> _handleSubmit() async {
+    final strings = ref.read(stringsProvider);
+
     if (!_formKey.currentState!.validate()) {
       return;
     }
@@ -45,7 +48,8 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
       });
     } catch (error) {
       if (!mounted) return;
-      final message = error.toString().replaceFirst('Exception: ', '');
+      final rawMessage = error.toString().replaceFirst('Exception: ', '');
+      final message = strings.mapAuthError(rawMessage);
       ScaffoldMessenger.of(context).hideCurrentSnackBar();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -76,6 +80,8 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
+
     return Scaffold(
       appBar: AppBar(),
       body: KitsuneBackdrop(
@@ -88,7 +94,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                 constraints: const BoxConstraints(maxWidth: 520),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 240),
-                  child: _sent ? _buildSuccessState(context) : _buildFormState(context),
+                  child: _sent ? _buildSuccessState(context, strings) : _buildFormState(context, strings),
                 ),
               ),
             ),
@@ -98,15 +104,14 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     );
   }
 
-  Widget _buildFormState(BuildContext context) {
+  Widget _buildFormState(BuildContext context, AppStrings strings) {
     return Column(
       key: const ValueKey('forgot-form'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const KitsuneHeroCard(
-          title: 'Lấy lại quyền truy cập thật gọn.',
-          subtitle:
-              'Nhập email để nhận liên kết đặt lại mật khẩu và quay lại hành trình học ngay khi sẵn sàng.',
+        KitsuneHeroCard(
+          title: strings.forgotPasswordTitle,
+          subtitle: strings.forgotPasswordSubtitle,
           accent: KitsuneColors.stamp,
         ),
         const SizedBox(height: AppTheme.space20),
@@ -118,25 +123,25 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Email khôi phục',
+                  strings.forgotPasswordEmailSection,
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: AppTheme.space16),
                 TextFormField(
                   controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
+                  decoration: InputDecoration(
+                    labelText: strings.registerEmailLabel,
+                    prefixIcon: const Icon(Icons.email_outlined),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _handleSubmit(),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
-                      return 'Vui lòng nhập email';
+                      return strings.registerEmailRequired;
                     }
                     if (!value.contains('@')) {
-                      return 'Email không hợp lệ';
+                      return strings.registerEmailInvalid;
                     }
                     return null;
                   },
@@ -150,7 +155,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
                           height: 20,
                           child: KitsuneLoadingFox(size: 28),
                         )
-                      : const Text('Gửi email đặt lại mật khẩu'),
+                      : Text(strings.forgotPasswordSubmitButton),
                 ),
               ],
             ),
@@ -160,15 +165,14 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
     );
   }
 
-  Widget _buildSuccessState(BuildContext context) {
+  Widget _buildSuccessState(BuildContext context, AppStrings strings) {
     return Column(
       key: const ValueKey('forgot-success'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const KitsuneHeroCard(
-          title: 'Liên kết đã lên đường.',
-          subtitle:
-              'Kiểm tra hộp thư của bạn rồi quay lại đăng nhập sau khi đặt lại mật khẩu.',
+        KitsuneHeroCard(
+          title: strings.forgotPasswordSuccessTitle,
+          subtitle: strings.forgotPasswordSuccessSubtitle(_emailController.text.trim()),
           accent: KitsuneColors.secondary,
         ),
         const SizedBox(height: AppTheme.space20),
@@ -192,12 +196,12 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
               ),
               const SizedBox(height: AppTheme.space16),
               Text(
-                'Kiểm tra email',
+                strings.forgotPasswordSuccessTitle,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
               const SizedBox(height: AppTheme.space8),
               Text(
-                'Nếu chưa thấy thư, hãy kiểm tra mục spam hoặc thử gửi lại sau ít phút.',
+                strings.forgotPasswordSuccessSubtitle(_emailController.text.trim()),
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: KitsuneColors.onSurfaceVariant,
                       height: 1.5,
@@ -207,7 +211,7 @@ class _ForgotPasswordPageState extends ConsumerState<ForgotPasswordPage> {
               const SizedBox(height: AppTheme.space20),
               ElevatedButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Quay lại đăng nhập'),
+                child: Text(strings.forgotPasswordBackToLogin),
               ),
             ],
           ),

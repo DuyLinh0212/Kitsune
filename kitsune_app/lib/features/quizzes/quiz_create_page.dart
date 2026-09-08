@@ -93,11 +93,11 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
     });
   }
 
-  Future<void> _createQuiz() async {
+  Future<void> _createQuiz(AppStrings strings) async {
     if (_titleController.text.trim().isEmpty || _selectedModes.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Vui lòng nhập tiêu đề và chọn ít nhất một chế độ'),
+        SnackBar(
+          content: Text(strings.quizCreateValidation),
         ),
       );
       return;
@@ -123,7 +123,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Lỗi: $error'),
+            content: Text('${strings.errorPrefix}: $error'),
             backgroundColor: KitsuneColors.error,
           ),
         );
@@ -133,18 +133,22 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
 
   @override
   Widget build(BuildContext context) {
-    final steps = ['Thông tin', 'Nội dung', 'Chế độ'];
+    final strings = ref.watch(stringsProvider);
+    final steps = [
+      strings.quizStepInfo,
+      strings.quizStepContent,
+      strings.quizStepModes,
+    ];
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Tạo quiz mới')),
+      appBar: AppBar(title: Text(strings.quizCreateTitle)),
       body: KitsuneBackdrop(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
           children: [
             KitsuneHeroCard(
-              title: 'Dựng một bộ quiz vừa sức và đúng mục tiêu học.',
-              subtitle:
-                  'Chọn nội dung, chọn chế độ hỏi và đóng gói thành một quiz có thể chơi lại nhiều lần.',
+              title: strings.createQuizHeaderTitle,
+              subtitle: strings.createQuizHeaderSubtitle,
               accent: KitsuneColors.primary,
               trailing: Container(
                 width: 84,
@@ -218,7 +222,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
             const SizedBox(height: AppTheme.space20),
             AnimatedSwitcher(
               duration: const Duration(milliseconds: 220),
-              child: _buildStepContent(context),
+              child: _buildStepContent(context, strings),
             ),
             const SizedBox(height: AppTheme.space20),
             Row(
@@ -227,7 +231,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                   Expanded(
                     child: OutlinedButton(
                       onPressed: () => setState(() => _step--),
-                      child: const Text('Quay lại'),
+                      child: Text(strings.back),
                     ),
                   ),
                 if (_step > 0) const SizedBox(width: 12),
@@ -235,9 +239,9 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
                   flex: 2,
                   child: ElevatedButton(
                     onPressed: _step == 2
-                        ? _createQuiz
+                        ? () => _createQuiz(strings)
                         : () => setState(() => _step++),
-                    child: Text(_step == 2 ? 'Tạo quiz' : 'Tiếp theo'),
+                    child: Text(_step == 2 ? strings.createQuizFAB : strings.quizStepNext),
                   ),
                 ),
               ],
@@ -248,7 +252,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
     );
   }
 
-  Widget _buildStepContent(BuildContext context) {
+  Widget _buildStepContent(BuildContext context, AppStrings strings) {
     switch (_step) {
       case 0:
         return KitsuneSurface(
@@ -257,17 +261,17 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
             children: [
               TextField(
                 controller: _titleController,
-                decoration: const InputDecoration(
-                  labelText: 'Tiêu đề quiz *',
-                  prefixIcon: Icon(Icons.title_rounded),
+                decoration: InputDecoration(
+                  labelText: strings.quizTitleRequired,
+                  prefixIcon: const Icon(Icons.title_rounded),
                 ),
               ),
               const SizedBox(height: 16),
               TextField(
                 controller: _descController,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả',
-                  prefixIcon: Icon(Icons.notes_rounded),
+                decoration: InputDecoration(
+                  labelText: strings.quizDescOptional,
+                  prefixIcon: const Icon(Icons.notes_rounded),
                 ),
                 maxLines: 3,
               ),
@@ -275,10 +279,10 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
               TextField(
                 controller: _timeLimitController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Giới hạn thời gian (giây)',
-                  prefixIcon: Icon(Icons.timer_outlined),
-                  hintText: 'Để trống nếu không giới hạn',
+                decoration: InputDecoration(
+                  labelText: strings.quizTimeLimitOptional,
+                  prefixIcon: const Icon(Icons.timer_outlined),
+                  hintText: strings.quizTimeLimitHint,
                 ),
               ),
             ],
@@ -290,10 +294,9 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const KitsuneSectionHeader(
-                title: 'Chọn nội dung',
-                subtitle:
-                    'Bạn có thể import nhanh từ thư mục hoặc chọn tay từng mục từ ô tìm kiếm.',
+              KitsuneSectionHeader(
+                title: strings.quizSelectContentTitle,
+                subtitle: strings.quizSelectContentSubtitle,
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -312,7 +315,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
               const SizedBox(height: 16),
               KitsuneSearchField(
                 controller: _searchController,
-                hintText: 'Tìm từ vựng để thêm...',
+                hintText: strings.searchVocabToAddHint,
                 onChanged: (value) {
                   _searchVocab(value);
                   setState(() {});
@@ -325,10 +328,10 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
               ),
               const SizedBox(height: 16),
               if (_isSearching)
-                const KitsuneLoadingFox(message: 'Đang tìm từ vựng...', size: 72)
+                KitsuneLoadingFox(message: strings.searchingVocabLoading, size: 72)
               else if (_searchResults.isEmpty)
                 Text(
-                  'Chưa có kết quả. Hãy gõ một từ khóa để bắt đầu thêm nội dung vào quiz.',
+                  strings.noSearchResultsQuiz,
                   style: Theme.of(context).textTheme.bodySmall,
                 )
               else
@@ -360,22 +363,21 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const KitsuneSectionHeader(
-                title: 'Chọn chế độ hỏi',
-                subtitle:
-                    'Mỗi chế độ tạo ra một kiểu câu hỏi khác nhau. Chọn ít nhất một để hoàn tất quiz.',
+              KitsuneSectionHeader(
+                title: strings.quizSelectModesTitle,
+                subtitle: strings.quizSelectModesSubtitle,
               ),
               const SizedBox(height: 16),
-              ...QuizMode.vocabModes.map(_modeTile),
+              ...QuizMode.vocabModes.map((m) => _modeTile(m, strings)),
               const SizedBox(height: 12),
-              ...QuizMode.kanjiModes.map(_modeTile),
+              ...QuizMode.kanjiModes.map((m) => _modeTile(m, strings)),
             ],
           ),
         );
     }
   }
 
-  Widget _modeTile(QuizMode mode) {
+  Widget _modeTile(QuizMode mode, AppStrings strings) {
     final isSelected = _selectedModes.contains(mode.code);
 
     return Padding(
@@ -402,7 +404,7 @@ class _QuizCreatePageState extends ConsumerState<QuizCreatePage> {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                mode.code,
+                strings.quizModeTitle(mode.code),
                 style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,

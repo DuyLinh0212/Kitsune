@@ -119,9 +119,10 @@ class _SearchPageState extends ConsumerState<SearchPage> {
   }
 
   void _showError(Object error) {
+    final strings = ref.read(stringsProvider);
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Không thể tìm kiếm: $error'),
+        content: Text(strings.formatSearchError(error)),
         backgroundColor: KitsuneColors.error,
       ),
     );
@@ -129,6 +130,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     final hasQuery = _searchController.text.trim().isNotEmpty;
     return Scaffold(
       body: KitsuneBackdrop(
@@ -141,7 +143,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Tra cứu',
+                      strings.searchHeaderTitle,
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
                                 fontWeight: FontWeight.w900,
@@ -149,14 +151,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Một ô tìm kiếm cho từ vựng, Kanji và ngữ pháp.',
+                      strings.searchHeaderSubtitle,
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                     const SizedBox(height: 12),
                     KitsuneSearchField(
                       controller: _searchController,
                       focusNode: _searchFocusNode,
-                      hintText: 'Nhập từ, Kanji, cách đọc hoặc mẫu ngữ pháp...',
+                      hintText: strings.searchPlaceholder,
                       onChanged: _scheduleSearch,
                       onSubmitted: _performSearch,
                       onClear: _clearSearch,
@@ -170,7 +172,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                               (category) => Padding(
                                 padding: const EdgeInsets.only(right: 8),
                                 child: _CategoryPill(
-                                  label: _categoryLabel(category),
+                                  label: _categoryLabel(category, strings),
                                   icon: _categoryIcon(category),
                                   isSelected: _category == category,
                                   onTap: () =>
@@ -189,14 +191,14 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: _isLoading
-                      ? const Center(
-                          key: ValueKey('search-loading'),
+                      ? Center(
+                          key: const ValueKey('search-loading'),
                           child: KitsuneLoadingFox(
-                            message: 'Đang tìm trong thư viện...',
+                            message: strings.searchingLibrary,
                             size: 82,
                           ),
                         )
-                      : _buildResults(hasQuery),
+                      : _buildResults(hasQuery, strings),
                 ),
               ),
             ],
@@ -206,32 +208,35 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  Widget _buildResults(bool hasQuery) {
+  Widget _buildResults(bool hasQuery, AppStrings strings) {
     final sections = <Widget>[];
     if (_category == SearchCategory.all ||
         _category == SearchCategory.vocabulary) {
       _appendSection(
         sections,
-        title: 'Từ vựng',
+        title: strings.categoryVocabulary,
         count: _vocabulary.length,
-        children: _vocabulary.map(_buildVocabularyCard),
+        children: _vocabulary.map((v) => _buildVocabularyCard(v, strings)),
+        strings: strings,
       );
     }
     if (_category == SearchCategory.all || _category == SearchCategory.kanji) {
       _appendSection(
         sections,
-        title: 'Kanji',
+        title: strings.categoryKanji,
         count: _kanji.length,
-        children: _kanji.map(_buildKanjiCard),
+        children: _kanji.map((k) => _buildKanjiCard(k, strings)),
+        strings: strings,
       );
     }
     if (_category == SearchCategory.all ||
         _category == SearchCategory.grammar) {
       _appendSection(
         sections,
-        title: 'Ngữ pháp',
+        title: strings.categoryGrammar,
         count: _grammar.length,
-        children: _grammar.map(_buildGrammarCard),
+        children: _grammar.map((g) => _buildGrammarCard(g, strings)),
+        strings: strings,
       );
     }
 
@@ -239,8 +244,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       return KitsuneEmptyState(
         key: ValueKey('empty-$_category-$hasQuery'),
         icon: Icons.search_off_rounded,
-        title: 'Chưa tìm thấy kết quả',
-        message: 'Thử từ khóa ngắn hơn, cách đọc khác hoặc đổi loại nội dung.',
+        title: strings.noSearchResults,
+        message: strings.noSearchResultsPrompt,
       );
     }
 
@@ -256,6 +261,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     required String title,
     required int count,
     required Iterable<Widget> children,
+    required AppStrings strings,
   }) {
     if (count == 0) return;
     output
@@ -274,7 +280,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                 ),
               ),
               Text(
-                '$count kết quả',
+                strings.formatResultsCount(count),
                 style: const TextStyle(
                   color: KitsuneColors.onSurfaceVariant,
                   fontSize: 11,
@@ -288,9 +294,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       ..addAll(children);
   }
 
-  Widget _buildVocabularyCard(VocabularyDto vocab) {
+  Widget _buildVocabularyCard(VocabularyDto vocab, AppStrings strings) {
     return SearchResultCard(
-      kind: 'Từ vựng',
+      kind: strings.categoryVocabulary,
       title: vocab.word,
       subtitle: vocab.meaning,
       accent: KitsuneColors.primary,
@@ -307,9 +313,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  Widget _buildKanjiCard(KanjiDetailDto kanji) {
+  Widget _buildKanjiCard(KanjiDetailDto kanji, AppStrings strings) {
     return SearchResultCard(
-      kind: 'Kanji',
+      kind: strings.categoryKanji,
       title: '${kanji.character}  ${kanji.amHanViet}',
       subtitle: kanji.meaning,
       accent:
@@ -317,7 +323,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       icon: Icons.grid_view_rounded,
       isJapaneseTitle: true,
       meta: [
-        '${kanji.strokeCount} nét',
+        strings.formatStrokes(kanji.strokeCount),
         if (kanji.onyomi?.trim().isNotEmpty == true) 'On: ${kanji.onyomi}',
         if (kanji.kunyomi?.trim().isNotEmpty == true) 'Kun: ${kanji.kunyomi}',
       ],
@@ -325,9 +331,9 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  Widget _buildGrammarCard(GrammarPoint grammar) {
+  Widget _buildGrammarCard(GrammarPoint grammar, AppStrings strings) {
     return SearchResultCard(
-      kind: 'Ngữ pháp',
+      kind: strings.categoryGrammar,
       title: grammar.title,
       subtitle: grammar.meaning,
       accent: KitsuneColors.stamp,
@@ -337,11 +343,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         if (grammar.jlptLevel != null) 'JLPT N${grammar.jlptLevel}',
         if (grammar.structure?.trim().isNotEmpty == true) grammar.structure!,
       ],
-      onTap: () => _openGrammar(grammar),
+      onTap: () => _openGrammar(grammar, strings),
     );
   }
 
-  Future<void> _openGrammar(GrammarPoint grammar) {
+  Future<void> _openGrammar(GrammarPoint grammar, AppStrings strings) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -399,7 +405,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
                   ],
                   if (grammar.examples.isNotEmpty) ...[
                     const SizedBox(height: 20),
-                    Text('Ví dụ',
+                    Text(strings.examplesTitle,
                         style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 8),
                     for (final example in grammar.examples)
@@ -438,16 +444,16 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     );
   }
 
-  String _categoryLabel(SearchCategory category) {
+  String _categoryLabel(SearchCategory category, AppStrings strings) {
     switch (category) {
       case SearchCategory.all:
-        return 'Tất cả';
+        return strings.categoryAll;
       case SearchCategory.vocabulary:
-        return 'Từ vựng';
+        return strings.categoryVocabulary;
       case SearchCategory.kanji:
-        return 'Kanji';
+        return strings.categoryKanji;
       case SearchCategory.grammar:
-        return 'Ngữ pháp';
+        return strings.categoryGrammar;
     }
   }
 
@@ -463,6 +469,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
         return Icons.account_tree_rounded;
     }
   }
+
 }
 
 class _CategoryPill extends StatelessWidget {

@@ -13,14 +13,15 @@ class FolderListPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final strings = ref.watch(stringsProvider);
     final foldersAsync = ref.watch(foldersProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Thư mục')),
+      appBar: AppBar(title: Text(strings.foldersListTitle)),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateDialog(context, ref),
+        onPressed: () => _showCreateDialog(context, ref, strings),
         icon: const Icon(Icons.add_rounded),
-        label: const Text('Tạo thư mục'),
+        label: Text(strings.createFolderFAB),
       ),
       body: KitsuneBackdrop(
         child: foldersAsync.when(
@@ -29,9 +30,8 @@ class FolderListPage extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
               children: [
                 KitsuneHeroCard(
-                  title: '${folders.length} ngăn học đang chờ được mở lại.',
-                  subtitle:
-                      'Sắp xếp từ vựng theo chủ đề, theo bài hoặc theo mục tiêu cá nhân để việc ôn tập rõ ràng hơn.',
+                  title: strings.foldersCountSubtitle(folders.length),
+                  subtitle: strings.foldersHeroSubtitle,
                   accent: KitsuneColors.primary,
                   trailing: Container(
                     width: 88,
@@ -51,15 +51,14 @@ class FolderListPage extends ConsumerWidget {
                 if (folders.isEmpty)
                   KitsuneEmptyState(
                     icon: Icons.folder_open_rounded,
-                    title: 'Chưa có thư mục nào',
-                    message:
-                        'Tạo thư mục đầu tiên để gom từ vựng theo chủ đề và lên nhịp ôn tập riêng.',
+                    title: strings.noFoldersTitle,
+                    message: strings.noFoldersPrompt,
                     action: SizedBox(
                       width: 200,
                       child: ElevatedButton.icon(
-                        onPressed: () => _showCreateDialog(context, ref),
+                        onPressed: () => _showCreateDialog(context, ref, strings),
                         icon: const Icon(Icons.create_new_folder_rounded),
-                        label: const Text('Tạo thư mục'),
+                        label: Text(strings.createFolderFAB),
                       ),
                     ),
                   )
@@ -99,7 +98,7 @@ class FolderListPage extends ConsumerWidget {
                                   Text(
                                     folder.description?.trim().isNotEmpty == true
                                         ? folder.description!
-                                        : '${folder.vocabCount} từ vựng trong thư mục này',
+                                        : strings.formatFolderVocabCount(folder.vocabCount),
                                     style: Theme.of(context).textTheme.bodySmall,
                                     maxLines: 2,
                                     overflow: TextOverflow.ellipsis,
@@ -110,19 +109,19 @@ class FolderListPage extends ConsumerWidget {
                             PopupMenuButton<String>(
                               onSelected: (value) {
                                 if (value == 'edit') {
-                                  _showEditDialog(context, ref, folder);
+                                  _showEditDialog(context, ref, folder, strings);
                                 } else if (value == 'delete') {
-                                  _confirmDelete(context, ref, folder);
+                                  _confirmDelete(context, ref, folder, strings);
                                 }
                               },
-                              itemBuilder: (_) => const [
+                              itemBuilder: (_) => [
                                 PopupMenuItem(
                                   value: 'edit',
-                                  child: Text('Sửa thư mục'),
+                                  child: Text(strings.editFolder),
                                 ),
                                 PopupMenuItem(
                                   value: 'delete',
-                                  child: Text('Xóa thư mục'),
+                                  child: Text(strings.deleteFolder),
                                 ),
                               ],
                             ),
@@ -134,14 +133,14 @@ class FolderListPage extends ConsumerWidget {
               ],
             );
           },
-          loading: () => const KitsuneLoadingFox(message: 'Đang tải thư mục...'),
-          error: (error, _) => Center(child: Text('Lỗi: $error')),
+          loading: () => KitsuneLoadingFox(message: strings.loadingFolders),
+          error: (error, _) => Center(child: Text('${strings.errorPrefix}: $error')),
         ),
       ),
     );
   }
 
-  void _showCreateDialog(BuildContext context, WidgetRef ref) {
+  void _showCreateDialog(BuildContext context, WidgetRef ref, AppStrings strings) {
     final nameController = TextEditingController();
     final descController = TextEditingController();
 
@@ -149,23 +148,23 @@ class FolderListPage extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Tạo thư mục mới'),
+          title: Text(strings.createNewFolderTitle),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên thư mục *',
-                  prefixIcon: Icon(Icons.folder_outlined),
+                decoration: InputDecoration(
+                  labelText: strings.folderNameRequired,
+                  prefixIcon: const Icon(Icons.folder_outlined),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả',
-                  prefixIcon: Icon(Icons.notes_rounded),
+                decoration: InputDecoration(
+                  labelText: strings.folderDescLabel,
+                  prefixIcon: const Icon(Icons.notes_rounded),
                 ),
                 maxLines: 2,
               ),
@@ -174,7 +173,7 @@ class FolderListPage extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Hủy'),
+              child: Text(strings.cancel),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(minimumSize: Size.zero),
@@ -208,7 +207,7 @@ class FolderListPage extends ConsumerWidget {
                   }
                 }
               },
-              child: const Text('Tạo'),
+              child: Text(strings.create),
             ),
           ],
         );
@@ -216,7 +215,7 @@ class FolderListPage extends ConsumerWidget {
     );
   }
 
-  void _showEditDialog(BuildContext context, WidgetRef ref, FolderDto folder) {
+  void _showEditDialog(BuildContext context, WidgetRef ref, FolderDto folder, AppStrings strings) {
     final nameController = TextEditingController(text: folder.name);
     final descController = TextEditingController(text: folder.description ?? '');
 
@@ -224,23 +223,23 @@ class FolderListPage extends ConsumerWidget {
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Sửa thư mục'),
+          title: Text(strings.editFolder),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(
                 controller: nameController,
-                decoration: const InputDecoration(
-                  labelText: 'Tên thư mục',
-                  prefixIcon: Icon(Icons.folder_outlined),
+                decoration: InputDecoration(
+                  labelText: strings.folderNameLabel,
+                  prefixIcon: const Icon(Icons.folder_outlined),
                 ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: descController,
-                decoration: const InputDecoration(
-                  labelText: 'Mô tả',
-                  prefixIcon: Icon(Icons.notes_rounded),
+                decoration: InputDecoration(
+                  labelText: strings.folderDescLabel,
+                  prefixIcon: const Icon(Icons.notes_rounded),
                 ),
                 maxLines: 2,
               ),
@@ -249,7 +248,7 @@ class FolderListPage extends ConsumerWidget {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Hủy'),
+              child: Text(strings.cancel),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(minimumSize: Size.zero),
@@ -284,7 +283,7 @@ class FolderListPage extends ConsumerWidget {
                   }
                 }
               },
-              child: const Text('Lưu'),
+              child: Text(strings.save),
             ),
           ],
         );
@@ -292,19 +291,17 @@ class FolderListPage extends ConsumerWidget {
     );
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, FolderDto folder) {
+  void _confirmDelete(BuildContext context, WidgetRef ref, FolderDto folder, AppStrings strings) {
     showDialog<void>(
       context: context,
       builder: (dialogContext) {
         return AlertDialog(
-          title: const Text('Xóa thư mục'),
-          content: Text(
-            'Bạn có chắc muốn xóa "${folder.name}"? Tất cả từ vựng trong thư mục sẽ bị xóa.',
-          ),
+          title: Text(strings.deleteFolder),
+          content: Text(strings.confirmDeleteFolder(folder.name)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Hủy'),
+              child: Text(strings.cancel),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -330,7 +327,7 @@ class FolderListPage extends ConsumerWidget {
                   }
                 }
               },
-              child: const Text('Xóa'),
+              child: Text(strings.delete),
             ),
           ],
         );

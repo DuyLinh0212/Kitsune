@@ -3,14 +3,16 @@ import 'dart:math';
 import 'package:dio/dio.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
 import 'package:kitsune_app/core/theme/app_theme.dart';
 import 'package:kitsune_app/core/theme/colors.dart';
 import 'package:kitsune_app/core/ui/loading_fox.dart';
+import 'package:kitsune_app/providers/providers.dart';
 import 'package:path_drawing/path_drawing.dart';
 import 'package:xml/xml.dart';
 
-class KanjiDrawingReview extends StatefulWidget {
+class KanjiDrawingReview extends ConsumerStatefulWidget {
   const KanjiDrawingReview({
     super.key,
     required this.character,
@@ -25,10 +27,10 @@ class KanjiDrawingReview extends StatefulWidget {
   final bool disabled;
 
   @override
-  State<KanjiDrawingReview> createState() => _KanjiDrawingReviewState();
+  ConsumerState<KanjiDrawingReview> createState() => _KanjiDrawingReviewState();
 }
 
-class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
+class _KanjiDrawingReviewState extends ConsumerState<KanjiDrawingReview> {
   bool _isLoading = true;
   String? _error;
   String? _feedback;
@@ -72,7 +74,7 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
     });
 
     if (character.isEmpty) {
-      _finishWithError('Không có dữ liệu Kanji để luyện viết.', token);
+      _finishWithError(ref.read(stringsProvider).kanjiDrawNoData, token);
       return;
     }
 
@@ -94,13 +96,13 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
       if (response.statusCode == 404 ||
           response.data == null ||
           response.data!.trim().isEmpty) {
-        _finishWithError('Không có dữ liệu nét viết cho chữ này.', token);
+        _finishWithError(ref.read(stringsProvider).kanjiDrawNoStrokes, token);
         return;
       }
 
       final parsed = _parseStrokes(response.data!);
       if (parsed.strokes.isEmpty) {
-        _finishWithError('Không có dữ liệu nét viết cho chữ này.', token);
+        _finishWithError(ref.read(stringsProvider).kanjiDrawNoStrokes, token);
         return;
       }
       setState(() {
@@ -109,7 +111,7 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
         _viewBox = parsed.viewBox;
       });
     } catch (_) {
-      _finishWithError('Không tải được dữ liệu nét viết.', token);
+      _finishWithError(ref.read(stringsProvider).kanjiDrawLoadFailed, token);
     }
   }
 
@@ -214,10 +216,12 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
 
   void _check(Size size) {
     if (widget.disabled || _isLoading || _error != null) return;
+    final strings = ref.read(stringsProvider);
     final expectedCount = _expectedStrokes.length;
     if (_strokes.length != expectedCount) {
-      _report(false,
-          'Cần viết đủ $expectedCount nét. Bạn đã viết ${_strokes.length} nét.');
+      _report(
+          false,
+          strings.kanjiDrawStrokeMismatch(expectedCount, _strokes.length));
       return;
     }
 
@@ -227,8 +231,8 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
     _report(
       correct,
       correct
-          ? 'Chính xác! Các nét viết đã tạo đúng chữ Kanji.'
-          : 'Nét viết chưa khớp. Xem gợi ý để đối chiếu rồi luyện lại ở lần sau.',
+          ? strings.kanjiDrawSuccess
+          : strings.kanjiDrawFail,
     );
   }
 
@@ -378,6 +382,7 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -385,7 +390,7 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
           children: [
             Expanded(
               child: Text(
-                'Vẽ từng nét vào ô trống, không có chữ mờ làm mẫu.',
+                strings.kanjiDrawInstruction,
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
@@ -397,7 +402,7 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
                 borderRadius: BorderRadius.circular(999),
               ),
               child: Text(
-                '${_strokes.length}/${_expectedStrokes.isEmpty ? widget.strokeCount ?? '—' : _expectedStrokes.length} nét',
+                '${_strokes.length}/${_expectedStrokes.isEmpty ? widget.strokeCount ?? '—' : _expectedStrokes.length} ${strings.strokeUnit}',
                 style:
                     const TextStyle(fontSize: 12, fontWeight: FontWeight.w800),
               ),
@@ -486,12 +491,12 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
           children: [
             OutlinedButton(
                 onPressed: widget.disabled || _isLoading ? null : _clear,
-                child: const Text('Xóa nét')),
+                child: Text(strings.clearStrokes)),
             OutlinedButton(
               onPressed: widget.disabled || _isLoading
                   ? null
                   : () => setState(() => _showHint = true),
-              child: const Text('Xem gợi ý'),
+              child: Text(strings.showHint),
             ),
             ElevatedButton(
               onPressed: widget.disabled ||
@@ -500,7 +505,7 @@ class _KanjiDrawingReviewState extends State<KanjiDrawingReview> {
                       _strokes.isEmpty
                   ? null
                   : () => _check(_drawingSize),
-              child: const Text('Kiểm tra nét'),
+              child: Text(strings.checkStrokes),
             ),
           ],
         ),

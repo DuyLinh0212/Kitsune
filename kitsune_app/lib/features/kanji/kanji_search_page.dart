@@ -74,9 +74,10 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
         return;
       }
       setState(() => _isSearching = false);
+      final strings = ref.read(stringsProvider);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Loi tim kanji: $error'),
+          content: Text(strings.formatKanjiSearchError(error)),
           backgroundColor: KitsuneColors.error,
         ),
       );
@@ -85,8 +86,9 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
 
   @override
   Widget build(BuildContext context) {
+    final strings = ref.watch(stringsProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Kanji')),
+      appBar: AppBar(title: Text(strings.kanjiHeaderTitle)),
       body: KitsuneBackdrop(
         child: Column(
           children: [
@@ -94,17 +96,16 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: Column(
                 children: [
-                  const KitsuneHeroCard(
-                    title: 'Xem net, nghia va bo thu trong cung mot nhip doc.',
-                    subtitle:
-                        'Tap trung vao mot ky tu tai mot thoi diem de hieu cach no duoc tao thanh va duoc dung ra sao.',
+                  KitsuneHeroCard(
+                    title: strings.kanjiSearchHeroTitle,
+                    subtitle: strings.kanjiSearchHeroSubtitle,
                     accent: KitsuneColors.secondary,
                   ),
                   const SizedBox(height: AppTheme.space16),
                   KitsuneSearchField(
                     controller: _searchController,
                     focusNode: _searchFocusNode,
-                    hintText: 'Tim theo chu, am Han Viet hoac nghia...',
+                    hintText: strings.kanjiSearchPlaceholder,
                     onChanged: (value) {
                       setState(() {});
                       _scheduleSearch(value);
@@ -122,18 +123,18 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
             ),
             Expanded(
               child: _isSearching
-                  ? const KitsuneLoadingFox(message: 'Đang tìm Kanji...', size: 96)
+                  ? KitsuneLoadingFox(message: strings.kanjiSearching, size: 96)
                   : _results.isEmpty
                       ? SingleChildScrollView(
                           padding: const EdgeInsets.all(16),
                           child: KitsuneEmptyState(
                             icon: Icons.text_fields_rounded,
                             title: _searchController.text.trim().isEmpty
-                                ? 'Tim mot kanji de bat dau'
-                                : 'Không tìm thấy Kanji',
+                                ? strings.kanjiInitialEmptyTitle
+                                : strings.kanjiNotFoundTitle,
                             message: _searchController.text.trim().isEmpty
-                                ? 'Ban co the tra theo chu, nghia hoac am Han Viet de mo chi tiet ngay.'
-                                : 'Thử lại bằng chữ kanji, nghĩa, âm Hán Việt hoặc cách đọc.',
+                                ? strings.kanjiInitialEmptyMessage
+                                : strings.kanjiNotFoundMessage,
                           ),
                         )
                       : LayoutBuilder(
@@ -150,7 +151,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
                                   Expanded(
                                     child: SingleChildScrollView(
                                       padding: const EdgeInsets.fromLTRB(12, 0, 16, 20),
-                                      child: _buildSelectedDetail(),
+                                      child: _buildSelectedDetail(strings),
                                     ),
                                   ),
                                 ],
@@ -160,11 +161,11 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
                             return ListView(
                               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                               children: [
-                                _buildSelectedDetail(),
+                                _buildSelectedDetail(strings),
                                 const SizedBox(height: AppTheme.space16),
-                                const KitsuneSectionHeader(
-                                  title: 'Ket qua tra cuu',
-                                  subtitle: 'Cham vao mot muc de thay doi bang chi tiet ben tren.',
+                                KitsuneSectionHeader(
+                                  title: strings.kanjiSearchResultsTitle,
+                                  subtitle: strings.kanjiSearchResultsSubtitle,
                                   accent: KitsuneColors.primary,
                                 ),
                                 const SizedBox(height: AppTheme.space12),
@@ -266,13 +267,13 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
     );
   }
 
-  Widget _buildSelectedDetail() {
+  Widget _buildSelectedDetail(AppStrings strings) {
     final kanji = _selected;
     if (kanji == null) {
-      return const KitsuneEmptyState(
+      return KitsuneEmptyState(
         icon: Icons.translate_rounded,
-        title: 'Chua co ky tu nao duoc chon',
-        message: 'Cham vao mot ket qua de mo bang chi tiet va theo doi net viet.',
+        title: strings.kanjiNoSelectionTitle,
+        message: strings.kanjiNoSelectionMessage,
       );
     }
 
@@ -321,18 +322,18 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
         KitsuneSurface(
           child: Column(
             children: [
-              _detailRow('Nghia', kanji.meaning),
+              _detailRow(strings.kanjiDetailMeaning, kanji.meaning),
               if (kanji.onyomi?.trim().isNotEmpty == true)
-                _detailRow('Am On', kanji.onyomi!),
+                _detailRow(strings.kanjiDetailOnyomi, kanji.onyomi!),
               if (kanji.kunyomi?.trim().isNotEmpty == true)
-                _detailRow('Am Kun', kanji.kunyomi!),
-              _detailRow('So net', '${kanji.strokeCount}'),
+                _detailRow(strings.kanjiDetailKunyomi, kanji.kunyomi!),
+              _detailRow(strings.kanjiDetailStrokes, '${kanji.strokeCount}'),
               if (kanji.jlptLevel != null)
                 _detailRow('JLPT', 'N${kanji.jlptLevel}'),
               if (kanji.mnemonic?.trim().isNotEmpty == true)
-                _detailRow('Ghi nho', kanji.mnemonic!, isLast: true)
+                _detailRow(strings.kanjiDetailMnemonic, kanji.mnemonic!, isLast: true)
               else
-                _detailRow('Am Han Viet', kanji.amHanViet, isLast: true),
+                _detailRow(strings.kanjiDetailHanViet, kanji.amHanViet, isLast: true),
             ],
           ),
         ),
@@ -342,7 +343,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
           child: TextButton.icon(
             onPressed: () => Navigator.pushNamed(context, '/kanji/${kanji.id}'),
             icon: const Icon(Icons.open_in_new_rounded),
-            label: const Text('Mo man chi tiet'),
+            label: Text(strings.kanjiOpenDetailAction),
           ),
         ),
         if (kanji.radical != null) ...[
@@ -374,7 +375,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Bo thu',
+                        strings.kanjiRadicalLabel,
                         style: Theme.of(context).textTheme.labelMedium,
                       ),
                       const SizedBox(height: AppTheme.space4),
@@ -397,6 +398,7 @@ class _KanjiSearchPageState extends ConsumerState<KanjiSearchPage> {
       ],
     );
   }
+
 
   Widget _detailRow(String label, String value, {bool isLast = false}) {
     return Column(
