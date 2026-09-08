@@ -1,3 +1,12 @@
+import java.util.Properties
+import java.io.FileInputStream
+
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -31,11 +40,34 @@ android {
         multiDexEnabled = true
     }
 
+    signingConfigs {
+        create("release") {
+            val keyFile = if (keystoreProperties.containsKey("storeFile")) {
+                val propPath = keystoreProperties["storeFile"] as String
+                val rootFile = rootProject.file(propPath)
+                if (rootFile.exists()) rootFile else file(propPath)
+            } else {
+                file("kitsune-release-key.jks")
+            }
+
+            if (keyFile.exists()) {
+                keyAlias = keystoreProperties.getProperty("keyAlias", "kitsune")
+                keyPassword = keystoreProperties.getProperty("keyPassword", "kitsune2026")
+                storeFile = keyFile
+                storePassword = keystoreProperties.getProperty("storePassword", "kitsune2026")
+            } else {
+                val debugConfig = signingConfigs.getByName("debug")
+                keyAlias = debugConfig.keyAlias
+                keyPassword = debugConfig.keyPassword
+                storeFile = debugConfig.storeFile
+                storePassword = debugConfig.storePassword
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 }
