@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:kitsune_app/core/models/exam.dart';
 import 'package:kitsune_app/core/network/supabase_client.dart';
@@ -102,6 +103,11 @@ class KitsuneApp extends ConsumerWidget {
       debugShowCheckedModeBanner: false,
       locale: language.locale,
       supportedLocales: AppLanguage.values.map((l) => l.locale).toList(),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
       theme: AppTheme.lightTheme,
       home: authState.when(
         data: (user) => user != null ? const MainScreen() : const LoginPage(),
