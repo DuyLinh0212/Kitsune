@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { supabase } from '../supabase/supabase.client';
-import { JsonlExportResult, JsonlExportService } from './jsonl-export.service';
+import { JsonlExportProgress, JsonlExportResult, JsonlExportService } from './jsonl-export.service';
 
 export interface LanguageDto { id: number; languageCode: string; languageName: string; }
 export interface VocabularyFolderDto { id: number; userId: number; folderName: string; description: string | null; isPublic: boolean; createdAt: string; vocabularyCount: number; }
@@ -83,11 +83,15 @@ export class VocabularyAdminService {
     );
   }
 
-  exportJsonl(): Promise<JsonlExportResult> {
+  exportJsonl(onProgress?: (progress: JsonlExportProgress) => void): Promise<JsonlExportResult> {
     return this.jsonlExportService.downloadFromPages(
       this.jsonlExportService.createTimestampedFilename('kitsune-vocabularies'),
       (offset, limit) => this.fetchVocabularyExportPage(offset, limit),
-      VOCABULARY_EXPORT_PAGE_SIZE
+      {
+        pageSize: VOCABULARY_EXPORT_PAGE_SIZE,
+        getTotalCount: () => this.fetchVocabularyExportCount(),
+        onProgress
+      }
     );
   }
 
@@ -167,6 +171,15 @@ export class VocabularyAdminService {
 
     if (error) throw error;
     return (data ?? []).map((row) => this.mapVocabularyExportRow(row as Record<string, unknown>));
+  }
+
+  private async fetchVocabularyExportCount(): Promise<number> {
+    const { count, error } = await supabase
+      .from('Vocabularies')
+      .select('Id', { count: 'exact', head: true });
+
+    if (error) throw error;
+    return count ?? 0;
   }
 
   private mapVocabularyExportRow(row: Record<string, unknown>): VocabularyExportRecord {

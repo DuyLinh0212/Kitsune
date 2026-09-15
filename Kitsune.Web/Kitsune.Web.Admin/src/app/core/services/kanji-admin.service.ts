@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { from, Observable } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import { supabase } from '../supabase/supabase.client';
-import { JsonlExportResult, JsonlExportService } from './jsonl-export.service';
+import { JsonlExportProgress, JsonlExportResult, JsonlExportService } from './jsonl-export.service';
 
 export interface RadicalDto { id: number; radicalCharacter: string; radicalName: string; englishName: string | null; description: string | null; }
 export interface PagedResult<T> { items: T[]; totalCount: number; page: number; pageSize: number; totalPages: number; }
@@ -65,11 +65,15 @@ export class KanjiAdminService {
     );
   }
 
-  exportJsonl(): Promise<JsonlExportResult> {
+  exportJsonl(onProgress?: (progress: JsonlExportProgress) => void): Promise<JsonlExportResult> {
     return this.jsonlExportService.downloadFromPages(
       this.jsonlExportService.createTimestampedFilename('kitsune-kanji'),
       (offset, limit) => this.fetchKanjiExportPage(offset, limit),
-      KANJI_EXPORT_PAGE_SIZE
+      {
+        pageSize: KANJI_EXPORT_PAGE_SIZE,
+        getTotalCount: () => this.fetchKanjiExportCount(),
+        onProgress
+      }
     );
   }
 
@@ -182,6 +186,15 @@ export class KanjiAdminService {
 
     if (error) throw error;
     return (data ?? []).map((row) => this.mapKanjiExportRow(row as Record<string, unknown>));
+  }
+
+  private async fetchKanjiExportCount(): Promise<number> {
+    const { count, error } = await supabase
+      .from('Kanji')
+      .select('Id', { count: 'exact', head: true });
+
+    if (error) throw error;
+    return count ?? 0;
   }
 
   private mapKanjiExportRow(row: Record<string, unknown>): KanjiExportRecord {

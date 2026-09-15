@@ -6,6 +6,18 @@ export interface JsonlExportResult {
   byteSize: number;
 }
 
+export interface JsonlExportProgress {
+  processedRecords: number;
+  totalRecords: number;
+  percentage: number;
+}
+
+export interface JsonlExportOptions {
+  pageSize?: number;
+  getTotalCount: () => Promise<number>;
+  onProgress?: (progress: JsonlExportProgress) => void;
+}
+
 export type JsonlPageLoader<T> = (offset: number, limit: number) => Promise<readonly T[]>;
 
 @Injectable({ providedIn: 'root' })
@@ -13,23 +25,34 @@ export class JsonlExportService {
   async downloadFromPages<T>(
     filename: string,
     loadPage: JsonlPageLoader<T>,
-    pageSize = 500
+    options: JsonlExportOptions
   ): Promise<JsonlExportResult> {
+    const pageSize = options.pageSize ?? 500;
     if (!Number.isInteger(pageSize) || pageSize <= 0) {
       throw new Error('Kích thước trang JSONL không hợp lệ.');
+    }
+
+    const totalRecords = await options.getTotalCount();
+    if (!Number.isInteger(totalRecords) || totalRecords < 0) {
+      throw new Error('Không xác định được tổng số bản ghi cần xuất.');
     }
 
     const chunks: string[] = [];
     let offset = 0;
     let recordCount = 0;
+    this.reportProgress(options.onProgress, this.createProgress(recordCount, totalRecords));
 
     while (true) {
       const page = await loadPage(offset, pageSize);
-      if (page.length === 0) break;
+      if (page.length === 0) {
+        this.reportProgress(options.onProgress, this.createProgress(recordCount, totalRecords));
+        break;
+      }
 
       const lines = page.map((record) => JSON.stringify(record) ?? 'null');
       chunks.push(`${lines.join('\n')}\n`);
       recordCount += page.length;
+      this.reportProgress(options.onProgress, this.createProgress(recordCount, totalRecords));
 
       if (page.length < pageSize) break;
       offset += page.length;
@@ -48,6 +71,21 @@ export class JsonlExportService {
   createTimestampedFilename(prefix: string): string {
     const timestamp = new Date().toISOString().replace(/[.:]/g, '-');
     return `${prefix}-${timestamp}.jsonl`;
+  }
+
+  private createProgress(processedRecords: number, totalRecords: number): JsonlExportProgress {
+    const percentage = totalRecords === 0
+      ? 100
+      : Math.min(100, Math.round((processedRecords / totalRecords) * 100));
+
+    return { processedRecords, totalRecords, percentage };
+  }
+
+  private reportProgress(
+    onProgress: JsonlExportOptions['onProgress'],
+    progress: JsonlExportProgress
+  ): void {
+    onProgress?.(progress);
   }
 
   private triggerDownload(blob: Blob, filename: string): void {

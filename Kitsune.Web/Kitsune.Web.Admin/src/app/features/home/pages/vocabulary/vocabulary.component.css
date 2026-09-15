@@ -868,6 +868,61 @@
   stroke-linejoin: round;
 }
 
+.export-progress {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 11px 14px 12px;
+  border: 1px solid #dce5f3;
+  border-radius: var(--radius-sm);
+  background: #fafbff;
+}
+
+.export-progress__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.export-progress__heading strong {
+  color: var(--blue);
+  font-variant-numeric: tabular-nums;
+}
+
+.export-progress__track {
+  width: 100%;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eefb;
+}
+
+.export-progress__bar {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--blue), #8aa6ff);
+  transition: width 0.25s ease;
+}
+
+.export-progress__meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .export-progress__bar {
+    transition: none;
+  }
+}
+
 .vocab-toolbar__search {
   display: flex;
   align-items: center;

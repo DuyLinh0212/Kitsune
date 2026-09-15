@@ -91,6 +91,38 @@
           </div>
         </div>
 
+        @if (kanjiExporting()) {
+          <div class="export-progress" role="status" aria-live="polite">
+            <div class="export-progress__heading">
+              <span>{{ kanjiExportProgress() ? 'Đang tải dữ liệu Kanji' : 'Đang chuẩn bị dữ liệu' }}</span>
+              @if (kanjiExportProgress(); as progress) {
+                <strong>{{ progress.percentage }}%</strong>
+              }
+            </div>
+            <div
+              class="export-progress__track"
+              role="progressbar"
+              aria-label="Tiến độ xuất Kanji"
+              [attr.aria-valuenow]="kanjiExportProgress()?.percentage ?? null"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <span
+                class="export-progress__bar"
+                [style.width.%]="kanjiExportProgress()?.percentage ?? 4"
+              ></span>
+            </div>
+            @if (kanjiExportProgress(); as progress) {
+              <span class="export-progress__meta">
+                {{ progress.processedRecords.toLocaleString('vi-VN') }} /
+                {{ progress.totalRecords.toLocaleString('vi-VN') }} bản ghi
+              </span>
+            } @else {
+              <span class="export-progress__meta">Đang đếm tổng số bản ghi…</span>
+            }
+          </div>
+        }
+
         @if (kanjiExportMessage()) {
           <div class="export-status" role="status">
             <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>

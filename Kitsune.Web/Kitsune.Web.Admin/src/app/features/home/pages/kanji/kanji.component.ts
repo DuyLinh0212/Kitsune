@@ -5,6 +5,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
+import { JsonlExportProgress } from '../../../../core/services/jsonl-export.service';
 import {
   CreateKanjiDto,
   CreateRadicalDto,
@@ -57,6 +58,7 @@ export class KanjiManagementComponent implements OnDestroy {
   protected readonly kanjiRadicalFilter = signal<number | null>(null);
   protected readonly kanjiJlptFilter = signal<number | null>(null);
   protected readonly kanjiExporting = signal(false);
+  protected readonly kanjiExportProgress = signal<JsonlExportProgress | null>(null);
   protected readonly kanjiExportMessage = signal('');
   protected readonly kanjiExportError = signal('');
   protected readonly totalPages = computed(() => this.kanjiResult()?.totalPages ?? 0);
@@ -173,11 +175,12 @@ export class KanjiManagementComponent implements OnDestroy {
     if (this.kanjiExporting()) return;
 
     this.kanjiExporting.set(true);
+    this.kanjiExportProgress.set(null);
     this.kanjiExportMessage.set('');
     this.kanjiExportError.set('');
 
     try {
-      const result = await this.kanjiService.exportJsonl();
+      const result = await this.kanjiService.exportJsonl((progress) => this.kanjiExportProgress.set(progress));
       this.kanjiExportMessage.set(
         `Đã tải ${result.recordCount.toLocaleString('vi-VN')} Kanji xuống ${result.filename}.`
       );

@@ -349,6 +349,38 @@
           </div>
         </div>
 
+        @if (vocabExporting()) {
+          <div class="export-progress" role="status" aria-live="polite">
+            <div class="export-progress__heading">
+              <span>{{ vocabExportProgress() ? 'Đang tải dữ liệu từ vựng' : 'Đang chuẩn bị dữ liệu' }}</span>
+              @if (vocabExportProgress(); as progress) {
+                <strong>{{ progress.percentage }}%</strong>
+              }
+            </div>
+            <div
+              class="export-progress__track"
+              role="progressbar"
+              aria-label="Tiến độ xuất từ vựng"
+              [attr.aria-valuenow]="vocabExportProgress()?.percentage ?? null"
+              aria-valuemin="0"
+              aria-valuemax="100"
+            >
+              <span
+                class="export-progress__bar"
+                [style.width.%]="vocabExportProgress()?.percentage ?? 4"
+              ></span>
+            </div>
+            @if (vocabExportProgress(); as progress) {
+              <span class="export-progress__meta">
+                {{ progress.processedRecords.toLocaleString('vi-VN') }} /
+                {{ progress.totalRecords.toLocaleString('vi-VN') }} bản ghi
+              </span>
+            } @else {
+              <span class="export-progress__meta">Đang đếm tổng số bản ghi…</span>
+            }
+          </div>
+        }
+
         @if (vocabExportMessage()) {
           <div class="export-status" role="status">
             <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>

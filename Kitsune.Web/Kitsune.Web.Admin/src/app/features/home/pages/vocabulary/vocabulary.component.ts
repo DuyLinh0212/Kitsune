@@ -5,6 +5,7 @@ import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../../core/services/auth.service';
+import { JsonlExportProgress } from '../../../../core/services/jsonl-export.service';
 import {
   CreateFolderDto,
   CreateVocabularyDto,
@@ -80,6 +81,7 @@ export class VocabularyComponent implements OnDestroy {
   protected readonly vocabFolderFilter = signal<number | null>(null);
   protected readonly vocabLangFilter = signal<number | null>(null);
   protected readonly vocabExporting = signal(false);
+  protected readonly vocabExportProgress = signal<JsonlExportProgress | null>(null);
   protected readonly vocabExportMessage = signal('');
   protected readonly vocabExportError = signal('');
 
@@ -247,11 +249,12 @@ export class VocabularyComponent implements OnDestroy {
     if (this.vocabExporting()) return;
 
     this.vocabExporting.set(true);
+    this.vocabExportProgress.set(null);
     this.vocabExportMessage.set('');
     this.vocabExportError.set('');
 
     try {
-      const result = await this.vocabService.exportJsonl();
+      const result = await this.vocabService.exportJsonl((progress) => this.vocabExportProgress.set(progress));
       this.vocabExportMessage.set(
         `Đã tải ${result.recordCount.toLocaleString('vi-VN')} từ vựng xuống ${result.filename}.`
       );
