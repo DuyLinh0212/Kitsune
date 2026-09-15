@@ -79,6 +79,9 @@ export class VocabularyComponent implements OnDestroy {
   protected readonly vocabSearch = signal('');
   protected readonly vocabFolderFilter = signal<number | null>(null);
   protected readonly vocabLangFilter = signal<number | null>(null);
+  protected readonly vocabExporting = signal(false);
+  protected readonly vocabExportMessage = signal('');
+  protected readonly vocabExportError = signal('');
 
   protected readonly totalPages = computed(() => this.vocabResult()?.totalPages ?? 0);
 
@@ -238,6 +241,27 @@ export class VocabularyComponent implements OnDestroy {
           this.vocabLoading.set(false);
         }
       });
+  }
+
+  protected async exportVocabulariesJsonl(): Promise<void> {
+    if (this.vocabExporting()) return;
+
+    this.vocabExporting.set(true);
+    this.vocabExportMessage.set('');
+    this.vocabExportError.set('');
+
+    try {
+      const result = await this.vocabService.exportJsonl();
+      this.vocabExportMessage.set(
+        `Đã tải ${result.recordCount.toLocaleString('vi-VN')} từ vựng xuống ${result.filename}.`
+      );
+    } catch (error: unknown) {
+      this.vocabExportError.set(
+        this.getExportErrorMessage(error, 'Không thể xuất dữ liệu từ vựng thành JSONL.')
+      );
+    } finally {
+      this.vocabExporting.set(false);
+    }
   }
 
   protected onSearchChange(value: string): void {
@@ -448,6 +472,15 @@ export class VocabularyComponent implements OnDestroy {
 
   private addLog(entry: VocabularyImportLogEntry): void {
     this.importLogs.update((logs) => [entry, ...logs].slice(0, 150));
+  }
+
+  private getExportErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) return error.message;
+    if (typeof error === 'object' && error !== null) {
+      const message = (error as { message?: unknown }).message;
+      if (typeof message === 'string' && message) return message;
+    }
+    return fallback;
   }
 
   protected get importProgressPercent(): number {

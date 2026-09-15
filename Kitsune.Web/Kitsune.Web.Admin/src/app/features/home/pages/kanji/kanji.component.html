@@ -72,11 +72,34 @@
             }
           </select>
 
-          <button class="btn btn--primary btn--sm" (click)="openCreateModal()">
-            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Thêm Kanji
-          </button>
+          <div class="toolbar-actions">
+            <button
+              type="button"
+              class="btn btn--export btn--sm"
+              [disabled]="kanjiExporting()"
+              [attr.aria-busy]="kanjiExporting()"
+              title="Xuất toàn bộ Kanji thành file JSONL"
+              (click)="exportKanjiJsonl()"
+            >
+              <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+              {{ kanjiExporting() ? 'Đang xuất...' : 'Xuất JSONL' }}
+            </button>
+            <button type="button" class="btn btn--primary btn--sm" (click)="openCreateModal()">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Thêm Kanji
+            </button>
+          </div>
         </div>
+
+        @if (kanjiExportMessage()) {
+          <div class="export-status" role="status">
+            <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
+            {{ kanjiExportMessage() }}
+          </div>
+        }
+        @if (kanjiExportError()) {
+          <div class="alert alert--error" role="alert">{{ kanjiExportError() }}</div>
+        }
 
         @if (kanjiError()) {
           <div class="alert alert--error">{{ kanjiError() }}</div>

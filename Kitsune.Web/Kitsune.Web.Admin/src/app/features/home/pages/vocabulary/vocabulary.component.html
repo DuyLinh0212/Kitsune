@@ -330,11 +330,34 @@
             }
           </select>
 
-          <button class="btn btn--primary btn--sm" (click)="openCreateModal()">
-            <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-            Thêm từ
-          </button>
+          <div class="toolbar-actions">
+            <button
+              type="button"
+              class="btn btn--export btn--sm"
+              [disabled]="vocabExporting()"
+              [attr.aria-busy]="vocabExporting()"
+              title="Xuất toàn bộ từ vựng thành file JSONL"
+              (click)="exportVocabulariesJsonl()"
+            >
+              <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+              {{ vocabExporting() ? 'Đang xuất...' : 'Xuất JSONL' }}
+            </button>
+            <button type="button" class="btn btn--primary btn--sm" (click)="openCreateModal()">
+              <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Thêm từ
+            </button>
+          </div>
         </div>
+
+        @if (vocabExportMessage()) {
+          <div class="export-status" role="status">
+            <svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>
+            {{ vocabExportMessage() }}
+          </div>
+        }
+        @if (vocabExportError()) {
+          <div class="alert alert--error" role="alert">{{ vocabExportError() }}</div>
+        }
 
         @if (vocabError()) {
           <div class="alert alert--error">{{ vocabError() }}</div>

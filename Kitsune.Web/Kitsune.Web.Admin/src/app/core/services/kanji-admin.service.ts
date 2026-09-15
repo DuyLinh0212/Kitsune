@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { from, Observable } from 'rxjs';
 import { map, switchMap } from 'rxjs/operators';
 import { supabase } from '../supabase/supabase.client';
+import { JsonlExportResult, JsonlExportService } from './jsonl-export.service';
 
 export interface RadicalDto { id: number; radicalCharacter: string; radicalName: string; englishName: string | null; description: string | null; }
 export interface PagedResult<T> { items: T[]; totalCount: number; page: number; pageSize: number; totalPages: number; }
@@ -11,6 +12,20 @@ export interface UpdateKanjiDto { onyomi?: string | null; kunyomi?: string | nul
 export interface CreateRadicalDto { radicalCharacter: string; radicalName: string; englishName?: string | null; description?: string | null; }
 export interface UpdateRadicalDto { radicalCharacter?: string; radicalName?: string; englishName?: string | null; description?: string | null; }
 export interface KanjiDto { id: number; character: string; onyomi: string | null; kunyomi: string | null; amHanViet: string; meaning: string; strokeCount: number; jlptLevel: number | null; mnemonic: string | null; radical: RadicalDto | null; }
+export interface KanjiExportRadical { Id: number; RadicalCharacter: string; RadicalName: string; EnglishName: string | null; Description: string | null; }
+export interface KanjiExportRecord {
+  Id: number;
+  Character: string;
+  Onyomi: string | null;
+  Kunyomi: string | null;
+  AmHanViet: string;
+  Meaning: string;
+  StrokeCount: number;
+  JlptLevel: number | null;
+  Mnemonic: string | null;
+  RadicalId: number | null;
+  Radical: KanjiExportRadical | null;
+}
 export interface KanjiImportSummaryDto { sourceDirectory: string; radicalCount: number; kanjiCount: number; }
 export interface KanjiImportProgressDto { stage: string; message: string; currentCharacter?: string | null; currentFileName?: string | null; currentFileIndex: number; totalFiles: number; processedRecords: number; totalRecords: number; radicalCount: number; kanjiCount: number; isCompleted: boolean; isWarning: boolean; isError: boolean; }
 export interface KanjiImportLogEntry { id: string; timestamp: string; stage: string; message: string; currentCharacter?: string | null; currentFileName?: string | null; tone: 'info' | 'warning' | 'error' | 'success'; }
@@ -22,9 +37,11 @@ const KANJI_SELECT = `
   Id, Character, Onyomi, Kunyomi, AmHanViet, Meaning, StrokeCount, JlptLevel, Mnemonic, RadicalId,
   Radical:RadicalId(Id, RadicalCharacter, RadicalName, EnglishName, Description)
 `;
+const KANJI_EXPORT_PAGE_SIZE = 500;
 
 @Injectable({ providedIn: 'root' })
 export class KanjiAdminService {
+  private readonly jsonlExportService = inject(JsonlExportService);
 
   // ✅ Table 'Radical' (singular)
   radicals(): Observable<RadicalDto[]> {
@@ -45,6 +62,14 @@ export class KanjiAdminService {
   getById(id: number): Observable<KanjiDto> {
     return from(supabase.from('Kanji').select(KANJI_SELECT).eq('Id', id).single()).pipe(
       map(({ data, error }) => { if (error) throw error; return this.mapKanjiRow(data); })
+    );
+  }
+
+  exportJsonl(): Promise<JsonlExportResult> {
+    return this.jsonlExportService.downloadFromPages(
+      this.jsonlExportService.createTimestampedFilename('kitsune-kanji'),
+      (offset, limit) => this.fetchKanjiExportPage(offset, limit),
+      KANJI_EXPORT_PAGE_SIZE
     );
   }
 
@@ -146,6 +171,46 @@ export class KanjiAdminService {
     if (error) throw error;
     const totalCount = count ?? 0;
     return { items: (data ?? []).map((r) => this.mapKanjiRow(r)), totalCount, page, pageSize, totalPages: Math.ceil(totalCount / pageSize) };
+  }
+
+  private async fetchKanjiExportPage(offset: number, limit: number): Promise<KanjiExportRecord[]> {
+    const { data, error } = await supabase
+      .from('Kanji')
+      .select(KANJI_SELECT)
+      .order('Id', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return (data ?? []).map((row) => this.mapKanjiExportRow(row as Record<string, unknown>));
+  }
+
+  private mapKanjiExportRow(row: Record<string, unknown>): KanjiExportRecord {
+    const rawRadical = row['Radical'];
+    const radical = rawRadical && typeof rawRadical === 'object' && !Array.isArray(rawRadical)
+      ? (rawRadical as Record<string, unknown>)
+      : null;
+
+    return {
+      Id: row['Id'] as number,
+      Character: row['Character'] as string,
+      Onyomi: (row['Onyomi'] as string | null) ?? null,
+      Kunyomi: (row['Kunyomi'] as string | null) ?? null,
+      AmHanViet: row['AmHanViet'] as string,
+      Meaning: row['Meaning'] as string,
+      StrokeCount: row['StrokeCount'] as number,
+      JlptLevel: (row['JlptLevel'] as number | null) ?? null,
+      Mnemonic: (row['Mnemonic'] as string | null) ?? null,
+      RadicalId: (row['RadicalId'] as number | null) ?? null,
+      Radical: radical
+        ? {
+            Id: radical['Id'] as number,
+            RadicalCharacter: radical['RadicalCharacter'] as string,
+            RadicalName: radical['RadicalName'] as string,
+            EnglishName: (radical['EnglishName'] as string | null) ?? null,
+            Description: (radical['Description'] as string | null) ?? null
+          }
+        : null
+    };
   }
 
   private mapKanjiRow(r: Record<string, unknown>): KanjiDto {

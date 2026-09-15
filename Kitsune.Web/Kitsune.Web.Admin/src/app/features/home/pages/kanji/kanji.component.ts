@@ -56,6 +56,9 @@ export class KanjiManagementComponent implements OnDestroy {
   protected readonly kanjiSearch = signal('');
   protected readonly kanjiRadicalFilter = signal<number | null>(null);
   protected readonly kanjiJlptFilter = signal<number | null>(null);
+  protected readonly kanjiExporting = signal(false);
+  protected readonly kanjiExportMessage = signal('');
+  protected readonly kanjiExportError = signal('');
   protected readonly totalPages = computed(() => this.kanjiResult()?.totalPages ?? 0);
 
   // ── Kanji modal ───────────────────────────────────────────────────────
@@ -164,6 +167,25 @@ export class KanjiManagementComponent implements OnDestroy {
           this.kanjiLoading.set(false);
         }
       });
+  }
+
+  protected async exportKanjiJsonl(): Promise<void> {
+    if (this.kanjiExporting()) return;
+
+    this.kanjiExporting.set(true);
+    this.kanjiExportMessage.set('');
+    this.kanjiExportError.set('');
+
+    try {
+      const result = await this.kanjiService.exportJsonl();
+      this.kanjiExportMessage.set(
+        `Đã tải ${result.recordCount.toLocaleString('vi-VN')} Kanji xuống ${result.filename}.`
+      );
+    } catch (error: unknown) {
+      this.kanjiExportError.set(this.getExportErrorMessage(error, 'Không thể xuất dữ liệu Kanji thành JSONL.'));
+    } finally {
+      this.kanjiExporting.set(false);
+    }
   }
 
   protected onSearchChange(value: string): void {
@@ -484,6 +506,15 @@ export class KanjiManagementComponent implements OnDestroy {
 
   private addLog(entry: KanjiImportLogEntry): void {
     this.importLogs.update((logs) => [entry, ...logs].slice(0, 150));
+  }
+
+  private getExportErrorMessage(error: unknown, fallback: string): string {
+    if (error instanceof Error && error.message) return error.message;
+    if (typeof error === 'object' && error !== null) {
+      const message = (error as { message?: unknown }).message;
+      if (typeof message === 'string' && message) return message;
+    }
+    return fallback;
   }
 
   protected get importRecordPercent(): number {

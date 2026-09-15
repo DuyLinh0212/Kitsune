@@ -1,7 +1,8 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { supabase } from '../supabase/supabase.client';
+import { JsonlExportResult, JsonlExportService } from './jsonl-export.service';
 
 export interface LanguageDto { id: number; languageCode: string; languageName: string; }
 export interface VocabularyFolderDto { id: number; userId: number; folderName: string; description: string | null; isPublic: boolean; createdAt: string; vocabularyCount: number; }
@@ -12,6 +13,18 @@ export interface VocabularyListQuery { search?: string; folderId?: number; langu
 export interface CreateVocabularyDto { folderId: number; languageId: number; word: string; pronunciation?: string | null; meaning: string; specificData?: string | null; }
 export interface UpdateVocabularyDto { word?: string; pronunciation?: string | null; meaning?: string; specificData?: string | null; }
 export interface CreateFolderDto { folderName: string; description?: string | null; isPublic?: boolean; }
+export interface VocabularyExportComponent { VocabularyId: number; KanjiId: number; Order: number; }
+export interface VocabularyExportRecord {
+  Id: number;
+  FolderId: number;
+  LanguageId: number;
+  Word: string;
+  Pronunciation: string | null;
+  Meaning: string;
+  SpecificData: unknown;
+  CreatedAt: string;
+  KanjiComponents: VocabularyExportComponent[];
+}
 
 // ✅ Correct select string — table name is VocabularyFolder (singular), KanjiComponents uses "Order" (quoted)
 const VOCAB_SELECT = `
@@ -20,9 +33,15 @@ const VOCAB_SELECT = `
   Languages:LanguageId(LanguageCode),
   KanjiComponents(KanjiId, "Order", Kanji:KanjiId(Id, Character, AmHanViet))
 `;
+const VOCABULARY_EXPORT_SELECT = `
+  Id, FolderId, LanguageId, Word, Pronunciation, Meaning, SpecificData, CreatedAt,
+  KanjiComponents(VocabularyId, KanjiId, "Order")
+`;
+const VOCABULARY_EXPORT_PAGE_SIZE = 500;
 
 @Injectable({ providedIn: 'root' })
 export class VocabularyAdminService {
+  private readonly jsonlExportService = inject(JsonlExportService);
   getLanguages(): Observable<LanguageDto[]> {
     return from(supabase.from('Languages').select('Id, LanguageCode, LanguageName').order('LanguageName')).pipe(
       map(({ data, error }) => { if (error) throw error; return (data ?? []).map((r) => ({ id: r['Id'] as number, languageCode: r['LanguageCode'] as string, languageName: r['LanguageName'] as string })); })
@@ -61,6 +80,14 @@ export class VocabularyAdminService {
   getById(id: number): Observable<VocabularyDto> {
     return from(supabase.from('Vocabularies').select(VOCAB_SELECT).eq('Id', id).single()).pipe(
       map(({ data, error }) => { if (error) throw error; return this.mapVocabularyRow(data); })
+    );
+  }
+
+  exportJsonl(): Promise<JsonlExportResult> {
+    return this.jsonlExportService.downloadFromPages(
+      this.jsonlExportService.createTimestampedFilename('kitsune-vocabularies'),
+      (offset, limit) => this.fetchVocabularyExportPage(offset, limit),
+      VOCABULARY_EXPORT_PAGE_SIZE
     );
   }
 
@@ -129,6 +156,43 @@ export class VocabularyAdminService {
 
   delete(id: number): Observable<void> {
     return from(supabase.from('Vocabularies').delete().eq('Id', id)).pipe(map(({ error }) => { if (error) throw error; }));
+  }
+
+  private async fetchVocabularyExportPage(offset: number, limit: number): Promise<VocabularyExportRecord[]> {
+    const { data, error } = await supabase
+      .from('Vocabularies')
+      .select(VOCABULARY_EXPORT_SELECT)
+      .order('Id', { ascending: true })
+      .range(offset, offset + limit - 1);
+
+    if (error) throw error;
+    return (data ?? []).map((row) => this.mapVocabularyExportRow(row as Record<string, unknown>));
+  }
+
+  private mapVocabularyExportRow(row: Record<string, unknown>): VocabularyExportRecord {
+    const id = row['Id'] as number;
+    const rawComponents = Array.isArray(row['KanjiComponents'])
+      ? (row['KanjiComponents'] as Array<Record<string, unknown>>)
+      : [];
+
+    return {
+      Id: id,
+      FolderId: row['FolderId'] as number,
+      LanguageId: row['LanguageId'] as number,
+      Word: row['Word'] as string,
+      Pronunciation: (row['Pronunciation'] as string | null) ?? null,
+      Meaning: row['Meaning'] as string,
+      SpecificData: row['SpecificData'] ?? null,
+      CreatedAt: row['CreatedAt'] as string,
+      KanjiComponents: rawComponents
+        .filter((component) => typeof component['KanjiId'] === 'number')
+        .map((component) => ({
+          VocabularyId: (component['VocabularyId'] as number | null) ?? id,
+          KanjiId: component['KanjiId'] as number,
+          Order: (component['Order'] as number | null) ?? 0
+        }))
+        .sort((left, right) => left.Order - right.Order)
+    };
   }
 
   private async fetchVocabularies(query: VocabularyListQuery): Promise<PagedResult<VocabularyDto>> {
