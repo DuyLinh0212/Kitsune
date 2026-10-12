@@ -1,7 +1,8 @@
 import { CommonModule } from '@angular/common';
-import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { firstValueFrom } from 'rxjs';
 import {
   FolderSrsOverview,
@@ -73,6 +74,8 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
   private readonly srsService = inject(SrsService);
   private readonly learningKnowledge = inject(LearningKnowledgeService);
   readonly ttsService = inject(TtsService);
+  private readonly destroyRef = inject(DestroyRef);
+  private lastDueCountRefreshAttempt: number | null = null;
 
   // ─── Core state ────────────────────────────────────────────────────────────
   readonly isLoading = signal(true);
@@ -206,7 +209,26 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
     return this.activeSession()?.overview.nextDueAt ?? null;
   });
 
-  constructor() {}
+  constructor() {
+    this.srsService.globalDueCount$
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((dueCount) => {
+        if (dueCount === null) return;
+
+        const session = this.activeSession();
+        if (!session || this.isLoading() || this.isSubmitting()) return;
+        if (this.phase() !== 'idle') return;
+
+        if (session.overview.dueCards === dueCount) {
+          this.lastDueCountRefreshAttempt = null;
+          return;
+        }
+        if (this.lastDueCountRefreshAttempt === dueCount) return;
+
+        this.lastDueCountRefreshAttempt = dueCount;
+        void this.loadDashboard();
+      });
+  }
 
   ngOnInit(): void {
     void this.loadDashboard();

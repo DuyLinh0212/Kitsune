@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { from, Observable } from 'rxjs';
+import { BehaviorSubject, from, Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { supabase } from '../supabase/supabase.client';
 
@@ -200,6 +200,9 @@ const BOX_LEVEL_INTERVALS_MS: Record<number, number> = {
 };
 @Injectable({ providedIn: 'root' })
 export class SrsService {
+  private readonly globalDueCountSubject = new BehaviorSubject<number | null>(null);
+  readonly globalDueCount$ = this.globalDueCountSubject.asObservable();
+
   getDailyGoal(): number | null {
     if (typeof window === 'undefined') return null;
     const raw = window.localStorage.getItem(`${DAILY_GOAL_STORAGE_PREFIX}${this.localDateKey()}`);
@@ -280,7 +283,9 @@ export class SrsService {
       .lte('NextReviewDate', new Date().toISOString());
     if (error) throw error;
 
-    return { userId, dueCount: count ?? 0 };
+    const dueCount = count ?? 0;
+    this.globalDueCountSubject.next(dueCount);
+    return { userId, dueCount };
   }
 
   async getGlobalDueCardCount(): Promise<number> {

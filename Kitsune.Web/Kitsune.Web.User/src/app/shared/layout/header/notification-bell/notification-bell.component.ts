@@ -45,6 +45,11 @@ export class NotificationBellComponent implements OnInit {
     void this.checkSrsDue();
   }
 
+  @HostListener('window:focus')
+  refreshSrsDueOnFocus(): void {
+    void this.checkSrsDue();
+  }
+
   private async checkSrsDue(): Promise<void> {
     try {
       const dueSummary = await this.srsService.getGlobalDueSummary();

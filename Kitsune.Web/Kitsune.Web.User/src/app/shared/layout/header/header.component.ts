@@ -199,6 +199,11 @@ export class HeaderComponent implements OnInit {
     void this.loadDueSrsCount();
   }
 
+  @HostListener('window:focus')
+  refreshDueSrsCountOnFocus(): void {
+    void this.loadDueSrsCount();
+  }
+
   @HostListener('document:click', ['$event'])
   onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement | null;
