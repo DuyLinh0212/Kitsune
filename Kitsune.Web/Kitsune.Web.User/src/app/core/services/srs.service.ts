@@ -264,6 +264,30 @@ export class SrsService {
     return from(this.loadGlobalSession());
   }
 
+  async getGlobalDueSummary(): Promise<{ userId: number; dueCount: number } | null> {
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+    if (authError) throw authError;
+
+    const email = authData.user?.email;
+    if (!email) return null;
+
+    const userId = await this.getCurrentUserId(email);
+    const { count, error } = await supabase
+      .from('SRSCards')
+      .select('Id', { count: 'exact', head: true })
+      .eq('UserId', userId)
+      .gt('BoxLevel', 0)
+      .lte('NextReviewDate', new Date().toISOString());
+    if (error) throw error;
+
+    return { userId, dueCount: count ?? 0 };
+  }
+
+  async getGlobalDueCardCount(): Promise<number> {
+    const summary = await this.getGlobalDueSummary();
+    return summary?.dueCount ?? 0;
+  }
+
   getLessonOverviews(
     lessons: ReadonlyArray<{ id: number; title: string }>,
   ): Observable<FolderSrsOverview[]> {

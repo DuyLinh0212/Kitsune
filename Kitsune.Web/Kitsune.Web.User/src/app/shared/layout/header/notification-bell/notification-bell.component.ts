@@ -1,11 +1,10 @@
 // frontend/Kitsune.Web.User/src/app/shared/layout/header/notification-bell/notification-bell.component.ts
-import { Component, inject, signal, OnInit } from '@angular/core';
+import { Component, DestroyRef, HostListener, inject, signal, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
-import { Subscription } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NotificationService, NotificationDto } from '../../../../core/services/notification.service';
-import { AuthService } from '../../../../core/services/auth.service';
-import { supabase } from '../../../../core/supabase/supabase.client';
+import { SrsService } from '../../../../core/services/srs.service';
 import { LoadingFoxComponent } from '../../../components/loading-fox/loading-fox.component';
 
 // Synthetic (non-DB) SRS reminder shown at the top of the notification list
@@ -20,60 +19,68 @@ const SRS_NOTIF_ID = -9999;
 })
 export class NotificationBellComponent implements OnInit {
   private readonly notificationService = inject(NotificationService);
-  private readonly authService = inject(AuthService);
+  private readonly srsService = inject(SrsService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly isOpen = signal(false);
   readonly notifications = signal<NotificationDto[]>([]);
   readonly unreadCount = signal(0);
   readonly isLoading = signal(false);
-  private sub: Subscription | null = null;
   private srsDueCount = 0;
+  private latestSrsDueCount = 0;
+  private dismissedSrsDueCount: number | null = null;
 
   ngOnInit(): void {
     this.loadNotifications();
     this.notificationService.subscribeRealtime();
-    this.sub = this.notificationService.unreadCount$.subscribe((c) => {
+    this.notificationService.unreadCount$.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((c) => {
       this.unreadCount.set(c + (this.srsDueCount > 0 ? 1 : 0));
     });
     void this.checkSrsDue();
   }
 
+  @HostListener('window:kitsune:srs-due-changed')
+  refreshSrsDue(): void {
+    void this.checkSrsDue();
+  }
+
   private async checkSrsDue(): Promise<void> {
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData.user?.email) return;
-      const { data: profile } = await supabase
-        .from('Users')
-        .select('Id')
-        .eq('Email', authData.user.email)
-        .maybeSingle();
-      if (!profile) return;
-      const userId = (profile as { Id: number }).Id;
-      const now = new Date().toISOString();
-      const { count } = await supabase
-        .from('SRSCards')
-        .select('Id', { count: 'exact', head: true })
-        .eq('UserId', userId)
-        .lte('NextReviewDate', now);
-      this.srsDueCount = count ?? 0;
+      const dueSummary = await this.srsService.getGlobalDueSummary();
+      if (!dueSummary) return;
+
+      const { userId, dueCount } = dueSummary;
+      const previousDueCount = this.srsDueCount;
+      this.latestSrsDueCount = dueCount;
+      if (dueCount === 0) this.dismissedSrsDueCount = null;
+      this.srsDueCount = dueCount > 0 && this.dismissedSrsDueCount !== dueCount ? dueCount : 0;
+      const current = this.notifications();
+      const existingSrsNotification = current.find(
+        (notification) => notification.id === SRS_NOTIF_ID,
+      );
+      const withoutSrs = current.filter((notification) => notification.id !== SRS_NOTIF_ID);
+
       if (this.srsDueCount > 0) {
         const srsNotif: NotificationDto = {
           id: SRS_NOTIF_ID,
           userId,
           type: 'system',
           title: `📚 ${this.srsDueCount} thẻ SRS cần ôn tập!`,
-          message: `Bạn có ${this.srsDueCount} thẻ từ vựng đến hạn ôn tập hôm nay. Hãy ôn ngay!`,
+          message: `Bạn có ${this.srsDueCount} thẻ đến hạn ôn tập hôm nay. Hãy ôn ngay!`,
           relatedPostId: null,
           relatedCommentId: null,
           relatedUserId: null,
           isRead: false,
-          createdAt: new Date().toISOString(),
+          createdAt: existingSrsNotification?.createdAt ?? new Date().toISOString(),
         };
-        const current = this.notifications();
-        const withoutSrs = current.filter((n) => n.id !== SRS_NOTIF_ID);
         this.notifications.set([srsNotif, ...withoutSrs]);
-        this.unreadCount.update((c) => c + 1);
+        if (previousDueCount === 0) this.unreadCount.update((count) => count + 1);
+      } else {
+        this.notifications.set(withoutSrs);
+        if (previousDueCount > 0) {
+          this.unreadCount.update((count) => Math.max(0, count - 1));
+        }
       }
     } catch {
       // silently ignore
@@ -82,6 +89,7 @@ export class NotificationBellComponent implements OnInit {
 
   toggle(): void {
     this.isOpen.update((v) => !v);
+    if (this.isOpen()) void this.checkSrsDue();
     if (this.isOpen() && this.notifications().length === 0) {
       this.loadNotifications();
     }
@@ -118,6 +126,7 @@ export class NotificationBellComponent implements OnInit {
   markAsRead(notif: NotificationDto): void {
     if (notif.id === SRS_NOTIF_ID) {
       this.srsDueCount = 0;
+      this.dismissedSrsDueCount = this.latestSrsDueCount;
       this.notifications.update((list) => list.filter((n) => n.id !== SRS_NOTIF_ID));
       this.unreadCount.update((c) => Math.max(0, c - 1));
       this.router.navigate(['/srs']);
@@ -135,6 +144,7 @@ export class NotificationBellComponent implements OnInit {
   markAllAsRead(): void {
     this.notificationService.markAllAsRead().subscribe();
     this.srsDueCount = 0;
+    this.dismissedSrsDueCount = this.latestSrsDueCount;
     this.notifications.update((list) =>
       list.filter((n) => n.id !== SRS_NOTIF_ID).map((n) => ({ ...n, isRead: true }))
     );

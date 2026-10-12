@@ -19,6 +19,7 @@ import { filter } from 'rxjs';
 import { AuthService } from '../../../core/services/auth.service';
 import { UserProfile } from '../../../core/models/auth.model';
 import { supabase } from '../../../core/supabase/supabase.client';
+import { SrsService } from '../../../core/services/srs.service';
 import { LanguageService, AppLanguage } from '../../../core/services/language.service';
 import { NotificationBellComponent } from './notification-bell/notification-bell.component';
 
@@ -44,6 +45,7 @@ export class HeaderComponent implements OnInit {
   readonly router = inject(Router);
   readonly authService = inject(AuthService);
   readonly langService = inject(LanguageService);
+  private readonly srsService = inject(SrsService);
   private readonly destroyRef = inject(DestroyRef);
 
   readonly sidebarCollapsed = input.required<boolean>();
@@ -244,23 +246,11 @@ export class HeaderComponent implements OnInit {
   }
 
   private async loadDueSrsCount(): Promise<void> {
-    const { data: authData, error: authError } = await supabase.auth.getUser();
-    if (authError || !authData.user?.email) return;
-
-    const { data: profile, error: profileError } = await supabase
-      .from('Users')
-      .select('Id')
-      .eq('Email', authData.user.email)
-      .maybeSingle();
-    if (profileError || !profile) return;
-
-    const { count, error: countError } = await supabase
-      .from('SRSCards')
-      .select('Id', { count: 'exact', head: true })
-      .eq('UserId', (profile as { Id: number }).Id)
-      .gt('BoxLevel', 0)
-      .lte('NextReviewDate', new Date().toISOString());
-    if (!countError) this.dueSrsCount.set(count ?? 0);
+    try {
+      this.dueSrsCount.set(await this.srsService.getGlobalDueCardCount());
+    } catch {
+      // Keep the last valid count if the session or SRS query is temporarily unavailable.
+    }
   }
 
   private async performLocalSearch(query: string, requestId: number): Promise<void> {

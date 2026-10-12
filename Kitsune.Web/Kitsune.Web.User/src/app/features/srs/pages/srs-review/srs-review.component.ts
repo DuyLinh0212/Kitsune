@@ -230,6 +230,9 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
         return;
       }
       this.applyGlobalSession(session);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kitsune:srs-due-changed'));
+      }
     } catch (error) {
       console.error(error);
       this.showToast('error', 'Không thể tải SRS chung. Hãy thử lại sau.');
@@ -253,6 +256,9 @@ export class SrsReviewComponent implements OnInit, OnDestroy {
       }
 
       this.applyGlobalSession(session);
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('kitsune:srs-due-changed'));
+      }
     } catch (error) {
       console.error(error);
       const message =
